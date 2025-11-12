@@ -1,4 +1,4 @@
-package src.comum;
+package src.common;
 
 // Representa um evento de venda
 public class Evento {
@@ -6,14 +6,12 @@ public class Evento {
     private int produtoID;      // ID do produto vendido
     private int quantidade;     // Quantidade vendida
     private double preco;       // Preço unitário da venda
-    // private int dia;          //TODO: nao sei se vale a pena ter porque ja vao estar organizados por dias na estrutura de dados (map etc)
 
     // Construtor
     public Evento(int produtoID, int quantidade, double preco, int dia) {
         this.produtoID = produtoID;
         this.quantidade = quantidade;
         this.preco = preco;
-        // this.dia = dia;
     }
 
     // Getters e Setters
@@ -41,21 +39,17 @@ public class Evento {
         this.preco = preco;
     }
 
-    // public int getDia() {
-    //     return dia;
-    // }
-
-    // public void setDia(int dia) {
-    //     this.dia = dia;
-    // }
-
+    public double getVolume() {
+        return quantidade * preco;
+    }
+    
     @Override
     public String toString() {
-        return "Evento{" +
-                "produtoID=" + produtoID +
-                ", quantidade=" + quantidade +
-                ", preco=" + preco +
-                // ", dia=" + dia +
+        return "Evento{"
+                + "produtoID=" + produtoID
+                + ", quantidade=" + quantidade
+                + ", preco=" + preco
+                + // ", dia=" + dia +
                 '}';
     }
 }
