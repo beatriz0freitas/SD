@@ -1,12 +1,9 @@
 package src.client;
 
-import src.common.Mensagem;
-import src.common.Evento;
-
 import java.io.*;
 import java.net.Socket;
-import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
+import src.common.Mensagem;
 
 /**
  * Biblioteca de comunicação com o servidor.
@@ -238,7 +235,7 @@ public class BibliotecaCliente {
      * Envia uma mensagem para o servidor
      */
     private void enviarMensagem(Mensagem msg) throws IOException {
-        msg.serializar(output);
+        msg.escrever(output);
         output.flush();
     }
 
@@ -246,7 +243,7 @@ public class BibliotecaCliente {
      * Recebe uma mensagem do servidor
      */
     private Mensagem receberMensagem() throws IOException {
-        return Mensagem.deserializar(input);
+        return Mensagem.ler(input);
     }
 
     /**
