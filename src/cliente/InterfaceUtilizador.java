@@ -99,7 +99,7 @@ public class InterfaceUtilizador {
         String password = scanner.nextLine();
 
         try {
-            boolean sucesso = bibliotecacliente.registar(nome, password);
+            boolean sucesso = bibliotecaCliente.registar(nome, password);
 
             if (sucesso) {
                 System.out.println("✓ Utilizador registado com sucesso!");
@@ -122,7 +122,7 @@ public class InterfaceUtilizador {
         String password = scanner.nextLine();
 
         try {
-            boolean sucesso = bibliotecacliente.autenticar(nome, password);
+            boolean sucesso = bibliotecaCliente.autenticar(nome, password);
             
             if (sucesso) {
                 this.autenticado = true;
