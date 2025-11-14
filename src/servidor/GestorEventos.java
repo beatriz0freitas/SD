@@ -1,7 +1,6 @@
 package src.servidor;
 
 import java.util.List;
-
 import src.uteis.Evento;
 
 //Regista, processa e dispara eventos do sistema (notificações, ações internas).

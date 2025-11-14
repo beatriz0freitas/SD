@@ -3,26 +3,27 @@ package src.servidor;
 import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
+import java.util.Base64; //Para codificação em Base64 (hash da password)
+import java.util.HashMap; 
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Gere registo e autenticação de utilizadores com persistência
  */
 public class GestorUtilizadores {
-    //todo: porquê ConcurrentHashMap? 
-    private ConcurrentHashMap<String, String> utilizadores; // username -> password hash
-    private PersistenciaUtilizadores persistencia;
+    private Map<String, String> utilizadores; // username -> password hash
+    private PersistenciaUtilizadores persistencia; // Classe de persistência
     
     public GestorUtilizadores() {
-        this.utilizadores = new ConcurrentHashMap<>();
+        this.utilizadores = new HashMap<>();
         this.persistencia = new PersistenciaUtilizadores();
         carregarUtilizadores();
     }
     
+   
+  
     /**
-     * Calcula hash SHA-256 da password
+     * Calcula hash da password (para quem tiver acesso ao ficheiro não ver a password em texto claro)
      */
     //todo: clean up
     private String hashPassword(String password) {
@@ -66,7 +67,7 @@ public class GestorUtilizadores {
             return false;
         }
         
-        String passwordHash = hashPassword(password);
+        String passwordHash = hashPassword(password); // Hash da password para segurança (não guardar em texto claro)
         utilizadores.put(username, passwordHash);
         
         // Persistir imediatamente após registo
@@ -85,13 +86,30 @@ public class GestorUtilizadores {
      * @return true se credenciais válidas, false caso contrário
      */
     public boolean autenticar(String username, String password) {
-        String storedHash = utilizadores.get(username);
-        if (storedHash == null) {
+
+        // Obter password armazenada
+        String storedPassword = utilizadores.get(username); 
+        if (storedPassword == null) {
             return false;
         }
         
+        // Comparar hash da password
         String passwordHash = hashPassword(password);
-        return storedHash.equals(passwordHash);
+        return storedPassword.equals(passwordHash);
+    }
+    
+    /**
+     * Verifica se um utilizador existe
+     */
+    public boolean existeUtilizador(String username) {
+        return utilizadores.containsKey(username);
+    }
+    
+    /**
+     * Obtém número de utilizadores registados
+     */
+    public int getNumUtilizadores() {
+        return utilizadores.size();
     }
     
     /**
@@ -105,5 +123,7 @@ public class GestorUtilizadores {
             System.err.println("Erro ao carregar utilizadores: " + e.getMessage());
             System.err.println("A iniciar com lista vazia de utilizadores.");
         }
-    }   
+    }
+    
+    
 }

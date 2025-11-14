@@ -7,12 +7,14 @@ public class Evento {
     private int quantidade;     // Quantidade vendida
     private double preco;       // Preço unitário da venda
 
-    public Evento(int produtoID, int quantidade, double preco, int dia) {
+    // Construtor
+    private Evento(int produtoID, int quantidade, double preco) {
         this.produtoID = produtoID;
         this.quantidade = quantidade;
         this.preco = preco;
     }
 
+    // Getters e Setters
     public int getProdutoID() {
         return produtoID;
     }
