@@ -12,11 +12,11 @@ rm -rf $BIN_DIR $JAR_SERVIDOR $JAR_CLIENTE
 mkdir -p $BIN_DIR
 
 # Compilar todas as classes
-javac -d $BIN_DIR src/common/*.java src/server/*.java src/client/*.java
+javac -d $BIN_DIR src/uteis/*.java src/servidor/*.java src/cliente/*.java
 
 # Criar manifests apontando para o package completo
-echo "Main-Class: src.server.Servidor" > manifest_server.txt
-echo "Main-Class: src.client.Cliente" > manifest_cliente.txt
+echo "Main-Class: src.servidor.Servidor" > manifest_server.txt
+echo "Main-Class: src.cliente.Cliente" > manifest_cliente.txt
 
 # Criar os JARs
 jar cfm $JAR_SERVIDOR manifest_server.txt -C $BIN_DIR .

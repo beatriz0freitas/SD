@@ -14,7 +14,7 @@ import java.io.*;
  * escrever()      - Mensagem → rede (via DataOutputStream)
  * ler()           - rede → Mensagem (via DataInputStream)
  */
- */
+
 public class Mensagem {
     
     /**
@@ -68,14 +68,6 @@ public class Mensagem {
     
     public byte[] getPayload() {
         return payload;
-    }
-    
-    @Override
-    public String toString() {
-        return "Mensagem{" +
-                "tipo=" + tipoOperacao +
-                ", payloadSize=" + (payload != null ? payload.length : 0) +
-                '}';
     }
 
     public boolean equals (Object obj) {

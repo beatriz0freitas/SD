@@ -5,17 +5,14 @@ package src.uteis;
  * //todo: referir utilidade
  */
 public class RespostaSimples {
-    private boolean sucesso;
+    // private boolean sucesso;
     private String mensagem;
     
     public RespostaSimples(boolean sucesso, String mensagem) {
-        this.sucesso = sucesso;
+        // this.sucesso = sucesso;
         this.mensagem = mensagem;
     }
     
-    public boolean isSucesso() {
-        return sucesso;
-    }
     
     public String getMensagem() {
         return mensagem;

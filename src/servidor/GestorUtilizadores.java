@@ -99,20 +99,6 @@ public class GestorUtilizadores {
     }
     
     /**
-     * Verifica se um utilizador existe
-     */
-    public boolean existeUtilizador(String username) {
-        return utilizadores.containsKey(username);
-    }
-    
-    /**
-     * Obtém número de utilizadores registados
-     */
-    public int getNumUtilizadores() {
-        return utilizadores.size();
-    }
-    
-    /**
      * Carrega utilizadores do disco
      */
     private void carregarUtilizadores() {
