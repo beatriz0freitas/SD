@@ -2,6 +2,7 @@ package src.server;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.concurrent.ExecutorService;
 import src.common.Mensagem;
 
 /**
@@ -15,6 +16,7 @@ public class WorkerCliente implements Runnable {
     private DataOutputStream output;
     private String username; // Username do cliente autenticado (null se não autenticado)
     private boolean ativo;
+    private ExecutorService threadPool;
     
     public WorkerCliente(Socket clienteSocket, GestorUtilizadores gestorUtilizadores) {
         this.clienteSocket = clienteSocket;
