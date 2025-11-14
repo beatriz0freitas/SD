@@ -55,6 +55,7 @@ public class BibliotecaCliente {
 
     /**
      * Regista um novo utilizador
+     * @return true se sucesso, false se erro
      */
     public boolean registar(String username, String password) throws IOException {
         lock.lock();
@@ -63,7 +64,7 @@ public class BibliotecaCliente {
             enviarMensagem(pedido);
 
             Mensagem resposta = receberMensagem();
-            return resposta.isSuccesso();
+            return resposta.isSuccesso(); // Usa o tipo da mensagem
 
         } finally {
             lock.unlock();
@@ -72,6 +73,7 @@ public class BibliotecaCliente {
 
     /**
      * Autentica um utilizador
+     * @return true se sucesso, false se erro
      */
     public boolean autenticar(String username, String password) throws IOException {
         lock.lock();
@@ -80,7 +82,7 @@ public class BibliotecaCliente {
             enviarMensagem(pedido);
 
             Mensagem resposta = receberMensagem();
-            return resposta.isSuccesso();
+            return resposta.isSuccesso(); // Usa o tipo da mensagem
 
         } finally {
             lock.unlock();

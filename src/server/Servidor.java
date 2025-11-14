@@ -12,17 +12,17 @@ import java.util.concurrent.Executors;
 public class Servidor {
     
 
-    private int porta;
-    private ServerSocket serverSocket;
-    private GestorUtilizadores gestorUtilizadores;
-    private ExecutorService threadPool;
-    private boolean ativo;
+    private int porta; // Porta do servidor
+    private ServerSocket serverSocket; // Socket do servidor
+    private GestorUtilizadores gestorUtilizadores; // Gestor de utilizadores
+    private ExecutorService threadPool; // Pool de threads dinamico 
+    private boolean ativo; // Flag de estado do servidor
     
     public Servidor(int porta) {
-        this.porta = porta; // Porta do servidor
-        this.gestorUtilizadores = new GestorUtilizadores(); //Gestor de utilizadores
-        this.threadPool = Executors.newCachedThreadPool(); // Pool de threads dinâmico
-        this.ativo = false; // Flag de estado do servidor
+        this.porta = porta; 
+        this.gestorUtilizadores = new GestorUtilizadores(); // Inicializa gestor de utilizadores
+        this.threadPool = Executors.newCachedThreadPool(); //
+        this.ativo = false;  // Servidor inicialmente inativo
     }
     
     /**

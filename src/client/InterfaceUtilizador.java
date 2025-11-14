@@ -1,5 +1,6 @@
 package src.client;
 
+import java.io.IOException;
 import java.util.Scanner;
 
 //Interface de linha de comando para o utilizador interagir com o bibliotecacliente (menu, comandos, input/output).
@@ -73,18 +74,22 @@ public class InterfaceUtilizador {
     private void registarUtilizador() {
         System.out.print("\nNome de utilizador: ");
         String nome = scanner.nextLine();
-        System.out.print("Palavra-passe: ");
+        System.out.print("Palavra-passe (mínimo 4 caracteres): ");
         String password = scanner.nextLine();
 
         try {
             boolean sucesso = bibliotecacliente.registar(nome, password);
+
             if (sucesso) {
                 System.out.println("✓ Utilizador registado com sucesso!");
             } else {
-                System.out.println("✗ Erro ao registar utilizador (pode já existir)");
+                System.out.println("✗ Erro ao registar utilizador (username já existe ou password inválida)");
             }
+
+        } catch (IOException e) {
+            System.err.println("✗ Erro de comunicação com o servidor: " + e.getMessage());
         } catch (Exception e) {
-            System.err.println("✗ Erro: " + e.getMessage());
+            System.err.println("✗ Ocorreu um erro inesperado: " + e.getMessage());
         }
     }
 
@@ -97,6 +102,7 @@ public class InterfaceUtilizador {
 
         try {
             boolean sucesso = bibliotecacliente.autenticar(nome, password);
+            
             if (sucesso) {
                 this.autenticado = true;
                 this.nomeUtilizador = nome;

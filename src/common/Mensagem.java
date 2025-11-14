@@ -4,28 +4,52 @@ import java.io.*;
 
 /**
  * Representa mensagens trocadas entre cliente e servidor
+ * Cada mensagem tem um tipo de operação e um payload com os dados específicos.
  */
 public class Mensagem {
     
+    /**
+     * Tipos de operações suportadas pelo protocolo.
+     * Cada operação corresponde a uma funcionalidade do enunciado.
+     */
     public enum TipoOperacao {
-        REGISTO,
-        LOGIN,
-        RESPOSTA,
-        REG_EVENTO,
-        AGREGACAO_INFO,
-        FILTRAR,
-        NOTIFICACAO,
-        SUPORTE,
-        DESCONHECIDO
+        // Autenticação (1)
+        REGISTO, // Registo de utilizador
+        LOGIN,   // Autenticação (login)
+        
+        // Registo de eventos (2)
+        REG_EVENTO, // Registo de evento de venda
+        NOVO_DIA, // Indica início de novo dia de vendas
+        
+        // Agregação (3)
+        QUANTIDADE_VENDAS, 
+        VOLUME_VENDAS,  
+        PRECO_MEDIO,
+        PRECO_MAXIMO,
+        
+        // Filtrar (4)
+        FILTRAR_EVENTOS,
+        
+        // Notificações (5)
+        VENDAS_SIMULTANEAS,     // Aguardar venda de 2 produtos específicos
+        VENDAS_CONSECUTIVAS, // Aguardar n vendas consecutivas de um produto
+        
+        // Respostas
+        RESPOSTA_OK, // Resposta de sucesso
+        RESPOSTA_ERRO // Resposta de erro
     }
     
     private TipoOperacao tipoOperacao;
     private byte[] payload;
     
-    public Mensagem(TipoOperacao tipoOperacao, byte[] payload) {
+     /**
+     * Construtor privado - usar factory methods para criar mensagens
+     */
+    private Mensagem(TipoOperacao tipoOperacao, byte[] payload) {
         this.tipoOperacao = tipoOperacao;
         this.payload = payload;
     }
+    
     
     // ========== GETTERS ==========
     
@@ -91,12 +115,28 @@ public class Mensagem {
     }
     
     /**
-     * Cria mensagem de resposta simples
+     * Cria mensagem de resposta de sucesso.
+     * 
+     * @param mensagem Mensagem descritiva do resultado
      */
-    public static Mensagem criarResposta(boolean sucesso, String mensagem) throws IOException {
-        byte[] payload = Protocolo.serializarPayloadResposta(sucesso, mensagem);
-        return new Mensagem(TipoOperacao.RESPOSTA, payload);
+    public static Mensagem criarRespostaOk(String mensagem) throws IOException {
+        byte[] payload = Protocolo.serializarPayloadResposta(mensagem);
+        return new Mensagem(TipoOperacao.RESPOSTA_OK, payload);
     }
+    
+    /** Cria mensagem de resposta de erro.
+     * 
+     * @param mensagem Descrição do erro
+     */
+    public static Mensagem criarRespostaErro(String mensagem) throws IOException {
+        byte[] payload = Protocolo.serializarPayloadResposta(mensagem);
+        return new Mensagem(TipoOperacao.RESPOSTA_ERRO, payload);
+    }
+
+    public static Mensagem criar(TipoOperacao tipo, byte[] payload) {
+        return new Mensagem(tipo, payload); // funciona porque está na própria classe
+    }
+    
     
     // ========== EXTRAÇÃO DE DADOS DO PAYLOAD ==========
     
@@ -121,16 +161,20 @@ public class Mensagem {
         return Protocolo.deserializarPayloadResposta(payload);
     }
     
+
+
+    // ========== MÉTODOS UTEIS ==========
+
     /**
-     * Verifica se a resposta indica sucesso (atalho)
+     * Verifica se a resposta indica sucesso (atalho).
+     * Útil para validação rápida no cliente.
+     * 
+     * @return true se RESPOSTA_OK, false caso contrário
      */
     public boolean isSuccesso() {
-        try {
-            return extrairResposta().isSucesso();
-        } catch (IOException e) {
-            return false;
-        }
+        return TipoOperacao.RESPOSTA_OK.equals(tipoOperacao);
     }
+    
     
     /**
      * Obtém mensagem de erro/sucesso (atalho)
@@ -152,12 +196,40 @@ public class Mensagem {
     }
 }
 
+
+//=================================TIRAR DEPOIS================================//
+
 /**
- * NOMENCLATURA:
+ * ============================================================================
+ * NOMENCLATURA DO PROTOCOLO:
+ * ============================================================================
  * 
- * serializar()    - Mensagem → byte[] (em memória)
- * deserializar()  - byte[] → Mensagem (em memória)
+ * SERIALIZAÇÃO (operações em memória):
+ *   serializar()    - Objeto → byte[]
+ *   deserializar()  - byte[] → Objeto
  * 
- * escrever()      - Mensagem → rede (via DataOutputStream)
- * ler()           - rede → Mensagem (via DataInputStream)
+ * ESCRITA/LEITURA (operações na rede):
+ *   escrever()      - Objeto → DataOutputStream (socket)
+ *   ler()           - DataInputStream (socket) → Objeto
+ * 
+ * ============================================================================
+ * FLUXO TÍPICO:
+ * ============================================================================
+ * 
+ * CLIENTE ENVIA:
+ *   1. Mensagem.criarAutenticar("user", "pass")  // cria objeto
+ *   2. mensagem.escrever(output)                 // envia pela rede
+ * 
+ * SERVIDOR RECEBE:
+ *   1. Mensagem pedido = Mensagem.ler(input)     // recebe da rede
+ *   2. String[] dados = pedido.extrairDadosAutenticacao() // processa
+ * 
+ * SERVIDOR RESPONDE:
+ *   1. Mensagem.criarRespostaOk("Login OK")      // cria resposta
+ *   2. resposta.escrever(output)                 // envia pela rede
+ * 
+ * CLIENTE RECEBE:
+ *   1. Mensagem resposta = Mensagem.ler(input)   // recebe da rede
+ *   2. if (resposta.isSuccesso()) { ... }        // valida
+ * ============================================================================
  */
