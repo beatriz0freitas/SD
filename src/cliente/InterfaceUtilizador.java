@@ -1,4 +1,4 @@
-package src.client;
+package src.cliente;
 
 import java.io.IOException;
 import java.util.Scanner;

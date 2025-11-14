@@ -1,4 +1,4 @@
-package src.common;
+package src.uteis;
 
 // Representa um evento de venda
 public class Evento {
