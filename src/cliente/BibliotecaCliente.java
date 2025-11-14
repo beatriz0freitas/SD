@@ -1,9 +1,9 @@
-package src.client;
+package src.cliente;
 
 import java.io.*;
 import java.net.Socket;
 import java.util.concurrent.locks.ReentrantLock;
-import src.common.Mensagem;
+import src.uteis.Mensagem;
 
 /**
  * Biblioteca de comunicação com o servidor.

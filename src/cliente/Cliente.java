@@ -1,4 +1,4 @@
-package src.client;
+package src.cliente;
 
 /**
  * Classe principal do cliente

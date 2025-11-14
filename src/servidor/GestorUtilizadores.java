@@ -1,4 +1,4 @@
-package src.server;
+package src.servidor;
 
 import java.io.IOException;
 import java.security.MessageDigest;

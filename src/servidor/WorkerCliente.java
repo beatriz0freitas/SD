@@ -1,11 +1,12 @@
-package src.server;
+package src.servidor;
 
 import java.io.*;
 import java.net.Socket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
-import src.common.Mensagem;
+
+import src.uteis.Mensagem;
 
 /**
  * Thread que processa pedidos de um cliente específico
