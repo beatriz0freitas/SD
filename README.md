@@ -8,3 +8,7 @@ Implementação de um serviço de registo de eventos em séries temporais e de a
 - xxxx | xxxx
 
 [DOCS COM NOTAS](https://docs.google.com/document/d/1M32_J4vlkWb8rJwJ5daaxH544i71WUa1bKPcfZu8ftM/edit?usp=sharing) (TIRAR DEPOIS)
+
+./build.sh
+java -jar Servidor.jar
+java -jar Cliente.jar
