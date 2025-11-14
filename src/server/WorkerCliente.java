@@ -3,6 +3,8 @@ package src.server;
 import java.io.*;
 import java.net.Socket;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.locks.ReentrantLock;
 import src.common.Mensagem;
 
 /**
@@ -17,12 +19,14 @@ public class WorkerCliente implements Runnable {
     private String username; // Username do cliente autenticado (null se não autenticado)
     private boolean ativo;
     private ExecutorService threadPool;
+    private final ReentrantLock outputLock = new ReentrantLock();
     
     public WorkerCliente(Socket clienteSocket, GestorUtilizadores gestorUtilizadores) {
         this.clienteSocket = clienteSocket;
         this.gestorUtilizadores = gestorUtilizadores;
         this.username = null;
         this.ativo = true;
+        this.threadPool = Executors.newCachedThreadPool();
     }
     
     @Override
@@ -40,12 +44,22 @@ public class WorkerCliente implements Runnable {
                     // Receber mensagem do cliente
                     Mensagem pedido = Mensagem.ler(input);
                     
-                    // Processar pedido e obter resposta
-                    Mensagem resposta = processarPedido(pedido);
-                    
-                    // Enviar resposta ao cliente
-                    resposta.escrever(output);
-                    output.flush();
+                    // Processar pedido em thread separada (para permitir varios pedidos concorrentes)
+                    threadPool.execute(() -> {
+                        try {
+                            Mensagem resposta = processarPedido(pedido);
+    
+                            outputLock.lock(); // Garantir exclusão mútua na escrita (já que pode haver várias threads a tentar escrever)
+                            try {
+                                resposta.escrever(output);
+                                output.flush();
+                            } finally {
+                                outputLock.unlock();
+                            }
+                        } catch (IOException e) {
+                            System.err.println("Erro ao enviar resposta: " + e.getMessage());
+                        }
+                    });
                     
                 } catch (EOFException e) {
                     // Cliente fechou conexão

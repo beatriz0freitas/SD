@@ -3,19 +3,19 @@ package src.server;
 import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
+import java.util.Base64; //Para codificação em Base64 (hash da password)
+import java.util.HashMap; 
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Gere registo e autenticação de utilizadores com persistência
  */
 public class GestorUtilizadores {
-    private ConcurrentHashMap<String, String> utilizadores; // username -> password hash
-    private PersistenciaUtilizadores persistencia;
+    private Map<String, String> utilizadores; // username -> password hash
+    private PersistenciaUtilizadores persistencia; // Classe de persistência
     
     public GestorUtilizadores() {
-        this.utilizadores = new ConcurrentHashMap<>();
+        this.utilizadores = new HashMap<>();
         this.persistencia = new PersistenciaUtilizadores();
         carregarUtilizadores();
     }
@@ -24,12 +24,12 @@ public class GestorUtilizadores {
      * Regista um novo utilizador
      * @return true se registado com sucesso, false se já existe
      */
-    public synchronized boolean registar(String username, String password) {
+    public boolean registar(String username, String password) {
         if (utilizadores.containsKey(username)) {
             return false;
         }
         
-        String passwordHash = hashPassword(password);
+        String passwordHash = hashPassword(password); // Hash da password para segurança (não guardar em texto claro)
         utilizadores.put(username, passwordHash);
         
         // Persistir imediatamente após registo
@@ -48,13 +48,16 @@ public class GestorUtilizadores {
      * @return true se credenciais válidas, false caso contrário
      */
     public boolean autenticar(String username, String password) {
-        String storedHash = utilizadores.get(username);
-        if (storedHash == null) {
+
+        // Obter password armazenada
+        String storedPassword = utilizadores.get(username); 
+        if (storedPassword == null) {
             return false;
         }
         
+        // Comparar hash da password
         String passwordHash = hashPassword(password);
-        return storedHash.equals(passwordHash);
+        return storedPassword.equals(passwordHash);
     }
     
     /**
@@ -85,7 +88,7 @@ public class GestorUtilizadores {
     }
     
     /**
-     * Calcula hash SHA-256 da password
+     * Calcula hash da password (para quem tiver acesso ao ficheiro não ver a password em texto claro)
      */
     private String hashPassword(String password) {
         try {
