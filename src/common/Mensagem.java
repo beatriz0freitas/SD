@@ -165,19 +165,16 @@ public class Mensagem {
 
     // ========== MÉTODOS UTEIS ==========
 
-    // /**
-    //  * Verifica se a resposta indica sucesso (atalho).
-    //  * Útil para validação rápida no cliente.
-    //  * 
-    //  * @return true se RESPOSTA_OK, false caso contrário
-    //  */
-    // public boolean isSuccesso() {
-    //     try {
-    //         return tipoOperacao == TipoOperacao.RESPOSTA_OK ;
-    //     } catch (IOException e) {
-    //         return false;
-    //     }
-    // }
+    /**
+     * Verifica se a resposta indica sucesso (atalho).
+     * Útil para validação rápida no cliente.
+     * 
+     * @return true se RESPOSTA_OK, false caso contrário
+     */
+    public boolean isSuccesso() {
+        return TipoOperacao.RESPOSTA_OK.equals(tipoOperacao);
+    }
+    
     
     /**
      * Obtém mensagem de erro/sucesso (atalho)
