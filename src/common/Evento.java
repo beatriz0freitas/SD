@@ -8,7 +8,7 @@ public class Evento {
     private double preco;       // Preço unitário da venda
 
     // Construtor
-    public Evento(int produtoID, int quantidade, double preco, int dia) {
+    private Evento(int produtoID, int quantidade, double preco) {
         this.produtoID = produtoID;
         this.quantidade = quantidade;
         this.preco = preco;
