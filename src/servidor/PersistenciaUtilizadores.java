@@ -19,6 +19,22 @@ public class PersistenciaUtilizadores {
     }
     
     /**
+     * Verifica se o ficheiro de utilizadores existe
+     */
+    public boolean existeFicheiro() {
+        return new File(FICHEIRO_USERS).exists();
+    }
+    
+    /**
+     * Remove o ficheiro de utilizadores (útil para testes)
+     */
+    public void limpar() {
+        if (existeFicheiro()) {
+            new File(FICHEIRO_USERS).delete();
+        }
+    }
+    
+    /**
      * Carrega utilizadores do disco
      * @return Map com username -> password hash
      */
@@ -65,7 +81,6 @@ public class PersistenciaUtilizadores {
                 out.writeUTF(entry.getKey());
                 out.writeUTF(entry.getValue());
             }
-            
             out.flush();
         }
         
@@ -75,26 +90,9 @@ public class PersistenciaUtilizadores {
                 throw new IOException("Não foi possível remover ficheiro antigo");
             }
         }
-        
         if (!ficheiroTemp.renameTo(ficheiro)) {
             throw new IOException("Não foi possível renomear ficheiro temporário");
         }
     }
     
-    /**
-     * Verifica se o ficheiro de utilizadores existe
-     */
-    public boolean existeFicheiro() {
-        return new File(FICHEIRO_USERS).exists();
-    }
-    
-    /**
-     * Remove o ficheiro de utilizadores (útil para testes)
-     */
-    public void limpar() {
-        File ficheiro = new File(FICHEIRO_USERS);
-        if (ficheiro.exists()) {
-            ficheiro.delete();
-        }
-    }
 }

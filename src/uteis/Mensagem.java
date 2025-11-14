@@ -5,6 +5,15 @@ import java.io.*;
 /**
  * Representa mensagens trocadas entre cliente e servidor
  * Cada mensagem tem um tipo de operação e um payload com os dados específicos.
+ * 
+ * NOMENCLATURA:
+ * 
+ * serializar()    - Mensagem → byte[] (em memória)
+ * deserializar()  - byte[] → Mensagem (em memória)
+ * 
+ * escrever()      - Mensagem → rede (via DataOutputStream)
+ * ler()           - rede → Mensagem (via DataInputStream)
+ */
  */
 public class Mensagem {
     
@@ -61,6 +70,28 @@ public class Mensagem {
         return payload;
     }
     
+    @Override
+    public String toString() {
+        return "Mensagem{" +
+                "tipo=" + tipoOperacao +
+                ", payloadSize=" + (payload != null ? payload.length : 0) +
+                '}';
+    }
+
+    public boolean equals (Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        Mensagem mensagem = (Mensagem) obj;
+        if (tipoOperacao != mensagem.tipoOperacao) return false;
+        if (payload == null && mensagem.payload == null) return true;
+        if (payload == null || mensagem.payload == null) return false;
+        if (payload.length != mensagem.payload.length) return false;
+        for (int i = 0; i < payload.length; i++) {
+            if (payload[i] != mensagem.payload[i]) return false;
+        }
+        return true;
+    }
+
     // ========== SERIALIZAÇÃO (objeto ↔ bytes em memória) ==========
     
     /**
@@ -80,6 +111,8 @@ public class Mensagem {
         return Protocolo.deserializarMensagem(bytes);
     }
     
+
+
     // ========== ESCRITA/LEITURA NA REDE (bytes → stream) ==========
     
     /**
@@ -96,6 +129,8 @@ public class Mensagem {
         return Protocolo.lerMensagem(in);
     }
     
+
+
     // ========== FACTORY METHODS - CRIAÇÃO DE MENSAGENS ==========
     
     /**

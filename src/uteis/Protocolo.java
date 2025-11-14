@@ -4,11 +4,21 @@ import java.io.*;
 
 /**
  * Protocolo de comunicação cliente-servidor
+ * Separa claramente serialização (objeto→bytes) de escrita/leitura (bytes→rede)
  * 
- * - Serialização/deserialização de dados (objeto <-> bytes em memória)
- * - Escrita/leitura na rede (bytes <-> stream TCP)
- * - Formato binário usando apenas DataInputStream/DataOutputStream 
+ * RESUMO DA NOMENCLATURA CORRETA:
  * 
+ * SERIALIZAÇÃO (em memória):
+ * - serializarString()   : String → byte[]
+ * - deserializarString() : byte[] → String
+ * - serializarMensagem() : Mensagem → byte[]
+ * - deserializarMensagem() : byte[] → Mensagem
+ * 
+ * ESCRITA/LEITURA (na rede):
+ * - escreverString()  : String → DataOutputStream (rede)
+ * - lerString()       : DataInputStream (rede) → String
+ * - escreverMensagem() : Mensagem → DataOutputStream (rede)
+ * - lerMensagem()     : DataInputStream (rede) → Mensagem
  */
 public class Protocolo {
 
@@ -74,6 +84,7 @@ public class Protocolo {
         dos.flush();
         return baos.toByteArray();
     }
+    
     /**
      * Deserializa uma mensagem de array de bytes
      * Este método RECONSTRÓI o objeto Mensagem a partir de bytes
@@ -146,6 +157,7 @@ public class Protocolo {
     }
     
     // ========== SERIALIZAÇÃO DE PAYLOADS ESPECÍFICOS ==========
+    //todo: nao conseguimos melhorar isto??
     
     /**
      * Serializa payload de autenticação (username + password)

@@ -52,4 +52,14 @@ public class Evento {
                 + // ", dia=" + dia +
                 '}';
     }
+
+    public boolean equals (Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Evento evento = (Evento) o;
+        return produtoID == evento.produtoID &&
+               quantidade == evento.quantidade &&
+               Double.compare(evento.preco, preco) == 0;
+    }
 }

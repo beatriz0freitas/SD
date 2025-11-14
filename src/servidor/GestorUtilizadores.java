@@ -20,11 +20,49 @@ public class GestorUtilizadores {
         carregarUtilizadores();
     }
     
+   
+  
+    /**
+     * Calcula hash da password (para quem tiver acesso ao ficheiro não ver a password em texto claro)
+     */
+    //todo: clean up
+    private String hashPassword(String password) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(password.getBytes());
+            return Base64.getEncoder().encodeToString(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Erro ao criar hash da password", e);
+        }
+    }
+
+    /**
+     * Verifica se um utilizador existe
+     */
+    public boolean existeUtilizador(String username) {
+        return utilizadores.containsKey(username);
+    }
+    
+    public Map<String, String> getUtilizadores() {
+        return utilizadores;
+    }
+
+    public PersistenciaUtilizadores getPersistencia() {
+        return persistencia;
+    }
+
+    /**
+     * Obtém número de utilizadores registados
+     */
+    public int getNumUtilizadores() {
+        return utilizadores.size();
+    }
+
     /**
      * Regista um novo utilizador
      * @return true se registado com sucesso, false se já existe
      */
-    public boolean registar(String username, String password) {
+    public synchronized boolean registar(String username, String password) {
         if (utilizadores.containsKey(username)) {
             return false;
         }
@@ -87,16 +125,5 @@ public class GestorUtilizadores {
         }
     }
     
-    /**
-     * Calcula hash da password (para quem tiver acesso ao ficheiro não ver a password em texto claro)
-     */
-    private String hashPassword(String password) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] hash = md.digest(password.getBytes());
-            return Base64.getEncoder().encodeToString(hash);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("Erro ao criar hash da password", e);
-        }
-    }
+    
 }
