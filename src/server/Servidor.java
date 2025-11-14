@@ -11,6 +11,7 @@ import java.util.concurrent.Executors;
  */
 public class Servidor {
     
+
     private int porta;
     private ServerSocket serverSocket;
     private GestorUtilizadores gestorUtilizadores;
@@ -18,10 +19,10 @@ public class Servidor {
     private boolean ativo;
     
     public Servidor(int porta) {
-        this.porta = porta;
-        this.gestorUtilizadores = new GestorUtilizadores();
+        this.porta = porta; // Porta do servidor
+        this.gestorUtilizadores = new GestorUtilizadores(); //Gestor de utilizadores
         this.threadPool = Executors.newCachedThreadPool(); // Pool de threads dinâmico
-        this.ativo = false;
+        this.ativo = false; // Flag de estado do servidor
     }
     
     /**
@@ -29,7 +30,7 @@ public class Servidor {
      */
     public void iniciar() {
         try {
-            serverSocket = new ServerSocket(porta);
+            serverSocket = new ServerSocket(porta); // Cria o ServerSocket na porta 
             ativo = true;
             
             System.out.println("====================================");
@@ -39,13 +40,13 @@ public class Servidor {
             System.out.println("Utilizadores registados: " + gestorUtilizadores.getNumUtilizadores());
             System.out.println("Aguardando conexões...\n");
             
-            // Loop de aceitação de clientes
+            // Loop principal 
             while (ativo) {
                 try {
                     // Aceitar nova conexão
                     Socket clienteSocket = serverSocket.accept();
                     
-                    // Criar e submeter worker ao thread pool
+                    // Criar e submeter worker ao thread pool (cria uma nova thread se necessário e reutiliza threads)
                     WorkerCliente worker = new WorkerCliente(clienteSocket, gestorUtilizadores);
                     threadPool.execute(worker);
                     
@@ -64,13 +65,14 @@ public class Servidor {
     }
     
     /**
-     * Para o servidor de forma controlada
+     * Desliga o servidor
      */
     public void shutdown() {
         System.out.println("\nA encerrar servidor...");
         ativo = false;
-        
+
         try {
+            // Fechar ServerSocket
             if (serverSocket != null && !serverSocket.isClosed()) {
                 serverSocket.close();
             }
@@ -107,7 +109,7 @@ public class Servidor {
         
         Servidor servidor = new Servidor(porta);
         
-        // Adicionar shutdown hook para encerramento gracioso
+        // Adiciona um shutdown hook (quando o programa fechar corre automaticamente servidor.shutdown())
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             servidor.shutdown();
         }));
