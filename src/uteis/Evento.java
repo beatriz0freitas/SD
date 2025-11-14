@@ -1,4 +1,4 @@
-package src.common;
+package src.uteis;
 
 // Representa um evento de venda
 public class Evento {
@@ -7,14 +7,12 @@ public class Evento {
     private int quantidade;     // Quantidade vendida
     private double preco;       // Preço unitário da venda
 
-    // Construtor
     public Evento(int produtoID, int quantidade, double preco, int dia) {
         this.produtoID = produtoID;
         this.quantidade = quantidade;
         this.preco = preco;
     }
 
-    // Getters e Setters
     public int getProdutoID() {
         return produtoID;
     }
@@ -51,5 +49,15 @@ public class Evento {
                 + ", preco=" + preco
                 + // ", dia=" + dia +
                 '}';
+    }
+
+    public boolean equals (Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Evento evento = (Evento) o;
+        return produtoID == evento.produtoID &&
+               quantidade == evento.quantidade &&
+               Double.compare(evento.preco, preco) == 0;
     }
 }

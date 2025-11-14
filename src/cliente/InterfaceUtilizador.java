@@ -1,25 +1,46 @@
-package src.client;
+package src.cliente;
 
 import java.util.Scanner;
 
-//Interface de linha de comando para o utilizador interagir com o bibliotecacliente (menu, comandos, input/output).
+/*
+* Interface de utilizador para o cliente da aplicação de gestão de vendas. 
+* Interface de linha de comando para o utilizador interagir com o bibliotecaCliente (menu, comandos, input/output).
+*/
 public class InterfaceUtilizador {
-    private BibliotecaCliente bibliotecacliente;
+    private BibliotecaCliente bibliotecaCliente;
     private Scanner scanner;
     private boolean autenticado;
     private String nomeUtilizador;
 
     public InterfaceUtilizador(String host, int porta) {
-        this.bibliotecacliente = new BibliotecaCliente(host, porta);
+        this.bibliotecaCliente = new BibliotecaCliente(host, porta);
         this.scanner = new Scanner(System.in);
         this.autenticado = false;
     }
 
+    public BibliotecaCliente getBibliotecaCliente() {
+        return bibliotecaCliente;
+    }
 
+    public String getNomeUtilizador() {
+        return nomeUtilizador;
+    }
+
+    public boolean isAutenticado() {
+        return autenticado;
+    }
+
+    public void setNomeUtilizador(String nomeUtilizador) {
+        this.nomeUtilizador = nomeUtilizador;
+    }
+
+    //TODO: implementar refresh no terminal, fica estranho o historico todo
     public void iniciar() {
         try {
-            bibliotecacliente.conectar();
-            System.out.println("=== Sistema de Gestão de Vendas ===");
+            bibliotecaCliente.conectar();
+            System.out.println("========================================");
+            System.out.println("  SERVIÇO DE GESTÃO DE VENDAS - cliente ");
+            System.out.println("========================================");
             System.out.println("Conectado ao servidor!\n");
 
             // Menu de autenticação
@@ -39,14 +60,14 @@ public class InterfaceUtilizador {
         } catch (Exception e) {
             System.err.println("Erro: " + e.getMessage());
         } finally {
-            bibliotecacliente.desconectar();
+            bibliotecaCliente.desconectar();
             scanner.close();
         }
     }
 
     private void mostrarMenuAutenticacao() {
-        System.out.println("\n--- Menu de Autenticação ---");
-        System.out.println("1. Registar novo utilizador");
+        System.out.println("\n------ MENU DE AUTENTICAÇÃO ------");
+        System.out.println("1. Registar novo utilizador (SignUp)");
         System.out.println("2. Autenticar (Login)");
         System.out.println("0. Sair");
         System.out.print("Escolha uma opção: ");
@@ -69,7 +90,6 @@ public class InterfaceUtilizador {
         }
     }
 
-
     private void registarUtilizador() {
         System.out.print("\nNome de utilizador: ");
         String nome = scanner.nextLine();
@@ -77,17 +97,16 @@ public class InterfaceUtilizador {
         String password = scanner.nextLine();
 
         try {
-            boolean sucesso = bibliotecacliente.registar(nome, password);
+            boolean sucesso = bibliotecaCliente.registar(nome, password);
             if (sucesso) {
-                System.out.println("✓ Utilizador registado com sucesso!");
+                System.out.println("Utilizador registado com sucesso!");
             } else {
-                System.out.println("✗ Erro ao registar utilizador (pode já existir)");
+                System.out.println("Erro ao registar utilizador (pode já existir)");
             }
         } catch (Exception e) {
             System.err.println("✗ Erro: " + e.getMessage());
         }
     }
-
 
     private void autenticarUtilizador() {
         System.out.print("\nNome de utilizador: ");
@@ -96,13 +115,13 @@ public class InterfaceUtilizador {
         String password = scanner.nextLine();
 
         try {
-            boolean sucesso = bibliotecacliente.autenticar(nome, password);
+            boolean sucesso = bibliotecaCliente.autenticar(nome, password);
             if (sucesso) {
                 this.autenticado = true;
                 this.nomeUtilizador = nome;
-                System.out.println("✓ Autenticação bem-sucedida! Bem-vindo, " + nome + "!");
+                System.out.println("Autenticação bem-sucedida! Bem-vindo, " + nome + "!");
             } else {
-                System.out.println("✗ Credenciais inválidas");
+                System.out.println("Credenciais inválidas");
             }
         } catch (Exception e) {
             System.err.println("✗ Erro: " + e.getMessage());
@@ -111,7 +130,7 @@ public class InterfaceUtilizador {
 
 
     private void mostrarMenuPrincipal() {
-        System.out.println("\n=== Menu Principal [" + nomeUtilizador + "] ===");
+        System.out.println("\n=== MENU PRINCIPAL [" + nomeUtilizador + "] ===");
         System.out.println("1. Registar evento de venda");
         System.out.println("2. Consultar agregações");
         System.out.println("3. Filtrar eventos por produtos");
@@ -279,8 +298,7 @@ public class InterfaceUtilizador {
     private void logout() {
         System.out.println("\nA terminar sessão...");
         autenticado = false;
-        bibliotecacliente.desconectar();
-        System.out.println("Até breve!");
+        bibliotecaCliente.desconectar();
         System.exit(0);
     }
 

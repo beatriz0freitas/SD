@@ -1,4 +1,4 @@
-package src.server;
+package src.servidor;
 
 import java.io.IOException;
 import java.security.MessageDigest;
@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Gere registo e autenticação de utilizadores com persistência
  */
 public class GestorUtilizadores {
+    //todo: porquê ConcurrentHashMap? 
     private ConcurrentHashMap<String, String> utilizadores; // username -> password hash
     private PersistenciaUtilizadores persistencia;
     
@@ -20,6 +21,42 @@ public class GestorUtilizadores {
         carregarUtilizadores();
     }
     
+    /**
+     * Calcula hash SHA-256 da password
+     */
+    //todo: clean up
+    private String hashPassword(String password) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(password.getBytes());
+            return Base64.getEncoder().encodeToString(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Erro ao criar hash da password", e);
+        }
+    }
+
+    /**
+     * Verifica se um utilizador existe
+     */
+    public boolean existeUtilizador(String username) {
+        return utilizadores.containsKey(username);
+    }
+    
+    public Map<String, String> getUtilizadores() {
+        return utilizadores;
+    }
+
+    public PersistenciaUtilizadores getPersistencia() {
+        return persistencia;
+    }
+
+    /**
+     * Obtém número de utilizadores registados
+     */
+    public int getNumUtilizadores() {
+        return utilizadores.size();
+    }
+
     /**
      * Regista um novo utilizador
      * @return true se registado com sucesso, false se já existe
@@ -58,20 +95,6 @@ public class GestorUtilizadores {
     }
     
     /**
-     * Verifica se um utilizador existe
-     */
-    public boolean existeUtilizador(String username) {
-        return utilizadores.containsKey(username);
-    }
-    
-    /**
-     * Obtém número de utilizadores registados
-     */
-    public int getNumUtilizadores() {
-        return utilizadores.size();
-    }
-    
-    /**
      * Carrega utilizadores do disco
      */
     private void carregarUtilizadores() {
@@ -82,18 +105,5 @@ public class GestorUtilizadores {
             System.err.println("Erro ao carregar utilizadores: " + e.getMessage());
             System.err.println("A iniciar com lista vazia de utilizadores.");
         }
-    }
-    
-    /**
-     * Calcula hash SHA-256 da password
-     */
-    private String hashPassword(String password) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] hash = md.digest(password.getBytes());
-            return Base64.getEncoder().encodeToString(hash);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("Erro ao criar hash da password", e);
-        }
-    }
+    }   
 }

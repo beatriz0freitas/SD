@@ -1,7 +1,8 @@
-package src.server;
+package src.servidor;
 
 import java.util.List;
-import src.common.Evento;
+
+import src.uteis.Evento;
 
 //Regista, processa e dispara eventos do sistema (notificações, ações internas).
 public class GestorEventos {

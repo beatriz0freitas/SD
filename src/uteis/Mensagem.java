@@ -1,10 +1,19 @@
-package src.common;
+package src.uteis;
 
 import java.io.*;
 
 /**
  * Representa mensagens trocadas entre cliente e servidor
+ * 
+ * NOMENCLATURA:
+ * 
+ * serializar()    - Mensagem → byte[] (em memória)
+ * deserializar()  - byte[] → Mensagem (em memória)
+ * 
+ * escrever()      - Mensagem → rede (via DataOutputStream)
+ * ler()           - rede → Mensagem (via DataInputStream)
  */
+
 public class Mensagem {
     
     public enum TipoOperacao {
@@ -26,9 +35,7 @@ public class Mensagem {
         this.tipoOperacao = tipoOperacao;
         this.payload = payload;
     }
-    
-    // ========== GETTERS ==========
-    
+        
     public TipoOperacao getTipoOperacao() {
         return tipoOperacao;
     }
@@ -37,6 +44,28 @@ public class Mensagem {
         return payload;
     }
     
+    @Override
+    public String toString() {
+        return "Mensagem{" +
+                "tipo=" + tipoOperacao +
+                ", payloadSize=" + (payload != null ? payload.length : 0) +
+                '}';
+    }
+
+    public boolean equals (Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        Mensagem mensagem = (Mensagem) obj;
+        if (tipoOperacao != mensagem.tipoOperacao) return false;
+        if (payload == null && mensagem.payload == null) return true;
+        if (payload == null || mensagem.payload == null) return false;
+        if (payload.length != mensagem.payload.length) return false;
+        for (int i = 0; i < payload.length; i++) {
+            if (payload[i] != mensagem.payload[i]) return false;
+        }
+        return true;
+    }
+
     // ========== SERIALIZAÇÃO (objeto ↔ bytes em memória) ==========
     
     /**
@@ -56,6 +85,8 @@ public class Mensagem {
         return Protocolo.deserializarMensagem(bytes);
     }
     
+
+
     // ========== ESCRITA/LEITURA NA REDE (bytes → stream) ==========
     
     /**
@@ -72,6 +103,8 @@ public class Mensagem {
         return Protocolo.lerMensagem(in);
     }
     
+
+
     // ========== FACTORY METHODS - CRIAÇÃO DE MENSAGENS ==========
     
     /**
@@ -98,6 +131,8 @@ public class Mensagem {
         return new Mensagem(TipoOperacao.RESPOSTA, payload);
     }
     
+
+
     // ========== EXTRAÇÃO DE DADOS DO PAYLOAD ==========
     
     /**
@@ -114,7 +149,7 @@ public class Mensagem {
     /**
      * Extrai resposta do servidor do payload
      */
-    public Protocolo.RespostaSimples extrairResposta() throws IOException {
+    public RespostaSimples extrairResposta() throws IOException {
         if (payload == null) {
             throw new IOException("Payload vazio");
         }
@@ -143,21 +178,6 @@ public class Mensagem {
         }
     }
     
-    @Override
-    public String toString() {
-        return "Mensagem{" +
-                "tipo=" + tipoOperacao +
-                ", payloadSize=" + (payload != null ? payload.length : 0) +
-                '}';
-    }
+
 }
 
-/**
- * NOMENCLATURA:
- * 
- * serializar()    - Mensagem → byte[] (em memória)
- * deserializar()  - byte[] → Mensagem (em memória)
- * 
- * escrever()      - Mensagem → rede (via DataOutputStream)
- * ler()           - rede → Mensagem (via DataInputStream)
- */

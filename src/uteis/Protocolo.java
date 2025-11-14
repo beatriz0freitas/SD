@@ -1,10 +1,24 @@
-package src.common;
+package src.uteis;
 
 import java.io.*;
 
 /**
  * Protocolo de comunicação cliente-servidor
  * Separa claramente serialização (objeto→bytes) de escrita/leitura (bytes→rede)
+ * 
+ * RESUMO DA NOMENCLATURA CORRETA:
+ * 
+ * SERIALIZAÇÃO (em memória):
+ * - serializarString()   : String → byte[]
+ * - deserializarString() : byte[] → String
+ * - serializarMensagem() : Mensagem → byte[]
+ * - deserializarMensagem() : byte[] → Mensagem
+ * 
+ * ESCRITA/LEITURA (na rede):
+ * - escreverString()  : String → DataOutputStream (rede)
+ * - lerString()       : DataInputStream (rede) → String
+ * - escreverMensagem() : Mensagem → DataOutputStream (rede)
+ * - lerMensagem()     : DataInputStream (rede) → Mensagem
  */
 public class Protocolo {
     
@@ -157,6 +171,7 @@ public class Protocolo {
     }
     
     // ========== SERIALIZAÇÃO DE PAYLOADS ESPECÍFICOS ==========
+    //todo: nao conseguimos melhorar isto??
     
     /**
      * Serializa payload de autenticação (username + password)
@@ -212,40 +227,6 @@ public class Protocolo {
         
         return new RespostaSimples(sucesso, mensagem);
     }
-    
-    // ========== CLASSE AUXILIAR ==========
-    
-    public static class RespostaSimples {
-        private boolean sucesso;
-        private String mensagem;
-        
-        public RespostaSimples(boolean sucesso, String mensagem) {
-            this.sucesso = sucesso;
-            this.mensagem = mensagem;
-        }
-        
-        public boolean isSucesso() {
-            return sucesso;
-        }
-        
-        public String getMensagem() {
-            return mensagem;
-        }
-    }
+
 }
 
-/**
- * RESUMO DA NOMENCLATURA CORRETA:
- * 
- * SERIALIZAÇÃO (em memória):
- * - serializarString()   : String → byte[]
- * - deserializarString() : byte[] → String
- * - serializarMensagem() : Mensagem → byte[]
- * - deserializarMensagem() : byte[] → Mensagem
- * 
- * ESCRITA/LEITURA (na rede):
- * - escreverString()  : String → DataOutputStream (rede)
- * - lerString()       : DataInputStream (rede) → String
- * - escreverMensagem() : Mensagem → DataOutputStream (rede)
- * - lerMensagem()     : DataInputStream (rede) → Mensagem
- */

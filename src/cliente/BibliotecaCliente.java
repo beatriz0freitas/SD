@@ -1,9 +1,10 @@
-package src.client;
+package src.cliente;
 
 import java.io.*;
 import java.net.Socket;
 import java.util.concurrent.locks.ReentrantLock;
-import src.common.Mensagem;
+
+import src.uteis.Mensagem;
 
 /**
  * Biblioteca de comunicação com o servidor.
@@ -15,14 +16,39 @@ public class BibliotecaCliente {
     private Socket socket;
     private DataInputStream input;
     private DataOutputStream output;
-    private ReentrantLock lock; // Para sincronizar envio/recepção
+    private ReentrantLock lock;                           // Para sincronizar envio/recepção
     private boolean conectado;
 
     public BibliotecaCliente(String host, int porta) {
         this.host = host;
         this.porta = porta;
-        this.lock = new ReentrantLock(true); // Lock justo (FIFO)
+        this.lock = new ReentrantLock(true);        // Lock justo (FIFO)
         this.conectado = false;
+    }
+
+    /**
+     * Envia uma mensagem para o servidor
+     */
+    private void enviarMensagem(Mensagem msg) throws IOException {
+        msg.escrever(output);
+        output.flush();
+    }
+
+    /**
+     * Recebe uma mensagem do servidor
+     */
+    private Mensagem receberMensagem() throws IOException {
+        return Mensagem.ler(input);
+    }
+
+    /**
+     * Verifica se está conectado
+     */
+    public boolean isConectado() {
+        return conectado && 
+               socket != null && 
+               socket.isConnected() && 
+               !socket.isClosed();
     }
 
     /**
@@ -32,7 +58,6 @@ public class BibliotecaCliente {
         if (conectado) {
             return;
         }
-
         socket = new Socket(host, porta);
         input = new DataInputStream(socket.getInputStream());
         output = new DataOutputStream(socket.getOutputStream());
@@ -231,25 +256,4 @@ public class BibliotecaCliente {
     //     }
     // }
 
-    /**
-     * Envia uma mensagem para o servidor
-     */
-    private void enviarMensagem(Mensagem msg) throws IOException {
-        msg.escrever(output);
-        output.flush();
-    }
-
-    /**
-     * Recebe uma mensagem do servidor
-     */
-    private Mensagem receberMensagem() throws IOException {
-        return Mensagem.ler(input);
-    }
-
-    /**
-     * Verifica se está conectado
-     */
-    public boolean isConectado() {
-        return conectado && socket != null && socket.isConnected() && !socket.isClosed();
-    }
 }

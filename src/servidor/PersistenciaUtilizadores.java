@@ -1,4 +1,4 @@
-package src.server;
+package src.servidor;
 
 import java.io.*;
 import java.util.HashMap;
@@ -19,69 +19,6 @@ public class PersistenciaUtilizadores {
     }
     
     /**
-     * Carrega utilizadores do disco
-     * @return Map com username -> password hash
-     */
-    public Map<String, String> carregarUtilizadores() throws IOException {
-        Map<String, String> utilizadores = new HashMap<>();
-        File ficheiro = new File(FICHEIRO_USERS);
-        
-        if (!ficheiro.exists()) {
-            return utilizadores; // Primeira execução, sem utilizadores
-        }
-        
-        try (DataInputStream in = new DataInputStream(
-                new BufferedInputStream(new FileInputStream(ficheiro)))) {
-            
-            int numUsers = in.readInt();
-            
-            for (int i = 0; i < numUsers; i++) {
-                String username = in.readUTF();
-                String passwordHash = in.readUTF();
-                utilizadores.put(username, passwordHash);
-            }
-            
-            System.out.println("Carregados " + numUsers + " utilizadores do disco.");
-        }
-        
-        return utilizadores;
-    }
-    
-    /**
-     * Guarda utilizadores em disco
-     * @param utilizadores Map com username -> password hash
-     */
-    public void guardarUtilizadores(Map<String, String> utilizadores) throws IOException {
-        File ficheiro = new File(FICHEIRO_USERS);
-        File ficheiroTemp = new File(FICHEIRO_USERS + ".tmp");
-        
-        // Guardar em ficheiro temporário primeiro
-        try (DataOutputStream out = new DataOutputStream(
-                new BufferedOutputStream(new FileOutputStream(ficheiroTemp)))) {
-            
-            out.writeInt(utilizadores.size());
-            
-            for (Map.Entry<String, String> entry : utilizadores.entrySet()) {
-                out.writeUTF(entry.getKey());
-                out.writeUTF(entry.getValue());
-            }
-            
-            out.flush();
-        }
-        
-        // Substituir ficheiro original pelo temporário (operação atómica)
-        if (ficheiro.exists()) {
-            if (!ficheiro.delete()) {
-                throw new IOException("Não foi possível remover ficheiro antigo");
-            }
-        }
-        
-        if (!ficheiroTemp.renameTo(ficheiro)) {
-            throw new IOException("Não foi possível renomear ficheiro temporário");
-        }
-    }
-    
-    /**
      * Verifica se o ficheiro de utilizadores existe
      */
     public boolean existeFicheiro() {
@@ -92,9 +29,64 @@ public class PersistenciaUtilizadores {
      * Remove o ficheiro de utilizadores (útil para testes)
      */
     public void limpar() {
-        File ficheiro = new File(FICHEIRO_USERS);
-        if (ficheiro.exists()) {
-            ficheiro.delete();
+        if (existeFicheiro()) {
+            new File(FICHEIRO_USERS).delete();
         }
     }
+    
+    /**
+     * Carrega utilizadores do disco
+     * @return Map com username -> password hash
+     */
+    public Map<String, String> carregarUtilizadores() throws IOException {
+        Map<String, String> utilizadores = new HashMap<>();
+        if (!existeFicheiro()) {
+            return utilizadores; // Primeira execução, sem utilizadores
+        }
+
+        DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(new File(FICHEIRO_USERS))));
+
+        try (in) {
+            int numUsers = in.readInt();
+            for (int i = 0; i < numUsers; i++) {
+                String usernameCliente = in.readUTF();
+                String passwordHash = in.readUTF();
+                utilizadores.put(usernameCliente, passwordHash);
+            }
+            System.out.println("Carregados " + numUsers + " utilizadores do disco.");
+        }
+        return utilizadores;
+    }
+    
+    /**
+     * Guarda utilizadores em disco
+     * @param utilizadores Map com username -> password hash
+     */
+    //todo: perceber se há necessidade de usar o temporario
+    public void guardarUtilizadores(Map<String, String> utilizadores) throws IOException {
+        File ficheiro = new File(FICHEIRO_USERS);
+        File ficheiroTemp = new File(FICHEIRO_USERS + ".tmp");
+        DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(ficheiroTemp)));
+
+        // Guardar em ficheiro temporário primeiro
+        try (out) {
+            out.writeInt(utilizadores.size());
+            for (Map.Entry<String, String> entry : utilizadores.entrySet()) {
+                out.writeUTF(entry.getKey());
+                out.writeUTF(entry.getValue());
+            }
+            out.flush();
+        }
+        
+        // Substituir ficheiro original pelo temporário (operação atómica)
+        if (ficheiro.exists()) {
+            if (!ficheiro.delete()) {
+                throw new IOException("Não foi possível remover ficheiro antigo");
+            }
+        }
+        if (!ficheiroTemp.renameTo(ficheiro)) {
+            throw new IOException("Não foi possível renomear ficheiro temporário");
+        }
+    }
+    
 }
