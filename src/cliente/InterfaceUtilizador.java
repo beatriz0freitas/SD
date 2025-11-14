@@ -1,9 +1,9 @@
 package src.cliente;
 
-import java.util.Scanner;
 import java.io.IOException;
+import java.util.Scanner;
 
-/*
+/**
 * Interface de utilizador para o cliente da aplicação de gestão de vendas. 
 * Interface de linha de comando para o utilizador interagir com o bibliotecaCliente (menu, comandos, input/output).
 */
@@ -19,21 +19,7 @@ public class InterfaceUtilizador {
         this.autenticado = false;
     }
 
-    public BibliotecaCliente getBibliotecaCliente() {
-        return bibliotecaCliente;
-    }
-
-    public String getNomeUtilizador() {
-        return nomeUtilizador;
-    }
-
-    public boolean isAutenticado() {
-        return autenticado;
-    }
-
-    public void setNomeUtilizador(String nomeUtilizador) {
-        this.nomeUtilizador = nomeUtilizador;
-    }
+  
 
     //TODO: implementar refresh no terminal, fica estranho o historico todo
     public void iniciar() {

@@ -5,7 +5,6 @@ import java.net.Socket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
-
 import src.uteis.Mensagem;
 
 /**
@@ -263,7 +262,7 @@ public class WorkerCliente implements Runnable {
  * 6. Cliente fecha conexão → loop termina → recursos libertados
  * 
  * ============================================================================
- * EXEMPLO DE CONCORRÊNCIA (Secção 6):
+ * EXEMPLO DE CONCORRÊNCIA:
  * ============================================================================
  * 
  * Cliente envia 3 pedidos rápidos:

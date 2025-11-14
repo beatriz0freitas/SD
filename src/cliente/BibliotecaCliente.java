@@ -3,7 +3,6 @@ package src.cliente;
 import java.io.*;
 import java.net.Socket;
 import java.util.concurrent.locks.ReentrantLock;
-
 import src.uteis.Mensagem;
 
 /**
@@ -24,31 +23,6 @@ public class BibliotecaCliente {
         this.porta = porta;
         this.lock = new ReentrantLock(true);        // Lock justo (FIFO)
         this.conectado = false;
-    }
-
-    /**
-     * Envia uma mensagem para o servidor
-     */
-    private void enviarMensagem(Mensagem msg) throws IOException {
-        msg.escrever(output);
-        output.flush();
-    }
-
-    /**
-     * Recebe uma mensagem do servidor
-     */
-    private Mensagem receberMensagem() throws IOException {
-        return Mensagem.ler(input);
-    }
-
-    /**
-     * Verifica se está conectado
-     */
-    public boolean isConectado() {
-        return conectado && 
-               socket != null && 
-               socket.isConnected() && 
-               !socket.isClosed();
     }
 
     /**
@@ -257,5 +231,28 @@ public class BibliotecaCliente {
     //         lock.unlock();
     //     }
     // }
+
+
+     /**
+     * Envia uma mensagem para o servidor
+     */
+    private void enviarMensagem(Mensagem msg) throws IOException {
+        msg.escrever(output);
+        output.flush();
+    }
+
+    /**
+     * Recebe uma mensagem do servidor
+     */
+    private Mensagem receberMensagem() throws IOException {
+        return Mensagem.ler(input);
+    }
+
+    /**
+     * Verifica se está conectado
+     */
+    public boolean isConectado() {
+        return conectado && socket != null && socket.isConnected() && !socket.isClosed();
+    }
 
 }
