@@ -40,21 +40,26 @@ public class PersistenciaUtilizadores {
      */
     public Map<String, String> carregarUtilizadores() throws IOException {
         Map<String, String> utilizadores = new HashMap<>();
-        if (!existeFicheiro()) {
+        File ficheiro = new File(FICHEIRO_USERS);
+        
+        if (!ficheiro.exists()) {
             return utilizadores; // Primeira execução, sem utilizadores
         }
-
-        DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(new File(FICHEIRO_USERS))));
-
-        try (in) {
+        
+        try (DataInputStream in = new DataInputStream(
+                new BufferedInputStream(new FileInputStream(ficheiro)))) {
+            
             int numUsers = in.readInt();
+            
             for (int i = 0; i < numUsers; i++) {
-                String usernameCliente = in.readUTF();
+                String username = in.readUTF();
                 String passwordHash = in.readUTF();
-                utilizadores.put(usernameCliente, passwordHash);
+                utilizadores.put(username, passwordHash);
             }
+            
             System.out.println("Carregados " + numUsers + " utilizadores do disco.");
         }
+        
         return utilizadores;
     }
     
@@ -62,15 +67,16 @@ public class PersistenciaUtilizadores {
      * Guarda utilizadores em disco
      * @param utilizadores Map com username -> password hash
      */
-    //todo: perceber se há necessidade de usar o temporario
     public void guardarUtilizadores(Map<String, String> utilizadores) throws IOException {
         File ficheiro = new File(FICHEIRO_USERS);
         File ficheiroTemp = new File(FICHEIRO_USERS + ".tmp");
-        DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(ficheiroTemp)));
-
+        
         // Guardar em ficheiro temporário primeiro
-        try (out) {
+        try (DataOutputStream out = new DataOutputStream(
+                new BufferedOutputStream(new FileOutputStream(ficheiroTemp)))) {
+            
             out.writeInt(utilizadores.size());
+            
             for (Map.Entry<String, String> entry : utilizadores.entrySet()) {
                 out.writeUTF(entry.getKey());
                 out.writeUTF(entry.getValue());

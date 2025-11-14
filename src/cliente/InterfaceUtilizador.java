@@ -1,6 +1,7 @@
 package src.cliente;
 
 import java.util.Scanner;
+import java.io.IOException;
 
 /*
 * Interface de utilizador para o cliente da aplicação de gestão de vendas. 
@@ -95,23 +96,29 @@ public class InterfaceUtilizador {
         }
     }
 
+
     private void registarUtilizador() {
         System.out.print("\nNome de utilizador: ");
         String nome = scanner.nextLine();
-        System.out.print("Palavra-passe: ");
+        System.out.print("Palavra-passe (mínimo 4 caracteres): ");
         String password = scanner.nextLine();
 
         try {
-            boolean sucesso = bibliotecaCliente.registar(nome, password);
+            boolean sucesso = bibliotecacliente.registar(nome, password);
+
             if (sucesso) {
-                System.out.println("Utilizador registado com sucesso!");
+                System.out.println("✓ Utilizador registado com sucesso!");
             } else {
-                System.out.println("Erro ao registar utilizador (pode já existir)");
+                System.out.println("✗ Erro ao registar utilizador (username já existe ou password inválida)");
             }
+
+        } catch (IOException e) {
+            System.err.println("✗ Erro de comunicação com o servidor: " + e.getMessage());
         } catch (Exception e) {
-            System.err.println("✗ Erro: " + e.getMessage());
+            System.err.println("✗ Ocorreu um erro inesperado: " + e.getMessage());
         }
     }
+
 
     private void autenticarUtilizador() {
         System.out.print("\nNome de utilizador: ");
@@ -120,13 +127,14 @@ public class InterfaceUtilizador {
         String password = scanner.nextLine();
 
         try {
-            boolean sucesso = bibliotecaCliente.autenticar(nome, password);
+            boolean sucesso = bibliotecacliente.autenticar(nome, password);
+            
             if (sucesso) {
                 this.autenticado = true;
                 this.nomeUtilizador = nome;
-                System.out.println("Autenticação bem-sucedida! Bem-vindo, " + nome + "!");
+                System.out.println("✓ Autenticação bem-sucedida! Bem-vindo, " + nome + "!");
             } else {
-                System.out.println("Credenciais inválidas");
+                System.out.println("✗ Credenciais inválidas");
             }
         } catch (Exception e) {
             System.err.println("✗ Erro: " + e.getMessage());

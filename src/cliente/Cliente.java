@@ -4,6 +4,7 @@ package src.cliente;
  * Classe principal do cliente
  */
 public class Cliente {
+    
     public static void main(String[] args) {
         String host = "localhost";
         int porta = 5000;
@@ -19,6 +20,8 @@ public class Cliente {
                 System.err.println("Porta inválida, usando padrão: " + porta);
             }
         }
+        
+        // Criar e iniciar interface do utilizador
         InterfaceUtilizador ui = new InterfaceUtilizador(host, porta);
         ui.iniciar();
     }
