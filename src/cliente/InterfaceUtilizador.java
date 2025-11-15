@@ -119,7 +119,7 @@ public class InterfaceUtilizador {
         }
     }
 
-
+    //fix: depois de autenticar está em loop nao passa para o menu prinicpal
     private void autenticarUtilizador() {
         System.out.print("\nNome de utilizador: ");
         String nome = scanner.nextLine();
@@ -132,9 +132,9 @@ public class InterfaceUtilizador {
             if (sucesso) {
                 this.autenticado = true;
                 this.nomeUtilizador = nome;
-                System.out.println("✓ Autenticação bem-sucedida! Bem-vindo, " + nome + "!");
+                System.out.println("Autenticação bem-sucedida! Bem-vindo, " + nome + "!");
             } else {
-                System.out.println("✗ Credenciais inválidas");
+                System.out.println("Credenciais inválidas");
             }
         } catch (Exception e) {
             System.err.println("✗ Erro: " + e.getMessage());

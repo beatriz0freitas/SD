@@ -23,7 +23,6 @@ public class WorkerCliente implements Runnable {
     private DataInputStream input;
     private DataOutputStream output;
 
-
     // Estado de autenticação
     private String username; // null = não autenticado
 

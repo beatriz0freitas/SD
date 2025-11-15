@@ -21,7 +21,7 @@ public class ServidorLogica {
         this.porta = porta; 
         this.gestorUtilizadores = new GestorUtilizadores(); 
         this.threadPool = Executors.newCachedThreadPool();
-        this.ativo = false;
+        this.ativo = false;                             // Servidor inicialmente inativo
     }
     
     /**
