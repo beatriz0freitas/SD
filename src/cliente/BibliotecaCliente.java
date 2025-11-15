@@ -3,7 +3,10 @@ package src.cliente;
 import java.io.*;
 import java.net.Socket;
 import java.util.concurrent.locks.ReentrantLock;
+
+import src.uteis.Evento;
 import src.uteis.Mensagem;
+import src.uteis.Protocolo;
 
 /**
  * Biblioteca de comunicação com o servidor.
@@ -23,6 +26,28 @@ public class BibliotecaCliente {
         this.porta = porta;
         this.lock = new ReentrantLock(true);        // Lock justo (FIFO)
         this.conectado = false;
+    }
+
+    /**
+     * Envia uma mensagem para o servidor
+     */
+    private void enviarMensagem(Mensagem msg) throws IOException {
+        msg.escrever(output);
+        output.flush();
+    }
+
+    /**
+     * Recebe uma mensagem do servidor
+     */
+    private Mensagem receberMensagem() throws IOException {
+        return Mensagem.ler(input);
+    }
+
+    /**
+     * Verifica se está conectado
+     */
+    public boolean isConectado() {
+        return conectado && socket != null && socket.isConnected() && !socket.isClosed();
     }
 
     /**
@@ -91,20 +116,23 @@ public class BibliotecaCliente {
     /**
      * Regista um evento de venda no dia corrente
      */
-    // public boolean registarEvento(String produto, int quantidade, double preco) throws IOException {
-    //     lock.lock();
-    //     try {
-    //         Evento evento = new Evento(produto, quantidade, preco);
-    //         Mensagem pedido = Mensagem.criarRegistarEvento(evento);
-    //         enviarMensagem(pedido);
-
-    //         Mensagem resposta = receberMensagem();
-    //         return resposta.isSuccesso();
-
-    //     } finally {
-    //         lock.unlock();
-    //     }
-    // }
+    public boolean registarEvento(int produtoID, int quantidade, double preco) throws IOException {
+        lock.lock();
+        try {
+            byte[] payload = Protocolo.serializarPayloadEvento(produtoID, quantidade, preco);
+    
+            Mensagem pedido = Mensagem.criar(Mensagem.TipoOperacao.REG_EVENTO, payload);
+    
+            enviarMensagem(pedido);
+            Mensagem resposta = receberMensagem();
+    
+            return resposta.isSuccesso();
+    
+        } finally {
+            lock.unlock();
+        }
+    }
+    
 
     /**
      * Consulta agregação sobre dias anteriores
@@ -233,26 +261,5 @@ public class BibliotecaCliente {
     // }
 
 
-     /**
-     * Envia uma mensagem para o servidor
-     */
-    private void enviarMensagem(Mensagem msg) throws IOException {
-        msg.escrever(output);
-        output.flush();
-    }
-
-    /**
-     * Recebe uma mensagem do servidor
-     */
-    private Mensagem receberMensagem() throws IOException {
-        return Mensagem.ler(input);
-    }
-
-    /**
-     * Verifica se está conectado
-     */
-    public boolean isConectado() {
-        return conectado && socket != null && socket.isConnected() && !socket.isClosed();
-    }
 
 }
