@@ -5,7 +5,10 @@ import java.net.Socket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
+
+import src.uteis.Evento;
 import src.uteis.Mensagem;
+import src.uteis.Protocolo;
 
 /**
  * Thread que processa pedidos de um cliente específico
@@ -21,24 +24,23 @@ public class WorkerCliente implements Runnable {
     private GestorUtilizadores gestorUtilizadores;
     private DataInputStream input;
     private DataOutputStream output;
-
-    // Estado de autenticação
     private String username; // null = não autenticado
-
-    // Estado de conexão
     private boolean ativo; // true = conexão ativa
 
     // Concorrência
     private ExecutorService threadPool; 
     private final ReentrantLock outputLock;
+
+    private GestorEventos gestorEventos; 
     
-    public WorkerCliente(Socket clienteSocket, GestorUtilizadores gestorUtilizadores) {
+    public WorkerCliente(Socket clienteSocket, GestorUtilizadores gestorUtilizadores, GestorEventos gestorEventos) {
         this.clienteSocket = clienteSocket;
         this.gestorUtilizadores = gestorUtilizadores;
         this.username = null;
         this.ativo = true;
         this.threadPool = Executors.newCachedThreadPool(); // CachedThreadPool: cria threads sob demanda, reutiliza quando disponíveis
         this.outputLock = new ReentrantLock();
+        this.gestorEventos = gestorEventos;
     }
     
     @Override
@@ -130,6 +132,7 @@ public class WorkerCliente implements Runnable {
 
             switch (tipo) {
                 case REG_EVENTO:
+                    return processarRegistarEvento(pedido);
                 case NOVO_DIA:
                 case QUANTIDADE_VENDAS:
                 case VOLUME_VENDAS:
@@ -211,6 +214,22 @@ public class WorkerCliente implements Runnable {
         }
     }
     
+    private Mensagem processarRegistarEvento(Mensagem pedido) throws IOException {
+        // Extrair o evento diretamente do payload
+        Evento evento = Protocolo.deserializarPayloadEvento(pedido.getPayload());
+
+        gestorEventos.adicionarEvento(
+            evento.getProdutoID(),
+            evento.getQuantidade(),
+            evento.getPreco()
+        );
+
+        return Mensagem.criarRespostaOk("Evento registado com sucesso");
+    }
+
+
+
+
     /**
      * Fecha a conexão com o cliente e liberta recursos.
      * 

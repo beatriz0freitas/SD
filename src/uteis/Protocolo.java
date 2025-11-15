@@ -220,6 +220,33 @@ public class Protocolo {
         return lerString(dis);
     }
     
+    /**
+     * Serializa payload de registo de evento
+     */
+    public static byte[] serializarPayloadEvento(int produtoID, int quantidade, double preco) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        DataOutputStream out = new DataOutputStream(baos);
+    
+        out.writeInt(produtoID);
+        out.writeInt(quantidade);
+        out.writeDouble(preco);
+    
+        return baos.toByteArray();
+    }
+    
+    /**
+     * Deserializa payload de registo de evento
+     */
+    public static Evento deserializarPayloadEvento(byte[] payload) throws IOException {
+        DataInputStream in = new DataInputStream(new ByteArrayInputStream(payload));
+    
+        int produtoID = in.readInt();
+        int quantidade = in.readInt();
+        double preco = in.readDouble();
+    
+        return new Evento(produtoID, quantidade, preco); 
+    }
+    
 }
 
 
