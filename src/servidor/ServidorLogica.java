@@ -61,13 +61,14 @@ public class ServidorLogica {
         } catch (IOException e) {
             System.err.println("Erro ao iniciar servidor: " + e.getMessage());
         } finally {
-            shutdown();
+        // o shutdown será tratado pelo shutdown hook
         }
     }
     
     //Desliga o servidor
     public void shutdown() {
         System.out.println("\nA encerrar servidor...");
+        System.out.println("Shutdown invoked by thread: " + Thread.currentThread().getName());
         ativo = false;
 
         try {
