@@ -21,7 +21,11 @@ public class InterfaceUtilizador {
 
   
 
-    //TODO: implementar refresh no terminal, fica estranho o historico todo
+    private void limparEcrã() {
+        System.out.print("\033[H\033[2J");
+        System.out.flush();
+    }
+    
     public void iniciar() {
         try {
             bibliotecaCliente.conectar();
@@ -53,6 +57,7 @@ public class InterfaceUtilizador {
     }
 
     private void mostrarMenuAutenticacao() {
+        limparEcrã();
         System.out.println("\n------ MENU DE AUTENTICAÇÃO ------");
         System.out.println("1. Registar novo utilizador (SignUp)");
         System.out.println("2. Autenticar (Login)");
@@ -124,6 +129,7 @@ public class InterfaceUtilizador {
 
 
     private void mostrarMenuPrincipal() {
+        limparEcrã();
         System.out.println("\n=== MENU PRINCIPAL [" + nomeUtilizador + "] ===");
         System.out.println("1. Registar evento de venda");
         System.out.println("2. Consultar agregações");
