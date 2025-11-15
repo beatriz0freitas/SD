@@ -4,10 +4,13 @@ import java.io.*;
 
 /**
  * Representa mensagens trocadas entre cliente e servidor
- * Cada mensagem tem um tipo de operação e um payload com os dados específicos.
+ * 
+ * RESPONSABILIDADE:
+ * - Encapsula tipo de operação + payload
+ * - Factory methods para criar mensagens comuns
+ * - Métodos de conveniência para extrair dados
  * 
  * NOMENCLATURA:
- * 
  * serializar()    - Mensagem → byte[] (em memória)
  * deserializar()  - byte[] → Mensagem (em memória)
  * 
@@ -22,30 +25,30 @@ public class Mensagem {
      * Cada operação corresponde a uma funcionalidade do enunciado.
      */
     public enum TipoOperacao {
-        // Autenticação (1)
+        // Autenticação 
         REGISTO, // Registo de utilizador
         LOGIN,   // Autenticação (login)
         
-        // Registo de eventos (2)
-        REG_EVENTO, // Registo de evento de venda
-        NOVO_DIA, // Indica início de novo dia de vendas
+        // Registo de eventos 
+        REG_EVENTO, 
+        NOVO_DIA, 
         
-        // Agregação (3)
+        // Agregação 
         QUANTIDADE_VENDAS, 
         VOLUME_VENDAS,  
         PRECO_MEDIO,
         PRECO_MAXIMO,
         
-        // Filtrar (4)
+        // Filtrar 
         FILTRAR_EVENTOS,
         
-        // Notificações (5)
-        VENDAS_SIMULTANEAS,     // Aguardar venda de 2 produtos específicos
-        VENDAS_CONSECUTIVAS, // Aguardar n vendas consecutivas de um produto
+        // Notificações 
+        VENDAS_SIMULTANEAS,     
+        VENDAS_CONSECUTIVAS, 
         
         // Respostas
-        RESPOSTA_OK, // Resposta de sucesso
-        RESPOSTA_ERRO // Resposta de erro
+        RESPOSTA_OK, 
+        RESPOSTA_ERRO 
     }
     
     private TipoOperacao tipoOperacao;
@@ -70,19 +73,7 @@ public class Mensagem {
         return payload;
     }
 
-    public boolean equals (Object obj) {
-        if (this == obj) return true;
-        if (obj == null || getClass() != obj.getClass()) return false;
-        Mensagem mensagem = (Mensagem) obj;
-        if (tipoOperacao != mensagem.tipoOperacao) return false;
-        if (payload == null && mensagem.payload == null) return true;
-        if (payload == null || mensagem.payload == null) return false;
-        if (payload.length != mensagem.payload.length) return false;
-        for (int i = 0; i < payload.length; i++) {
-            if (payload[i] != mensagem.payload[i]) return false;
-        }
-        return true;
-    }
+    
 
     // ========== SERIALIZAÇÃO (objeto ↔ bytes em memória) ==========
     
@@ -181,12 +172,12 @@ public class Mensagem {
     /**
      * Extrai resposta do servidor do payload
      */
-    public Protocolo.RespostaSimples extrairResposta() throws IOException {
-        if (payload == null) {
-            throw new IOException("Payload vazio");
-        }
-        return Protocolo.deserializarPayloadResposta(payload);
-    }
+    // public Protocolo.RespostaSimples extrairResposta() throws IOException {
+    //     if (payload == null) {
+    //         throw new IOException("Payload vazio");
+    //     }
+    //     return Protocolo.deserializarPayloadResposta(payload);
+    // }
     
 
 
@@ -206,12 +197,33 @@ public class Mensagem {
     /**
      * Obtém mensagem de erro/sucesso (atalho)
      */
-    public String getMensagemResposta() {
-        try {
-            return extrairResposta().getMensagem();
-        } catch (IOException e) {
-            return "Erro ao processar resposta";
+    // public String getMensagemResposta() {
+    //     try {
+    //         return extrairResposta().getMensagem();
+    //     } catch (IOException e) {
+    //         return "Erro ao processar resposta";
+    //     }
+    // }
+
+    // ========== EQUALS & TOSTRING ==========
+
+ 
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        
+        Mensagem mensagem = (Mensagem) obj;
+        if (tipoOperacao != mensagem.tipoOperacao) return false;
+        if (payload == null && mensagem.payload == null) return true;
+        if (payload == null || mensagem.payload == null) return false;
+        if (payload.length != mensagem.payload.length) return false;
+        
+        for (int i = 0; i < payload.length; i++) {
+            if (payload[i] != mensagem.payload[i]) return false;
         }
+        return true;
     }
     
     @Override

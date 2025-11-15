@@ -9,8 +9,6 @@ import java.io.*;
  * RESUMO DA NOMENCLATURA CORRETA:
  * 
  * SERIALIZAÇÃO (em memória):
- * - serializarString()   : String → byte[]
- * - deserializarString() : byte[] → String
  * - serializarMensagem() : Mensagem → byte[]
  * - deserializarMensagem() : byte[] → Mensagem
  * 
@@ -212,43 +210,16 @@ public class Protocolo {
     /**
      * Deserializa payload de resposta
      */
-    public static RespostaSimples deserializarPayloadResposta(byte[] payload) throws IOException {
-        if (payload == null || payload.length == 0) throw new IOException("Payload de resposta vazio");
-
+    public static String deserializarPayloadResposta(byte[] payload) throws IOException {
+        if (payload == null || payload.length == 0) {
+            return "";
+        }
+        
         ByteArrayInputStream bais = new ByteArrayInputStream(payload);
         DataInputStream dis = new DataInputStream(bais);
-
-        String mensagem = lerString(dis);
-
-        return new RespostaSimples(mensagem);
+        return lerString(dis);
     }
     
-    
-    // ========== CLASSE AUXILIAR ==========
-    
-    /**
-     * Representa uma resposta simples do servidor.
-     */
-    public static class RespostaSimples {
-        private final String mensagem;
-        
-        public RespostaSimples(String mensagem) {
-            this.mensagem = mensagem;
-        }
-        
-        
-        
-        public String getMensagem() {
-            return mensagem;
-        }
-        
-        @Override
-        public String toString() {
-            return "RespostaSimples{" +
-                    " mensagem='" + mensagem + '\'' +
-                    '}';
-        }
-    }
 }
 
 
