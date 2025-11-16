@@ -1,19 +1,23 @@
 package src.cliente;
 
-import java.io.*;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.net.Socket;
 import java.util.concurrent.locks.ReentrantLock;
 import src.uteis.Mensagem;
-import src.uteis.Protocolo;  // ← ADICIONAR
+import src.uteis.Protocolo;
 
 /**
  * Biblioteca de comunicação com o servidor.
- * OTIMIZADO: Suporta múltiplas threads enviando pedidos concorrentemente.
- * 
+ *
+ * Thread-safe: várias threads podem usar a mesma instância,
+ * mas cada pedido (envio+resposta) é tratado de forma atómica.
+ *
  * ESTRATÉGIA:
- * - Lock separado para ESCRITA (evita mistura de pedidos)
- * - Lock separado para LEITURA (evita mistura de respostas)
- * - Locks NÃO abrangem a espera (permite concorrência real)
+ * - Um único lock protege toda a comunicação (envio + leitura da resposta).
+ * - Garante que a resposta lida corresponde sempre ao pedido acabado de enviar.
+ * - Mantém apenas uma ligação TCP por cliente, como exigido no enunciado.
  */
 public class BibliotecaCliente {
     private final String host;
@@ -22,30 +26,33 @@ public class BibliotecaCliente {
     private Socket socket;
     private DataInputStream input;
     private DataOutputStream output;
-    
-    private final ReentrantLock writeLock;
-    private final ReentrantLock readLock;
+
+    // Lock único para proteger socket/input/output e o estado "conectado"
+    private final ReentrantLock lock;
     private boolean conectado;
 
     public BibliotecaCliente(String host, int porta) {
         this.host = host;
         this.porta = porta;
-        this.writeLock = new ReentrantLock(true);
-        this.readLock = new ReentrantLock(true);
+        this.lock = new ReentrantLock(true); 
         this.conectado = false;
     }
 
-    public boolean isConectado() {
-        readLock.lock();
+    public boolean isConectado() throws IOException {
+        lock.lock();
         try {
-            return conectado && socket != null && socket.isConnected() && !socket.isClosed();
+            return conectado
+                && socket != null
+                && socket.isConnected()
+                && !socket.isClosed();
         } finally {
-            readLock.unlock();
+            lock.unlock();
         }
     }
 
+    //locks em conectar e desconectar nao são estritamente necessários, só existe ligacao por cliente, apenas 
     public void conectar() throws IOException {
-        writeLock.lock();
+        lock.lock();
         try {
             if (!conectado) {
                 this.socket = new Socket(host, porta);
@@ -54,46 +61,57 @@ public class BibliotecaCliente {
                 this.conectado = true;
             }
         } finally {
-            writeLock.unlock();
+            lock.unlock();
         }
     }
 
     public void desconectar() {
-        writeLock.lock();
+        lock.lock();
         try {
             if (conectado) {
-                if (socket != null) {
-                    socket.close();
+                try {
+                    if (socket != null && !socket.isClosed()) {
+                        socket.close();
+                    }
+                } catch (IOException e) {
+                    System.err.println("Erro ao fechar socket: " + e.getMessage());
+                } finally {
+                    conectado = false;
                 }
-                conectado = false;
             }
-        } catch (IOException e) {
-            e.printStackTrace(); // Tratar exceção adequadamente
         } finally {
-            writeLock.unlock();
+            lock.unlock();
         }
     }
 
+    /**
+     * Envia um pedido e recebe a resposta de forma atómica.
+     * Várias threads podem chamar este método, mas os pedidos
+     * são enviados e respondidos um de cada vez pela mesma ligação.
+     */
 
+    //TODO: thread blocking ou seja se varias threads chamam este metodo, elas vao ficar bloqueadas ate a thread que esta a usar o lock terminar 
+    // SOLUCAO: usar ids de pedido para identificar respostas assim nao precisam de 
     private Mensagem enviarPedido(Mensagem pedido) throws IOException {
-        // FASE 1: Enviar
-        writeLock.lock();
+        lock.lock();
         try {
-            // ← MUDANÇA: usar Protocolo em vez de Mensagem
+            if (!conectado) {
+                throw new IOException("Cliente não está conectado ao servidor.");
+            }
+
+            // FASE 1: enviar pedido
             Protocolo.escreverMensagem(pedido, output);
-        } finally {
-            writeLock.unlock();
-        }
-        
-        // FASE 2: Receber
-        readLock.lock();
-        try {
-            // ← MUDANÇA: usar Protocolo em vez de Mensagem
+            output.flush();
+
+            // FASE 2: ler resposta correspondente
             return Protocolo.lerMensagem(input);
+
         } finally {
-            readLock.unlock();
+            lock.unlock();
         }
     }
+
+    // Métodos de alto nível chamam sempre enviarPedido()
 
     public Mensagem registar(String username, String password) throws IOException {
         Mensagem pedido = Mensagem.criarRegistarUtilizador(username, password);
@@ -114,17 +132,17 @@ public class BibliotecaCliente {
         Mensagem pedido = Mensagem.criarLoginAdmin(password);
         return enviarPedido(pedido);
     }
-    
+
     public Mensagem listarClientes() throws IOException {
         Mensagem pedido = Mensagem.criarListarClientes();
         return enviarPedido(pedido);
     }
-    
+
     public Mensagem listarEventos() throws IOException {
         Mensagem pedido = Mensagem.criarListarEventos();
         return enviarPedido(pedido);
     }
-    
+
     public Mensagem novoDia() throws IOException {
         Mensagem pedido = Mensagem.criarNovoDia();
         return enviarPedido(pedido);
