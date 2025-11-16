@@ -243,7 +243,7 @@ public class ClienteHandler implements Runnable {
     }
     
     private Mensagem processarListarEventos() throws IOException {
-        String listaEventos = gestorEventos.listarEventos();
+        String listaEventos = gestorEventos.listarEventosDiaAtual();
         return Mensagem.criarRespostaOk(listaEventos);
     }
 

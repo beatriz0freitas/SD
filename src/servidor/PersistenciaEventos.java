@@ -1,11 +1,30 @@
 package src.servidor;
 
-import java.io.File;
+import java.io.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import src.uteis.Evento;
 
-//Ler/escrever ficheiros de vendas do disco
+/**
+ * Responsável por ler/escrever ficheiros de eventos do disco.
+ *
+ * Formato simples:
+ * ficheiro por dia:  <pastaBase>/eventos_dia_<dia>.dat
+ *
+ * Estrutura do ficheiro:
+ *   [numProdutos:int]
+ *   repetido numProdutos vezes:
+ *     [produtoID:int]
+ *     [numEventos:int]
+ *     repetido numEventos vezes:
+ *       [quantidade:int]
+ *       [preco:double]
+ */
 public class PersistenciaEventos {
-    
-    private String pastaBase;
+
+    private final String pastaBase;
 
     public PersistenciaEventos(String pastaBase) {
         this.pastaBase = pastaBase;
@@ -13,5 +32,72 @@ public class PersistenciaEventos {
         if (!dir.exists()) {
             dir.mkdirs();
         }
+    }
+
+    private File ficheiroDia(int dia) {
+        return new File(pastaBase, "eventos_dia_" + dia + ".dat");
+    }
+
+    /**
+     * Guarda todos os eventos de um dia em disco.
+     * Sobrescreve o ficheiro do dia, se já existir.
+     */
+    public void guardarEventosDia(int dia, Map<Integer, List<Evento>> eventosPorProduto) throws IOException {
+        File ficheiro = ficheiroDia(dia);
+
+        try (DataOutputStream out = new DataOutputStream(
+                new BufferedOutputStream(new FileOutputStream(ficheiro)))) {
+
+            // número de produtos
+            out.writeInt(eventosPorProduto.size());
+
+            for (Map.Entry<Integer, List<Evento>> entry : eventosPorProduto.entrySet()) {
+                int produtoID = entry.getKey();
+                List<Evento> lista = entry.getValue();
+
+                out.writeInt(produtoID);
+                out.writeInt(lista.size()); // número de eventos deste produto
+
+                for (Evento e : lista) {
+                    out.writeInt(e.getQuantidade());
+                    out.writeDouble(e.getPreco());
+                }
+            }
+            out.flush();
+        }
+    }
+
+    /**
+     * Carrega todos os eventos de um dia a partir do disco.
+     * Se o ficheiro não existir, devolve mapa vazio.
+     */
+    public Map<Integer, List<Evento>> carregarEventosDia(int dia) throws IOException {
+        File ficheiro = ficheiroDia(dia);
+        Map<Integer, List<Evento>> eventosPorProduto = new HashMap<>();
+
+        if (!ficheiro.exists()) {
+            return eventosPorProduto; // dia sem ficheiro → sem eventos
+        }
+
+        try (DataInputStream in = new DataInputStream(
+                new BufferedInputStream(new FileInputStream(ficheiro)))) {
+
+            int numProdutos = in.readInt();
+
+            for (int i = 0; i < numProdutos; i++) {
+                int produtoID = in.readInt();
+                int numEventos = in.readInt();
+
+                List<Evento> lista = new ArrayList<>(numEventos);
+                for (int j = 0; j < numEventos; j++) {
+                    int quantidade = in.readInt();
+                    double preco = in.readDouble();
+                    lista.add(new Evento(produtoID, quantidade, preco));
+                }
+                eventosPorProduto.put(produtoID, lista);
+            }
+        }
+
+        return eventosPorProduto;
     }
 }

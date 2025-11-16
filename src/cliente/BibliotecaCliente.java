@@ -56,10 +56,34 @@ public class BibliotecaCliente {
         lock.lock();
         try {
             if (!conectado) {
-                this.socket = new Socket(host, porta);
-                this.input = new DataInputStream(socket.getInputStream());
-                this.output = new DataOutputStream(socket.getOutputStream());
-                this.conectado = true;
+                Socket novoSocket = null;
+                DataInputStream novoInput = null;
+                DataOutputStream novoOutput = null;
+                
+                try {
+                    // Criar recursos localmente
+                    novoSocket = new Socket(host, porta);
+                    novoInput = new DataInputStream(novoSocket.getInputStream());
+                    novoOutput = new DataOutputStream(novoSocket.getOutputStream());
+                    
+                    // Só atribuir aos campos se tudo correu bem para nao deixar a instância em estado inconsistent
+                    this.socket = novoSocket;
+                    this.input = novoInput;
+                    this.output = novoOutput;
+                    this.conectado = true;
+                    
+                } catch (IOException e) {
+                    // Cleanup: fechar recursos se algo falhou
+                    if (novoSocket != null && !novoSocket.isClosed()) {
+                        try {
+                            novoSocket.close();
+                        } catch (IOException ignored) {
+                            // Ignorar erros ao fechar
+                        }
+                    }
+                    // Re-lançar a exceção original
+                    throw e;
+                }
             }
         } finally {
             lock.unlock();
