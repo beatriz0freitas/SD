@@ -22,16 +22,17 @@ public class WorkerCliente implements Runnable {
     
     private Socket clienteSocket;
     private GestorUtilizadores gestorUtilizadores;
+    private GestorEventos gestorEventos; 
+
     private DataInputStream input;
     private DataOutputStream output;
+
     private String username; // null = não autenticado
     private boolean ativo; // true = conexão ativa
 
     // Concorrência
     private ExecutorService threadPool; 
     private final ReentrantLock outputLock;
-
-    private GestorEventos gestorEventos; 
     
     public WorkerCliente(Socket clienteSocket, GestorUtilizadores gestorUtilizadores, GestorEventos gestorEventos) {
         this.clienteSocket = clienteSocket;
@@ -46,7 +47,6 @@ public class WorkerCliente implements Runnable {
     @Override
     public void run() {
         try {
-            // Inicializar streams de entrada/saída
             input = new DataInputStream(clienteSocket.getInputStream());
             output = new DataOutputStream(clienteSocket.getOutputStream());
             
@@ -215,18 +215,18 @@ public class WorkerCliente implements Runnable {
     }
     
     private Mensagem processarRegistarEvento(Mensagem pedido) throws IOException {
-        // Extrair o evento diretamente do payload
-        Evento evento = Protocolo.deserializarPayloadEvento(pedido.getPayload());
 
+        Evento evento = Protocolo.lerEvento(pedido.getPayload());
+    
         gestorEventos.adicionarEvento(
             evento.getProdutoID(),
             evento.getQuantidade(),
             evento.getPreco()
         );
-
+    
         return Mensagem.criarRespostaOk("Evento registado com sucesso");
     }
-
+    
 
 
 

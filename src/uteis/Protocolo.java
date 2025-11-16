@@ -1,6 +1,7 @@
 package src.uteis;
 
 import java.io.*;
+import java.util.function.Consumer;
 
 /**
  * Protocolo de comunicação cliente-servidor
@@ -20,8 +21,7 @@ import java.io.*;
  */
 public class Protocolo {
 
-
-        // ========== ESCRITA/LEITURA NA REDE (bytes -> stream) ==========
+     // ========== ESCRITA/LEITURA NA REDE (bytes -> stream) ==========
     
     /**
      * Escreve uma string diretamente no stream de rede
@@ -31,13 +31,13 @@ public class Protocolo {
      * @param dos Stream onde escrever
      * @param str String a escrever (pode ser null)
      */
-    private static void escreverString(DataOutputStream dos, String str) throws IOException {
+    public static void escreverString(DataOutputStream output, String str) throws IOException {
         if (str == null) {
-            dos.writeInt(-1); // Marcador de null
+            output.writeInt(-1); // Marcador de null
         } else {
             byte[] bytes = str.getBytes("UTF-8");
-            dos.writeInt(bytes.length);
-            dos.write(bytes);
+            output.writeInt(bytes.length);
+            output.write(bytes);
         }
     }
     
@@ -46,78 +46,41 @@ public class Protocolo {
      * @param dis Stream de onde ler
      * @return String lida ou null se marcada como null
      */
-    public static String lerString(DataInputStream dis) throws IOException {
-        int length = dis.readInt();
+    public static String lerString(DataInputStream input) throws IOException {
+        int length = input.readInt();
         if (length == -1) {
             return null;
         }
         byte[] bytes = new byte[length];
-        dis.readFully(bytes);
+        input.readFully(bytes);
         return new String(bytes, "UTF-8");
     }
 
-    
-    // ========== SERIALIZAÇÃO DE MENSAGEM (objeto -> bytes) ==========
-    
-    /**
-     * Serializa uma mensagem completa para array de bytes
-     * Este método CONVERTE o objeto Mensagem em bytes na memória
-     */
-    public static byte[] serializarMensagem(Mensagem msg) throws IOException {
+    // ============================================================
+    //  MÉTODOS GENÉRICOS PARA PAYLOADS
+    // ============================================================
+    public static byte[] escreverPayload(Consumer<DataOutputStream> writer) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        DataOutputStream dos = new DataOutputStream(baos);
-        
-        // Escrever tipo de operação (como int)
-        dos.writeInt(msg.getTipoOperacao().ordinal());
-        
-        // Escrever payload
-        byte[] payload = msg.getPayload();
-        if (payload == null) {
-            dos.writeInt(0); // Sem payload
-        } else {
-            dos.writeInt(payload.length);
-            dos.write(payload);
-        }
-        
-        dos.flush();
+        DataOutputStream output = new DataOutputStream(baos);
+        writer.accept(output);
+        output.flush();
         return baos.toByteArray();
     }
-    
-    /**
-     * Deserializa uma mensagem de array de bytes
-     * Este método RECONSTRÓI o objeto Mensagem a partir de bytes
+
+    /*
+     * Lê um payload genérico usando o reader fornecido - qualquer tipo de payload distinto
      */
-    public static Mensagem deserializarMensagem(byte[] bytes) throws IOException {
-        ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-        DataInputStream dis = new DataInputStream(bais);
-        
-        // Ler tipo de operação
-        int tipoOrdinal = dis.readInt();
-
-        Mensagem.TipoOperacao[] valores = Mensagem.TipoOperacao.values();
-        if (tipoOrdinal < 0 || tipoOrdinal >= valores.length) {
-            throw new IOException("Tipo de operação inválido: " + tipoOrdinal);
-        }
-        Mensagem.TipoOperacao tipo = valores[tipoOrdinal];
-        
-        // Ler payload
-        int payloadSize = dis.readInt();
-        
-        // Validação de segurança: evitar payloads gigantes
-        if (payloadSize < 0 || payloadSize > 100_000_000) { // 100MB max
-            throw new IOException("Tamanho de payload inválido: " + payloadSize);
-        }
-        
-
-        byte[] payload = null;
-        if (payloadSize > 0) {
-            payload = new byte[payloadSize];
-            dis.readFully(payload);
-        }
-        
-        return Mensagem.criar(tipo, payload);
+    public static <T> T lerPayload(byte[] payload, PayloadReader<T> reader) throws IOException {
+        DataInputStream in = new DataInputStream(new ByteArrayInputStream(payload));
+        return reader.read(in);
     }
-    
+
+    @FunctionalInterface
+    public interface PayloadReader<T> {
+        T read(DataInputStream in) throws IOException;
+    }
+
+
     // ========== ESCRITA/LEITURA DE MENSAGEM NA REDE ==========
     
     /**
@@ -128,14 +91,11 @@ public class Protocolo {
      * 
       * O tamanho_total permite ao receptor saber quantos bytes ler.
      */
-    public static void escreverMensagem(DataOutputStream out, Mensagem msg) throws IOException {
-        // 1. Serializar mensagem para bytes (em memória)
-        byte[] bytes = serializarMensagem(msg);
-        
-        // 2. Escrever na rede: [tamanho][dados]
-        out.writeInt(bytes.length);  // Tamanho total
-        out.write(bytes);            // Dados serializados
-        out.flush();                 // Forçar envio imediato
+    public static void escreverMensagem(DataOutputStream output, Mensagem mensagem) throws IOException {
+        byte[] bytes = serializarMensagem(mensagem);
+        output.writeInt(bytes.length);  // Tamanho total
+        output.write(bytes);            // Dados serializados
+        output.flush();                 // Forçar envio imediato
     }
     
     /**
@@ -143,108 +103,123 @@ public class Protocolo {
      * Este método RECEBE bytes da rede e reconstrói o objeto
      */
     public static Mensagem lerMensagem(DataInputStream dis) throws IOException {
-        // Ler tamanho total
         int tamanhoTotal = dis.readInt();
-        
-        // Ler todos os bytes da mensagem
         byte[] bytes = new byte[tamanhoTotal];
         dis.readFully(bytes);
-        
-        // Deserializar (bytes → objeto)
         return deserializarMensagem(bytes);
     }
     
-    // ========== SERIALIZAÇÃO DE PAYLOADS ESPECÍFICOS ==========
-    //todo: nao conseguimos melhorar isto??
+
+    // ========== SERIALIZAÇÃO DE MENSAGEM (objeto -> bytes) ==========
     
+    /**
+     * Serializa uma mensagem completa para array de bytes
+     * Este método CONVERTE o objeto Mensagem em bytes na memória
+     */
+    public static byte[] serializarMensagem(Mensagem mensagem) throws IOException {
+        return escreverPayload(out -> {
+            try {
+                out.writeInt(mensagem.getTipoOperacao().ordinal());
+                byte[] payload = mensagem.getPayload();
+                if (payload == null) {
+                    out.writeInt(0);
+                } else {
+                    out.writeInt(payload.length);
+                    out.write(payload);
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    /**
+     * Deserializa uma mensagem de array de bytes
+     * Este método RECONSTRÓI o objeto Mensagem a partir de bytes
+     */ 
+    public static Mensagem deserializarMensagem(byte[] bytes) throws IOException {
+        DataInputStream in = new DataInputStream(new ByteArrayInputStream(bytes));
+
+        int tipoOrdinal = in.readInt();
+        Mensagem.TipoOperacao[] valores = Mensagem.TipoOperacao.values();
+        if (tipoOrdinal < 0 || tipoOrdinal >= valores.length) {
+            throw new IOException("Tipo de operação inválido: " + tipoOrdinal);
+        }
+        Mensagem.TipoOperacao tipo = valores[tipoOrdinal];
+        
+        int payloadSize = in.readInt();
+        // Validação de segurança: evitar payloads gigantes
+        if (payloadSize < 0 || payloadSize > 100_000_000) { // 100MB max
+            throw new IOException("Tamanho de payload inválido: " + payloadSize);
+        }
+
+        byte[] payload = new byte[payloadSize];
+        if (payloadSize > 0) 
+            in.readFully(payload);
+
+        return Mensagem.criar(tipo, payload);
+    }
+
+    // ============================================================
+    //  PAYLOADS USANDO A API GENÉRICA
+    // ============================================================
+    
+    // ----- AUTENTICAÇÃO -----
     /**
      * Serializa payload de autenticação (username + password)
      * Retorna apenas os BYTES do payload, não a mensagem completa
      */
-    public static byte[] serializarPayloadAutenticacao(String username, String password) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        DataOutputStream dos = new DataOutputStream(baos);
-        
-        escreverString(dos, username);
-        escreverString(dos, password);
-        
-        dos.flush();
-        return baos.toByteArray();
+    public static byte[] payloadAutenticacao(String username, String password) throws IOException {
+        return escreverPayload(output -> {
+            try {
+                escreverString(output, username);
+                escreverString(output, password);
+            } catch (IOException e) { throw new RuntimeException(e); }
+        });
     }
-    
-    /**
-     * Deserializa payload de autenticação
-     */
-    public static String[] deserializarPayloadAutenticacao(byte[] payload) throws IOException {
-        if (payload == null || payload.length == 0) {
-            throw new IOException("Payload de autenticação vazio");
-        }
-        
-        ByteArrayInputStream bais = new ByteArrayInputStream(payload);
-        DataInputStream dis = new DataInputStream(bais);
-        
-        String username = lerString(dis);
-        String password = lerString(dis);
-        
-        // Validação adicional
-        if (username == null || password == null) {
-            throw new IOException("Username ou password null no payload");
-        }
-        
-        return new String[]{username, password};
+
+    public static String[] lerAutenticacao(byte[] payload) throws IOException {
+        return lerPayload(payload, input -> {
+            String username = lerString(input);
+            String password = lerString(input);
+            if (username == null || password == null) {
+                throw new IOException("Username ou password null no payload");
+            }
+
+            return new String[]{username, password};
+        });
     }
-    
-    /**
-     * Serializa payload de resposta 
-     */
-    public static byte[] serializarPayloadResposta( String mensagem) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        DataOutputStream dos = new DataOutputStream(baos);
-        
-        escreverString(dos, mensagem);
-        
-        dos.flush();
-        return baos.toByteArray();
+
+    // ----- RESPOSTA -----
+    public static byte[] payloadResposta(String mensagem) throws IOException {
+        return escreverPayload(output -> {
+            try { escreverString(output, mensagem); }
+            catch (IOException e) { throw new RuntimeException(e); }
+        });
     }
-    
-    /**
-     * Deserializa payload de resposta
-     */
-    public static String deserializarPayloadResposta(byte[] payload) throws IOException {
-        if (payload == null || payload.length == 0) {
-            return "";
-        }
-        
-        ByteArrayInputStream bais = new ByteArrayInputStream(payload);
-        DataInputStream dis = new DataInputStream(bais);
-        return lerString(dis);
+
+    public static String lerResposta(byte[] payload) throws IOException {
+        return lerPayload(payload, Protocolo::lerString);
     }
-    
-    /**
-     * Serializa payload de registo de evento
-     */
-    public static byte[] serializarPayloadEvento(int produtoID, int quantidade, double preco) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        DataOutputStream out = new DataOutputStream(baos);
-    
-        out.writeInt(produtoID);
-        out.writeInt(quantidade);
-        out.writeDouble(preco);
-    
-        return baos.toByteArray();
+
+    // ----- EVENTO -----
+    public static byte[] payloadEvento(int produtoID, int quantidade, double preco) throws IOException {
+        return escreverPayload(output -> {
+            try {
+                output.writeInt(produtoID);
+                output.writeInt(quantidade);
+                output.writeDouble(preco);
+            } catch (IOException e) { throw new RuntimeException(e); }
+        });
     }
-    
-    /**
-     * Deserializa payload de registo de evento
-     */
-    public static Evento deserializarPayloadEvento(byte[] payload) throws IOException {
-        DataInputStream in = new DataInputStream(new ByteArrayInputStream(payload));
-    
-        int produtoID = in.readInt();
-        int quantidade = in.readInt();
-        double preco = in.readDouble();
-    
-        return new Evento(produtoID, quantidade, preco); 
+
+    public static Evento lerEvento(byte[] payload) throws IOException {
+        return lerPayload(payload, input -> {
+            int produtoID = input.readInt();
+            int quantidade = input.readInt();
+            double preco = input.readDouble();
+            return new Evento(produtoID, quantidade, preco);
+        });
     }
     
 }

@@ -12,6 +12,7 @@ import src.uteis.Protocolo;
  * Biblioteca de comunicação com o servidor.
  * Suporta múltiplas threads enviando pedidos em paralelo.
  */
+//nao sei se faz sentido termos locks aqui - Os locks devem existir APENAS no servidor
 public class BibliotecaCliente {
     private String host;
     private int porta;
@@ -119,10 +120,14 @@ public class BibliotecaCliente {
     public boolean registarEvento(int produtoID, int quantidade, double preco) throws IOException {
         lock.lock();
         try {
-            byte[] payload = Protocolo.serializarPayloadEvento(produtoID, quantidade, preco);
-    
+            byte[] payload = Protocolo.escreverPayload(out -> {
+                out.writeInt(produtoID);
+                out.writeInt(quantidade);
+                out.writeDouble(preco);
+            });
+            
             Mensagem pedido = Mensagem.criar(Mensagem.TipoOperacao.REG_EVENTO, payload);
-    
+            
             enviarMensagem(pedido);
             Mensagem resposta = receberMensagem();
     

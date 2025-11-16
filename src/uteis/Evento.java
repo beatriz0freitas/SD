@@ -7,7 +7,12 @@ public class Evento {
     private int quantidade;     // Quantidade vendida
     private double preco;       // Preço unitário da venda
 
-    // Construtor
+    public Evento () {
+        this.produtoID = 0;
+        this.quantidade = 0;
+        this.preco = 0.0;
+    }
+
     public Evento(int produtoID, int quantidade, double preco) {
         this.produtoID = produtoID;
         this.quantidade = quantidade;
