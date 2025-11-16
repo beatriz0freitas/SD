@@ -5,10 +5,9 @@ import java.net.Socket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
-
 import src.uteis.Evento;
 import src.uteis.Mensagem;
-import src.uteis.Protocolo;
+import src.uteis.PayloadParser; 
 
 /**
  * Thread que processa pedidos de um cliente específico
@@ -18,7 +17,7 @@ import src.uteis.Protocolo;
  * - ThreadPool: processa cada pedido em thread separada
  * - Lock de escrita: garante que respostas não se misturam
  */
-//todo: nome da classe parece gpt as well
+//todo: nome da classe parece gpt as well (true aqui)
 public class WorkerCliente implements Runnable {
     
     private Socket clienteSocket;
@@ -28,7 +27,7 @@ public class WorkerCliente implements Runnable {
     private DataInputStream input;
     private DataOutputStream output;
 
-    private String username; // null = não autenticado
+    private String username;// null = não autenticado
     private boolean ativo; // true = conexão ativa
 
     // Concorrência
@@ -38,21 +37,21 @@ public class WorkerCliente implements Runnable {
     public WorkerCliente(Socket clienteSocket, GestorUtilizadores gestorUtilizadores, GestorEventos gestorEventos) {
         this.clienteSocket = clienteSocket;
         this.gestorUtilizadores = gestorUtilizadores;
+        this.gestorEventos = gestorEventos;
         this.username = null;
         this.ativo = true;
-        this.threadPool = Executors.newCachedThreadPool(); // CachedThreadPool: cria threads sob demanda, reutiliza quando disponíveis
+        this.threadPool = Executors.newCachedThreadPool();// CachedThreadPool: cria threads sob demanda, reutiliza quando disponíveis
         this.outputLock = new ReentrantLock();
-        this.gestorEventos = gestorEventos;
     }
     
-    /**
+     /**
      * Verifica se o cliente está autenticado
      */
     public boolean isAutenticado() {
         return username != null;
     }
     
-    /**
+     /**
      * Obtém username do cliente (null se não autenticado)
      */
     public String getUsername() {
@@ -66,11 +65,11 @@ public class WorkerCliente implements Runnable {
             output = new DataOutputStream(clienteSocket.getOutputStream());
             System.out.println("Nova conexão de: " + clienteSocket.getInetAddress());
             
-            while (ativo) {     // Loop de processamento de mensagens
+            while (ativo) {
                 try {
                     Mensagem pedido = Mensagem.ler(input); 
-                    // Processar pedido em thread separada (para permitir varios pedidos concorrentes)
-                    threadPool.execute(() -> processarPedidoAssinc(pedido));
+                     // Processar pedido em thread separada (para permitir varios pedidos concorrentes)
+                     threadPool.execute(() -> processarPedidoAssinc(pedido));
                     
                 } catch (EOFException e) {
                     System.out.println("[DEBUG] Cliente desconectado: " + (username != null ? username : clienteSocket.getInetAddress()));
@@ -99,12 +98,10 @@ public class WorkerCliente implements Runnable {
         try {
             Mensagem resposta = processarPedido(pedido);
             
-            // Enviar resposta (com exclusão mútua)
-            // SECÇÃO CRITICA: múltiplas threads podem tentar escrever ao mesmo tempo
             outputLock.lock();
             try {
                 resposta.escrever(output);
-                output.flush(); // Garantir que dados são enviados imediatamente
+                output.flush();
             } finally {
                 outputLock.unlock();
             }
@@ -114,7 +111,7 @@ public class WorkerCliente implements Runnable {
         }
     }
 
-    /**
+     /**
      * Processa um pedido do cliente e retorna a resposta
      * 
      * @param pedido Mensagem com o pedido
@@ -122,7 +119,6 @@ public class WorkerCliente implements Runnable {
      */
     private Mensagem processarPedido(Mensagem pedido) {
         try {
-            
             Mensagem.TipoOperacao tipo = pedido.getTipoOperacao();
 
             if (tipo == Mensagem.TipoOperacao.REGISTO) {
@@ -139,10 +135,8 @@ public class WorkerCliente implements Runnable {
             switch (tipo) {
                 case REG_EVENTO:
                     return processarRegistarEvento(pedido);
-
                 case NOVO_DIA:
                     return processarNovoDia();
-
                 case QUANTIDADE_VENDAS:
                 case VOLUME_VENDAS:
                 case PRECO_MEDIO:
@@ -151,7 +145,6 @@ public class WorkerCliente implements Runnable {
                 case VENDAS_SIMULTANEAS:
                 case VENDAS_CONSECUTIVAS:
                     return Mensagem.criarRespostaErro("Funcionalidade ainda não implementada");
-    
                 default:
                     return Mensagem.criarRespostaErro("Operação desconhecida");
             }
@@ -165,25 +158,11 @@ public class WorkerCliente implements Runnable {
         }
     }
     
-    
-   /**
-     * Processa pedido de registo de novo utilizador.
-     * 
-     * VALIDAÇÕES:
-     * - Username não vazio
-     * - Password com mínimo 4 caracteres
-     * - Username não existe já
-     * 
-     * @param pedido Mensagem REGISTO com username e password
-     * @return RESPOSTA_OK ou RESPOSTA_ERRO
-     */
     private Mensagem processarRegisto(Mensagem pedido) throws IOException {
-        // Extrair credenciais
-        String[] credenciais = Protocolo.lerAutenticacao(pedido.getPayload());
+        String[] credenciais = PayloadParser.lerAutenticacao(pedido.getPayload());
         String username = credenciais[0];
         String password = credenciais[1];
         
-        // Validar dados
         if (username == null || username.isBlank())
             return Mensagem.criarRespostaErro("[DEBUG] Username inválido");
         
@@ -194,23 +173,18 @@ public class WorkerCliente implements Runnable {
             return Mensagem.criarRespostaErro("[DEBUG] Username já existe.");
 
         System.out.println("Novo utilizador registado: " + username);
-        gestorUtilizadores.registar(username, password);
         return Mensagem.criarRespostaOk("[DEBUG] Utilizador registado com sucesso");
     }
     
-    /**
-     * Processa pedido de autenticação (login)
-     */
     private Mensagem processarLogin(Mensagem pedido) throws IOException {
-        // Extrair credenciais
-        String[] credenciais = Protocolo.lerAutenticacao(pedido.getPayload());
+        String[] credenciais = PayloadParser.lerAutenticacao(pedido.getPayload());
         String username = credenciais[0];
         String password = credenciais[1];
         
         boolean sucesso = gestorUtilizadores.autenticar(username, password);
         
         if (sucesso) {
-            this.username = username; // Marcar como autenticado
+            this.username = username;
             System.out.println("Utilizador autenticado: " + username);
             return Mensagem.criarRespostaOk("[DEBUG] Autenticação bem-sucedida");
         } else {
@@ -218,12 +192,8 @@ public class WorkerCliente implements Runnable {
         }
     }
     
-    /**
-     * Processa pedido de registar evento de venda
-     */
     private Mensagem processarRegistarEvento(Mensagem pedido) throws IOException {
-
-        Evento evento = Protocolo.lerEvento(pedido.getPayload());
+        Evento evento = PayloadParser.lerEvento(pedido.getPayload());
     
         gestorEventos.adicionarEvento(
             evento.getProdutoID(),
@@ -234,15 +204,12 @@ public class WorkerCliente implements Runnable {
         return Mensagem.criarRespostaOk("Evento registado com sucesso");
     }
     
-    /**
-     * Processa pedido de iniciar novo dia
-     */
     private Mensagem processarNovoDia() throws IOException {
         gestorEventos.iniciarNovoDia();
         return Mensagem.criarRespostaOk("[DEBUG] Novo dia iniciado com sucesso");
     }
 
-    /**
+     /**
      * Fecha a conexão com o cliente e liberta recursos.
      * 
      * ORDEM DE FECHO:
@@ -254,52 +221,12 @@ public class WorkerCliente implements Runnable {
     private void fecharConexao() {
         ativo = false;
         try {
-            threadPool.shutdownNow(); // Interrompe threads ativas
+            threadPool.shutdownNow();
             if (output != null) output.close();
             if (input != null) input.close();
             if (clienteSocket != null) clienteSocket.close();
-
         } catch (IOException e) {
             System.err.println("Erro ao fechar conexão: " + e.getMessage());
         }
     }
-    
 }
-
-//=================================TIRAR DEPOIS================================//
-
-/**
- * ============================================================================
- * FLUXO DE EXECUÇÃO:
- * ============================================================================
- * 
- * 1. Servidor aceita conexão → cria WorkerCliente
- * 2. WorkerCliente.run() inicia
- * 3. Loop principal lê mensagens do socket
- * 4. Cada mensagem é processada em thread separada (threadPool)
- * 5. Resposta é enviada com lock (evita mistura de respostas)
- * 6. Cliente fecha conexão → loop termina → recursos libertados
- * 
- * ============================================================================
- * EXEMPLO DE CONCORRÊNCIA:
- * ============================================================================
- * 
- * Cliente envia 3 pedidos rápidos:
- *   Thread Main: recebe pedido1 → submete ao pool
- *   Thread Main: recebe pedido2 → submete ao pool
- *   Thread Main: recebe pedido3 → submete ao pool
- * 
- * ThreadPool processa concorrentemente:
- *   Thread-1: processa pedido1 (pode demorar 5s)
- *   Thread-2: processa pedido2 (pode demorar 1s) ← termina primeiro!
- *   Thread-3: processa pedido3 (pode demorar 2s)
- * 
- * Respostas são enviadas com lock:
- *   Thread-2: lock → envia resposta2 → unlock
- *   Thread-3: lock → envia resposta3 → unlock
- *   Thread-1: lock → envia resposta1 → unlock
- * 
- * ⚠️ IMPORTANTE: Respostas podem chegar fora de ordem!
- *    Solução futura: adicionar requestId para correlação
- * ============================================================================
- */

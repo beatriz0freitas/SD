@@ -2,11 +2,9 @@ package src.cliente;
 
 import java.io.IOException;
 import java.util.Scanner;
+import src.uteis.Mensagem;
+import src.uteis.PayloadParser;
 
-/**
-* Interface de utilizador para o cliente da aplicação de gestão de vendas. 
-* Interface de linha de comando para o utilizador interagir com o bibliotecaCliente (menu, comandos, input/output).
-*/
 public class InterfaceUtilizador {
     private BibliotecaCliente bibliotecaCliente;
     private Scanner scanner;
@@ -19,7 +17,6 @@ public class InterfaceUtilizador {
         this.autenticado = false;
     }
 
-    // ------------ UTEIS -------------------
     private void limparEcrã() {
         System.out.print("\033[H\033[2J");
         System.out.flush();
@@ -38,7 +35,7 @@ public class InterfaceUtilizador {
             return Integer.parseInt(scanner.nextLine());
         } catch (NumberFormatException e) {
             System.out.println("Valor inválido, usando 0");
-                return 0;
+            return 0;
         }
     }
 
@@ -50,9 +47,15 @@ public class InterfaceUtilizador {
             return 0.0;
         }
     }
-
-
-    // ------------ LÓGICA PRINCIPAL --------------
+    
+    /**
+     * Helper para mostrar resposta do servidor com formatação
+     */
+    private void mostrarResposta(Mensagem resposta) throws IOException {
+        String mensagem = PayloadParser.lerResposta(resposta.getPayload());
+        String icone = resposta.isSuccesso() ? "✓" : "✗";
+        System.out.println("\n" + icone + " " + mensagem);
+    }
 
     public void iniciar() {
         try {
@@ -62,14 +65,12 @@ public class InterfaceUtilizador {
             System.out.println("========================================");
             System.out.println("Conectado ao servidor!\n");
 
-            // Menu de autenticação
             while (!autenticado) {
                 mostrarMenuAutenticacao();
                 int opcao = lerOpcao();
                 processarAutenticacao(opcao);
             }
 
-            // Menu principal após autenticação
             while (autenticado) {
                 mostrarMenuPrincipal();
                 int opcao = lerOpcao();
@@ -118,22 +119,17 @@ public class InterfaceUtilizador {
         String password = scanner.nextLine();
 
         try {
-            boolean sucesso = bibliotecaCliente.registar(nome, password);
-
-            if (sucesso) {
-                System.out.println("Utilizador registado com sucesso!");
-            } else {
-                System.out.println("Erro ao registar utilizador (username já existe ou password inválida)");
-            }
+            Mensagem resposta = bibliotecaCliente.registar(nome, password);
+            mostrarResposta(resposta);
+            
+            System.out.println("\nPressione ENTER para continuar...");
+            scanner.nextLine();
 
         } catch (IOException e) {
-            System.err.println("Erro de comunicação com o servidor: " + e.getMessage());
-        } catch (Exception e) {
-            System.err.println("Ocorreu um erro inesperado: " + e.getMessage());
+            System.err.println("✗ Erro de comunicação: " + e.getMessage());
         }
     }
 
-    //TODO: [fix] depois de autenticar está em loop nao passa para o menu prinicpal
     private void autenticarUtilizador() {
         System.out.print("\nNome de utilizador: ");
         String nome = scanner.nextLine();
@@ -142,17 +138,22 @@ public class InterfaceUtilizador {
         String password = scanner.nextLine();
 
         try {
-            boolean sucesso = bibliotecaCliente.autenticar(nome, password);
+            Mensagem resposta = bibliotecaCliente.autenticar(nome, password);
             
-            if (sucesso) {
+            if (resposta.isSuccesso()) {
                 this.autenticado = true;
                 this.nomeUtilizador = nome;
-                System.out.println("Autenticação bem-sucedida! Bem-vindo, " + nome + "!");
+                mostrarResposta(resposta);
+                System.out.println("Bem-vindo, " + nome + "!");
             } else {
-                System.out.println("Credenciais inválidas");
+                mostrarResposta(resposta);
             }
-        } catch (Exception e) {
-            System.err.println("✗ Erro: " + e.getMessage());
+            
+            System.out.println("\nPressione ENTER para continuar...");
+            scanner.nextLine();
+            
+        } catch (IOException e) {
+            System.err.println("✗ Erro de comunicação: " + e.getMessage());
         }
     }
 
@@ -160,11 +161,7 @@ public class InterfaceUtilizador {
         limparEcrã();
         System.out.println("\n=== MENU PRINCIPAL [" + nomeUtilizador + "] ===");
         System.out.println("1. Registar evento de venda");
-        System.out.println("2. Consultar agregações");
-        System.out.println("3. Filtrar eventos por produtos");
-        System.out.println("4. Notificação: Vendas simultâneas");
-        System.out.println("5. Notificação: Vendas consecutivas");
-        System.out.println("6. Informações do servidor");
+        System.out.println("2. Iniciar novo dia");
         System.out.println("0. Logout e Sair");
         System.out.print("Escolha uma opção: ");
     }
@@ -175,19 +172,7 @@ public class InterfaceUtilizador {
                 registarEvento();
                 break;
             case 2:
-                // consultarAgregacoes();
-                break;
-            case 3:
-                // filtrarEventos();
-                break;
-            case 4:
-                // notificarVendasSimultaneas();
-                break;
-            case 5:
-                // notificarVendasConsecutivas();
-                break;
-            case 6:
-                // informacoesServidor();
+                novoDia();
                 break;
             case 0:
                 logout();
@@ -211,120 +196,38 @@ public class InterfaceUtilizador {
         double preco = lerDouble();
 
         try {
-            boolean sucesso = bibliotecaCliente.registarEvento(produtoID, quantidade, preco);
-            if (sucesso) {
-                System.out.println("Evento registado com sucesso!");
-            } else {
-                System.out.println("Erro ao registar evento");
-            }
-        } catch (Exception e) {
-            System.err.println("Erro: " + e.getMessage());
+            Mensagem resposta = bibliotecaCliente.registarEvento(produtoID, quantidade, preco);
+            mostrarResposta(resposta);
+            
+            System.out.println("\nPressione ENTER para continuar...");
+            scanner.nextLine();
+            
+        } catch (IOException e) {
+            System.err.println("✗ Erro de comunicação: " + e.getMessage());
         }
     }
 
-    // private void consultarAgregacoes() {
-    //     System.out.println("\n--- Consultar Agregações ---");
-    //     System.out.print("Dias anteriores (1 a D): ");
-    //     int dias = lerInteiro();
-    //     System.out.print("Nome do produto (ou vazio para todos): ");
-    //     String produto = scanner.nextLine();
-
-    //     System.out.println("\nTipo de agregação:");
-    //     System.out.println("1. Quantidade total vendida");
-    //     System.out.println("2. Volume total (quantidade × preço)");
-    //     System.out.println("3. Preço médio de venda");
-    //     System.out.println("4. Preço máximo de venda");
-    //     System.out.print("Escolha: ");
-    //     int tipo = lerInteiro();
-
-    //     try {
-    //         double resultado = bibliotecacliente.consultarAgregacao(dias, produto, tipo);
-    //         String tipoStr = switch (tipo) {
-    //             case 1 -> "Quantidade total";
-    //             case 2 -> "Volume total";
-    //             case 3 -> "Preço médio";
-    //             case 4 -> "Preço máximo";
-    //             default -> "Desconhecido";
-    //         };
-    //         System.out.printf("\n✓ %s: %.2f%n", tipoStr, resultado);
-    //     } catch (Exception e) {
-    //         System.err.println("✗ Erro: " + e.getMessage());
-    //     }
-    // }
-
-    // private void filtrarEventos() {
-    //     System.out.println("\n--- Filtrar Eventos ---");
-    //     System.out.print("Dias anteriores (1 a D): ");
-    //     int dias = lerInteiro();
-    //     System.out.print("Produtos (separados por vírgula): ");
-    //     String produtosStr = scanner.nextLine();
-    //     String[] produtos = produtosStr.split(",");
+    private void novoDia() {
+        limparEcrã();
+        System.out.println("\n--- INICIAR NOVO DIA ---");
+        System.out.println("Tem certeza que deseja iniciar um novo dia?");
+        System.out.print("(S/N): ");
         
-    //     // Limpar espaços
-    //     for (int i = 0; i < produtos.length; i++) {
-    //         produtos[i] = produtos[i].trim();
-    //     }
-
-    //     try {
-    //         String eventos = bibliotecacliente.filtrarEventos(dias, produtos);
-    //         System.out.println("\n✓ Eventos encontrados:");
-    //         System.out.println(eventos);
-    //     } catch (Exception e) {
-    //         System.err.println("✗ Erro: " + e.getMessage());
-    //     }
-    // }
-
-    // private void notificarVendasSimultaneas() {
-    //     System.out.println("\n--- Notificação: Vendas Simultâneas ---");
-    //     System.out.print("Produto 1: ");
-    //     String produto1 = scanner.nextLine();
-    //     System.out.print("Produto 2: ");
-    //     String produto2 = scanner.nextLine();
-
-    //     System.out.println("\n⏳ Aguardando vendas simultâneas...");
-    //     System.out.println("(Esta operação bloqueia até a condição ser satisfeita ou o dia terminar)");
-
-    //     try {
-    //         boolean ocorreu = bibliotecacliente.notificarVendasSimultaneas(produto1, produto2);
-    //         if (ocorreu) {
-    //             System.out.println("✓ Vendas simultâneas detectadas!");
-    //         } else {
-    //             System.out.println("✗ Dia terminou sem vendas simultâneas");
-    //         }
-    //     } catch (Exception e) {
-    //         System.err.println("✗ Erro: " + e.getMessage());
-    //     }
-    // }
-
-    // private void notificarVendasConsecutivas() {
-    //     System.out.println("\n--- Notificação: Vendas Consecutivas ---");
-    //     System.out.print("Número de vendas consecutivas (n): ");
-    //     int n = lerInteiro();
-
-    //     System.out.println("\n⏳ Aguardando " + n + " vendas consecutivas...");
-    //     System.out.println("(Esta operação bloqueia até a condição ser satisfeita ou o dia terminar)");
-
-    //     try {
-    //         String produto = bibliotecacliente.notificarVendasConsecutivas(n);
-    //         if (produto != null && !produto.isEmpty()) {
-    //             System.out.println("✓ Produto com vendas consecutivas: " + produto);
-    //         } else {
-    //             System.out.println("✗ Dia terminou sem vendas consecutivas suficientes");
-    //         }
-    //     } catch (Exception e) {
-    //         System.err.println("✗ Erro: " + e.getMessage());
-    //     }
-    // }
-
-    // private void informacoesServidor() {
-    //     System.out.println("\n--- Informações do Servidor ---");
-    //     try {
-    //         String info = bibliotecacliente.obterInformacoesServidor();
-    //         System.out.println(info);
-    //     } catch (Exception e) {
-    //         System.err.println("✗ Erro: " + e.getMessage());
-    //     }
-    // }
+        String confirmacao = scanner.nextLine();
+        
+        if (confirmacao.equalsIgnoreCase("S")) {
+            try {
+                Mensagem resposta = bibliotecaCliente.novoDia();
+                mostrarResposta(resposta);
+                
+                System.out.println("\nPressione ENTER para continuar...");
+                scanner.nextLine();
+                
+            } catch (IOException e) {
+                System.err.println("✗ Erro de comunicação: " + e.getMessage());
+            }
+        }
+    }
 
     private void logout() {
         System.out.println("\nA terminar sessão...");
@@ -332,6 +235,4 @@ public class InterfaceUtilizador {
         bibliotecaCliente.desconectar();
         System.exit(0);
     }
-
-    
 }

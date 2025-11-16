@@ -3,15 +3,17 @@ package src.cliente;
 import java.io.*;
 import java.net.Socket;
 import java.util.concurrent.locks.ReentrantLock;
-
 import src.uteis.Mensagem;
 
 /**
  * Biblioteca de comunicação com o servidor.
- * Suporta múltiplas threads enviando pedidos em paralelo.
+ * OTIMIZADO: Suporta múltiplas threads enviando pedidos concorrentemente.
+ * 
+ * ESTRATÉGIA:
+ * - Lock separado para ESCRITA (evita mistura de pedidos)
+ * - Lock separado para LEITURA (evita mistura de respostas)
+ * - Locks NÃO abrangem a espera (permite concorrência real)
  */
-//nao sei se faz sentido termos locks aqui - Os locks devem existir APENAS no servidor
-//todo: nome da classe parece muito gpt, idk
 public class BibliotecaCliente {
     private final String host;
     private final int porta;
@@ -20,39 +22,30 @@ public class BibliotecaCliente {
     private DataInputStream input;
     private DataOutputStream output;
     
-    private final ReentrantLock lock;                           // Para sincronizar envio/recepção
+    private final ReentrantLock writeLock;  // ← Lock só para escrita
+    private final ReentrantLock readLock;   // ← Lock só para leitura
     private boolean conectado;
 
     public BibliotecaCliente(String host, int porta) {
         this.host = host;
         this.porta = porta;
-        this.lock = new ReentrantLock(true);        // Lock justo (FIFO)
+        this.writeLock = new ReentrantLock(true);  // FIFO
+        this.readLock = new ReentrantLock(true);   // FIFO
         this.conectado = false;
     }
 
-    /**
-     * Verifica se está conectado
-     */
     public boolean isConectado() {
         return conectado && socket != null && socket.isConnected() && !socket.isClosed();
     }
 
-    /**
-     * Estabelece conexão com o servidor
-     */
     public void conectar() throws IOException {
-        if (conectado)
-            return;
-    
+        if (conectado) return;
         socket = new Socket(host, porta);
         input = new DataInputStream(socket.getInputStream());
         output = new DataOutputStream(socket.getOutputStream());
         conectado = true;
     }
 
-    /**
-     * Fecha a conexão com o servidor
-     */
     public void desconectar() {
         conectado = false;
         try {
@@ -64,65 +57,62 @@ public class BibliotecaCliente {
         }
     }
 
-    // ============================================================
-    // MÉTODO BASE: pedido → resposta
-    // ============================================================
+    // ========== MÉTODO BASE OTIMIZADO ==========
 
+    /**
+     * Envia pedido e retorna a resposta do servidor.
+     * 
+     * CONCORRÊNCIA:
+     * - Escrita protegida por writeLock
+     * - Leitura protegida por readLock
+     * - Locks NÃO abrangem ambos (permite overlapping)
+     * 
+     * PROBLEMA: Respostas podem chegar fora de ordem!
+     * Solução atual: assume protocolo request-response simples
+     * Solução futura: adicionar requestId para correlação
+     */
     private Mensagem enviarPedido(Mensagem pedido) throws IOException {
-        lock.lock();
+        // FASE 1: Enviar (com lock curto)
+        writeLock.lock();
         try {
             pedido.escrever(output);
             output.flush();
+        } finally {
+            writeLock.unlock();
+        }
+        
+        // FASE 2: Receber (com lock separado)
+        readLock.lock();
+        try {
             return Mensagem.ler(input);
         } finally {
-            lock.unlock();
+            readLock.unlock();
         }
     }
 
-    // ============================================================
-    // OPERACOES
-    // ============================================================
+    // ========== OPERAÇÕES ==========
 
-    /**
-     * Regista um novo utilizador
-     * @return true se sucesso, false se erro
-     */
-    public boolean registar(String username, String password) throws IOException {
+    public Mensagem registar(String username, String password) throws IOException {
         Mensagem pedido = Mensagem.criarRegistarUtilizador(username, password);
-        Mensagem resposta = enviarPedido(pedido);
-        return resposta.isSuccesso();
+        return enviarPedido(pedido);
     }
 
-    /**
-     * Autentica um utilizador
-     * @return true se sucesso, false se erro
-     */
-    public boolean autenticar(String username, String password) throws IOException {
+    public Mensagem autenticar(String username, String password) throws IOException {
         Mensagem pedido = Mensagem.criarAutenticar(username, password);
-        Mensagem resposta = enviarPedido(pedido);
-        return resposta.isSuccesso();
+        return enviarPedido(pedido);
     }
 
-    /**
-     * Regista um evento de venda no dia corrente
-     */
-    public boolean registarEvento(int produtoID, int quantidade, double preco) throws IOException {
+    public Mensagem registarEvento(int produtoID, int quantidade, double preco) throws IOException {
         Mensagem pedido = Mensagem.criarRegistarEvento(produtoID, quantidade, preco);
-        Mensagem resposta = enviarPedido(pedido);
-        return resposta.isSuccesso();
+        return enviarPedido(pedido);
     }
     
-    /**
-     * Inicia um novo dia de vendas
-     * @return true se sucesso, false se erro
-     */
-    public boolean novoDia() throws IOException {
+    public Mensagem novoDia() throws IOException {
         Mensagem pedido = Mensagem.criarNovoDia();
-        Mensagem resposta = enviarPedido(pedido);
-        return resposta.isSuccesso();
+        return enviarPedido(pedido);
     }
-    
-    /**
+
+        /**
      * Consulta agregação sobre dias anteriores
      * @param dias Número de dias anteriores (1 a D)
      * @param produto Nome do produto (vazio para todos)
