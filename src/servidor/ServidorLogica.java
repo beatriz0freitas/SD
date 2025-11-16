@@ -16,7 +16,7 @@ public class ServidorLogica {
     private GestorUtilizadores gestorUtilizadores;
     private GestorEventos gestorEventos;
     private ExecutorService threadPool;                  // Pool de threads dinâmico
-    private boolean ativo;                               // Flag de estado do servidor
+    private volatile boolean ativo;                               // Flag de estado do servidor
     
     public ServidorLogica(int porta) {
         this.porta = porta; 

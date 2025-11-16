@@ -31,6 +31,11 @@ public class ClienteHandler implements Runnable {
     private boolean ativo;   // true = conexão ativa
 
     private ExecutorService threadPool; 
+
+    // Lock de escrita apenas para o output do socket.
+    // Necessário porque vários pedidos deste cliente são processados
+    // em paralelo pelo threadPool e podem tentar escrever ao mesmo tempo.
+    // Não usamos ReadWriteLock porque só há escritas concorrentes no socket.
     private final ReentrantLock outputLock;
     private boolean isAdmin ;
     private static final String ADMIN_PASSWORD = "admin123"; 
@@ -88,6 +93,8 @@ public class ClienteHandler implements Runnable {
         try {
             Mensagem resposta = processarPedido(pedido);
             
+            // Secção crítica de escrita: garante que apenas uma thread de pedido
+            // escreve no DataOutputStream de cada vez, evitando mistura de respostas.
             outputLock.lock();
             try {
                
