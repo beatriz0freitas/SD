@@ -4,6 +4,7 @@ import java.io.*;
 import java.net.Socket;
 import java.util.concurrent.locks.ReentrantLock;
 import src.uteis.Mensagem;
+import src.uteis.Protocolo;  // ← ADICIONAR
 
 /**
  * Biblioteca de comunicação com o servidor.
@@ -22,15 +23,15 @@ public class BibliotecaCliente {
     private DataInputStream input;
     private DataOutputStream output;
     
-    private final ReentrantLock writeLock;  // ← Lock só para escrita
-    private final ReentrantLock readLock;   // ← Lock só para leitura
+    private final ReentrantLock writeLock;
+    private final ReentrantLock readLock;
     private boolean conectado;
 
     public BibliotecaCliente(String host, int porta) {
         this.host = host;
         this.porta = porta;
-        this.writeLock = new ReentrantLock(true);  // FIFO
-        this.readLock = new ReentrantLock(true);   // FIFO
+        this.writeLock = new ReentrantLock(true);
+        this.readLock = new ReentrantLock(true);
         this.conectado = false;
     }
 
@@ -57,40 +58,25 @@ public class BibliotecaCliente {
         }
     }
 
-    // ========== MÉTODO BASE OTIMIZADO ==========
-
-    /**
-     * Envia pedido e retorna a resposta do servidor.
-     * 
-     * CONCORRÊNCIA:
-     * - Escrita protegida por writeLock
-     * - Leitura protegida por readLock
-     * - Locks NÃO abrangem ambos (permite overlapping)
-     * 
-     * PROBLEMA: Respostas podem chegar fora de ordem!
-     * Solução atual: assume protocolo request-response simples
-     * Solução futura: adicionar requestId para correlação
-     */
     private Mensagem enviarPedido(Mensagem pedido) throws IOException {
-        // FASE 1: Enviar (com lock curto)
+        // FASE 1: Enviar
         writeLock.lock();
         try {
-            pedido.escrever(output);
-            output.flush();
+            // ← MUDANÇA: usar Protocolo em vez de Mensagem
+            Protocolo.escreverMensagem(pedido, output);
         } finally {
             writeLock.unlock();
         }
         
-        // FASE 2: Receber (com lock separado)
+        // FASE 2: Receber
         readLock.lock();
         try {
-            return Mensagem.ler(input);
+            // ← MUDANÇA: usar Protocolo em vez de Mensagem
+            return Protocolo.lerMensagem(input);
         } finally {
             readLock.unlock();
         }
     }
-
-    // ========== OPERAÇÕES ==========
 
     public Mensagem registar(String username, String password) throws IOException {
         Mensagem pedido = Mensagem.criarRegistarUtilizador(username, password);
@@ -111,133 +97,4 @@ public class BibliotecaCliente {
         Mensagem pedido = Mensagem.criarNovoDia();
         return enviarPedido(pedido);
     }
-
-        /**
-     * Consulta agregação sobre dias anteriores
-     * @param dias Número de dias anteriores (1 a D)
-     * @param produto Nome do produto (vazio para todos)
-     * @param tipo Tipo de agregação (1-4)
-     * @return Resultado da agregação
-     */
-    // public double consultarAgregacao(int dias, String produto, int tipo) throws IOException {
-    //     lock.lock();
-    //     try {
-    //         Mensagem pedido = Mensagem.criarConsultarAgregacao(dias, produto, tipo);
-    //         enviarMensagem(pedido);
-
-    //         Mensagem resposta = receberMensagem();
-    //         if (!resposta.isSuccesso()) {
-    //             throw new IOException("Erro no servidor: " + resposta.getMensagemErro());
-    //         }
-
-    //         return resposta.getResultadoAgregacao();
-
-    //     } finally {
-    //         lock.unlock();
-    //     }
-    // }
-
-    /**
-     * Filtra eventos de produtos específicos num dia anterior
-     * @param dias Número de dias anteriores
-     * @param produtos Array de nomes de produtos
-     * @return String com eventos formatados
-     */
-    // public String filtrarEventos(int dias, String[] produtos) throws IOException {
-    //     lock.lock();
-    //     try {
-    //         Mensagem pedido = Mensagem.criarFiltrarEventos(dias, produtos);
-    //         enviarMensagem(pedido);
-
-    //         Mensagem resposta = receberMensagem();
-    //         if (!resposta.isSuccesso()) {
-    //             throw new IOException("Erro no servidor: " + resposta.getMensagemErro());
-    //         }
-
-    //         List<Evento> eventos = resposta.getEventos();
-    //         if (eventos == null || eventos.isEmpty()) {
-    //             return "Nenhum evento encontrado.";
-    //         }
-
-    //         StringBuilder sb = new StringBuilder();
-    //         sb.append(String.format("Total de eventos: %d\n\n", eventos.size()));
-
-    //         int i = 1;
-    //         for (Evento evento : eventos) {
-    //             sb.append(String.format("%d. %s\n", i++, evento.toString()));
-    //         }
-
-    //         return sb.toString();
-
-    //     } finally {
-    //         lock.unlock();
-    //     }
-    // }
-
-    /**
-     * Notificação bloqueante: vendas simultâneas
-     * Bloqueia até dois produtos serem vendidos no mesmo dia ou o dia terminar
-     */
-    // public boolean notificarVendasSimultaneas(String produto1, String produto2) throws IOException {
-    //     lock.lock();
-    //     try {
-    //         Mensagem pedido = Mensagem.criarNotificarSimultaneas(produto1, produto2);
-    //         enviarMensagem(pedido);
-
-    //         // Recebe resposta (bloqueia até condição satisfeita)
-    //         Mensagem resposta = receberMensagem();
-    //         return resposta.isSuccesso();
-
-    //     } finally {
-    //         lock.unlock();
-    //     }
-    // }
-
-    /**
-     * Notificação bloqueante: vendas consecutivas
-     * Bloqueia até um produto ter n vendas consecutivas ou o dia terminar
-     * @return Nome do produto ou null se dia terminou
-     */
-    // public String notificarVendasConsecutivas(int n) throws IOException {
-    //     lock.lock();
-    //     try {
-    //         Mensagem pedido = Mensagem.criarNotificarConsecutivas(n);
-    //         enviarMensagem(pedido);
-
-    //         // Recebe resposta (bloqueia até condição satisfeita)
-    //         Mensagem resposta = receberMensagem();
-    //         if (resposta.isSuccesso()) {
-    //             return resposta.getProdutoConsecutivo();
-    //         } else {
-    //             return null; // Dia terminou
-    //         }
-
-    //     } finally {
-    //         lock.unlock();
-    //     }
-    // }
-
-    /**
-     * Obtém informações gerais do servidor
-     */
-    // public String obterInformacoesServidor() throws IOException {
-    //     lock.lock();
-    //     try {
-    //         Mensagem pedido = Mensagem.criarInfoServidor();
-    //         enviarMensagem(pedido);
-
-    //         Mensagem resposta = receberMensagem();
-    //         if (!resposta.isSuccesso()) {
-    //             return "Servidor não disponível";
-    //         }
-
-    //         return resposta.getInfoServidor();
-
-    //     } finally {
-    //         lock.unlock();
-    //     }
-    // }
-
-
-
 }

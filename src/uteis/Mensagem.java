@@ -1,10 +1,12 @@
 package src.uteis;
 
-import java.io.*;
+import java.io.IOException;
 
 /**
- * Mensagem auto-suficiente: sabe como se serializar e deserializar.
- * NÃO delega para Protocolo (exceto para primitivos).
+ * Representa mensagens trocadas entre cliente e servidor.
+ * Responsabilidade: encapsular dados (DTO) + factory methods.
+ * 
+ * I/O delegado para Protocolo.
  */
 public class Mensagem {
     
@@ -26,7 +28,9 @@ public class Mensagem {
         this.payload = payload;
     }
     
-    public TipoOperacao getTipoOperacao() {
+    // ========== GETTERS ==========
+    
+    public TipoOperacao getTipo() {
         return tipo;
     }
     
@@ -36,73 +40,6 @@ public class Mensagem {
     
     public boolean isSuccesso() {
         return tipo == TipoOperacao.RESPOSTA_OK;
-    }
-    
-    // ========== I/O: ESCREVER/LER NA REDE ==========
-    
-    /**
-     * Escreve mensagem completa no stream.
-     * FORMATO: [tamanho_total:int][tipo:int][tamanho_payload:int][payload:bytes]
-     * 
-     */
-    public void escrever(DataOutputStream out) throws IOException {
-        // Serializar em buffer temporário para calcular tamanho
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        DataOutputStream temp = new DataOutputStream(buffer);
-        
-        // Escrever tipo e payload no buffer
-        temp.writeInt(tipo.ordinal());
-        temp.writeInt(payload != null ? payload.length : 0);
-        if (payload != null && payload.length > 0) {
-            temp.write(payload);
-        }
-        temp.flush();
-        
-        byte[] dados = buffer.toByteArray();
-        
-        // Escrever na rede: [tamanho][dados]
-        out.writeInt(dados.length);
-        out.write(dados);
-        out.flush();
-    }
-    
-    /**
-     * Lê mensagem completa do stream.
-     */
-    public static Mensagem ler(DataInputStream in) throws IOException {
-        // Ler tamanho total
-        int tamanhoTotal = in.readInt();
-        
-        // Validação de segurança
-        if (tamanhoTotal < 0 || tamanhoTotal > 100_000_000) {
-            throw new IOException("Tamanho inválido: " + tamanhoTotal);
-        }
-        
-        // Ler dados completos
-        byte[] dados = new byte[tamanhoTotal];
-        in.readFully(dados);
-        
-        // Deserializar
-        DataInputStream temp = new DataInputStream(new ByteArrayInputStream(dados));
-        
-        int tipoOrdinal = temp.readInt();
-        if (tipoOrdinal < 0 || tipoOrdinal >= TipoOperacao.values().length) {
-            throw new IOException("Tipo inválido: " + tipoOrdinal);
-        }
-        TipoOperacao tipo = TipoOperacao.values()[tipoOrdinal];
-        
-        int payloadSize = temp.readInt();
-        if (payloadSize < 0 || payloadSize > 100_000_000) {
-            throw new IOException("Payload inválido: " + payloadSize);
-        }
-        
-        byte[] payload = null;
-        if (payloadSize > 0) {
-            payload = new byte[payloadSize];
-            temp.readFully(payload);
-        }
-        
-        return new Mensagem(tipo, payload);
     }
     
     // ========== FACTORY METHODS ==========
