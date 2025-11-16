@@ -222,6 +222,11 @@ public class Protocolo {
         });
     }
     
+    // ----- NOVO DIA -----
+    public static byte[] payloadNovoDia() throws IOException {
+        return new byte[0];
+    }
+    
 }
 
 

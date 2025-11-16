@@ -155,6 +155,13 @@ public class Mensagem {
         return new Mensagem(TipoOperacao.REG_EVENTO, Protocolo.payloadEvento(produtoID, quantidade, preco));
     }
     
+    /**
+     * Cria mensagem para iniciar novo dia
+     */
+         public static Mensagem criarNovoDia() throws IOException {
+        return new Mensagem(TipoOperacao.NOVO_DIA, Protocolo.payloadNovoDia());
+    }
+    
     
     
     // ========== EXTRAÇÃO DE DADOS DO PAYLOAD ==========

@@ -4,9 +4,7 @@ import java.io.*;
 import java.net.Socket;
 import java.util.concurrent.locks.ReentrantLock;
 
-import src.uteis.Evento;
 import src.uteis.Mensagem;
-import src.uteis.Protocolo;
 
 /**
  * Biblioteca de comunicação com o servidor.
@@ -68,7 +66,7 @@ public class BibliotecaCliente {
     // ============================================================
     // MÉTODO BASE: pedido → resposta
     // ============================================================
-    
+
     private Mensagem enviarPedido(Mensagem pedido) throws IOException {
         lock.lock();
         try {
@@ -113,7 +111,16 @@ public class BibliotecaCliente {
         return resposta.isSuccesso();
     }
     
-
+    /**
+     * Inicia um novo dia de vendas
+     * @return true se sucesso, false se erro
+     */
+    public boolean novoDia() throws IOException {
+        Mensagem pedido = Mensagem.criarNovoDia();
+        Mensagem resposta = enviarPedido(pedido);
+        return resposta.isSuccesso();
+    }
+    
     /**
      * Consulta agregação sobre dias anteriores
      * @param dias Número de dias anteriores (1 a D)

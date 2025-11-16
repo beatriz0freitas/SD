@@ -140,6 +140,8 @@ public class WorkerCliente implements Runnable {
                     return processarRegistarEvento(pedido);
 
                 case NOVO_DIA:
+                    return processarNovoDia();
+
                 case QUANTIDADE_VENDAS:
                 case VOLUME_VENDAS:
                 case PRECO_MEDIO:
@@ -215,6 +217,9 @@ public class WorkerCliente implements Runnable {
         }
     }
     
+    /**
+     * Processa pedido de registar evento de venda
+     */
     private Mensagem processarRegistarEvento(Mensagem pedido) throws IOException {
 
         Evento evento = Protocolo.lerEvento(pedido.getPayload());
@@ -228,8 +233,13 @@ public class WorkerCliente implements Runnable {
         return Mensagem.criarRespostaOk("Evento registado com sucesso");
     }
     
-
-
+    /**
+     * Processa pedido de iniciar novo dia
+     */
+    private Mensagem processarNovoDia() throws IOException {
+        gestorEventos.iniciarNovoDia();
+        return Mensagem.criarRespostaOk("[DEBUG] Novo dia iniciado com sucesso");
+    }
 
     /**
      * Fecha a conexão com o cliente e liberta recursos.

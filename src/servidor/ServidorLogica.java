@@ -14,12 +14,14 @@ public class ServidorLogica {
     private int porta;
     private ServerSocket serverSocket;
     private GestorUtilizadores gestorUtilizadores;
+    private GestorEventos gestorEventos;
     private ExecutorService threadPool;                  // Pool de threads dinâmico
     private boolean ativo;                               // Flag de estado do servidor
     
     public ServidorLogica(int porta) {
         this.porta = porta; 
         this.gestorUtilizadores = new GestorUtilizadores(); 
+        this.gestorEventos = new GestorEventos();
         this.threadPool = Executors.newCachedThreadPool();
         this.ativo = false;                             // Servidor inicialmente inativo
     }
@@ -48,7 +50,7 @@ public class ServidorLogica {
             while (ativo) {
                 try {
                     Socket clienteSocket = serverSocket.accept();                                        // Aceitar nova conexão
-                    WorkerCliente worker = new WorkerCliente(clienteSocket, gestorUtilizadores);         // Criar e submeter worker ao thread pool (cria uma nova thread se necessário e reutiliza threads)
+                    WorkerCliente worker = new WorkerCliente(clienteSocket, gestorUtilizadores, gestorEventos);         // Criar e submeter worker ao thread pool (cria uma nova thread se necessário e reutiliza threads)
                     threadPool.execute(worker);
                     
                 } catch (IOException e) {
