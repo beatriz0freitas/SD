@@ -18,6 +18,7 @@ import java.io.*;
  * ler()           - rede → Mensagem (via DataInputStream)
  */
 
+//todo: dar clean à classe inteira prinicpalmente em comentarios - aspeto confuso. acho que codigo está fire tho
 public class Mensagem {
     
     /**
@@ -153,6 +154,13 @@ public class Mensagem {
      */
     public static Mensagem criarRegistarEvento(int produtoID, int quantidade, double preco) throws IOException {
         return new Mensagem(TipoOperacao.REG_EVENTO, Protocolo.payloadEvento(produtoID, quantidade, preco));
+    }
+    
+    /**
+     * Cria mensagem para iniciar novo dia
+     */
+         public static Mensagem criarNovoDia() throws IOException {
+        return new Mensagem(TipoOperacao.NOVO_DIA, Protocolo.payloadNovoDia());
     }
     
     

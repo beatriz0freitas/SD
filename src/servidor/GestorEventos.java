@@ -24,7 +24,7 @@ public class GestorEventos {
         eventosPorDia.put(diaAtual, new ArrayList<>());
     }
 
-    public void novoDia() {
+    public void iniciarNovoDia() {
         lock.lock();
         try {
             diaAtual++;

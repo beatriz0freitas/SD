@@ -18,6 +18,7 @@ import src.uteis.Protocolo;
  * - ThreadPool: processa cada pedido em thread separada
  * - Lock de escrita: garante que respostas não se misturam
  */
+//todo: nome da classe parece gpt as well
 public class WorkerCliente implements Runnable {
     
     private Socket clienteSocket;
@@ -44,53 +45,58 @@ public class WorkerCliente implements Runnable {
         this.gestorEventos = gestorEventos;
     }
     
+    /**
+     * Verifica se o cliente está autenticado
+     */
+    public boolean isAutenticado() {
+        return username != null;
+    }
+    
+    /**
+     * Obtém username do cliente (null se não autenticado)
+     */
+    public String getUsername() {
+        return username;
+    }
+
     @Override
     public void run() {
         try {
             input = new DataInputStream(clienteSocket.getInputStream());
             output = new DataOutputStream(clienteSocket.getOutputStream());
-            
             System.out.println("Nova conexão de: " + clienteSocket.getInetAddress());
             
-            // Loop de processamento de mensagens
-            while (ativo) {
+            while (ativo) {     // Loop de processamento de mensagens
                 try {
-                    // Receber mensagem do cliente (bloqueante)
-                    Mensagem pedido = Mensagem.ler(input);
-                    
+                    Mensagem pedido = Mensagem.ler(input); 
                     // Processar pedido em thread separada (para permitir varios pedidos concorrentes)
-                    threadPool.execute(() -> processarPedidoAsync(pedido));
+                    threadPool.execute(() -> processarPedidoAssinc(pedido));
                     
                 } catch (EOFException e) {
-                    // Cliente fechou conexão
-                    System.out.println("Cliente desconectado: " + 
-                        (username != null ? username : clienteSocket.getInetAddress()));
+                    System.out.println("[DEBUG] Cliente desconectado: " + (username != null ? username : clienteSocket.getInetAddress()));
                     break;
+
                 } catch (IOException e) {
-                    // Erro na comunicação (rede caiu, socket fechado, etc)
-                    System.err.println("Erro na comunicação: " + e.getMessage());
+                    System.err.println("[DEBUG] Erro na comunicação: " + e.getMessage());
                     break;
                 }
             }
             
         } catch (IOException e) {
-            System.err.println("Erro ao inicializar conexão: " + e.getMessage());
+            System.err.println("[DEBUG] Erro ao inicializar ligação: " + e.getMessage());
         } finally {
             fecharConexao();
         }
     }
     
-
-
     /**
      * Processa um pedido de forma assíncrona e envia a resposta.
      * Este método é executado numa thread do pool.
      * 
      * @param pedido Mensagem recebida do cliente
      */
-    private void processarPedidoAsync(Mensagem pedido) {
+    private void processarPedidoAssinc(Mensagem pedido) {
         try {
-            // Processar o pedido (pode demorar tempo)
             Mensagem resposta = processarPedido(pedido);
             
             // Enviar resposta (com exclusão mútua)
@@ -104,7 +110,7 @@ public class WorkerCliente implements Runnable {
             }
             
         } catch (IOException e) {
-            System.err.println("[ERRO] Erro ao enviar resposta: " + e.getMessage());
+            System.err.println("[DEBUG] Erro ao enviar resposta: " + e.getMessage());
         }
     }
 
@@ -133,7 +139,10 @@ public class WorkerCliente implements Runnable {
             switch (tipo) {
                 case REG_EVENTO:
                     return processarRegistarEvento(pedido);
+
                 case NOVO_DIA:
+                    return processarNovoDia();
+
                 case QUANTIDADE_VENDAS:
                 case VOLUME_VENDAS:
                 case PRECO_MEDIO:
@@ -170,27 +179,23 @@ public class WorkerCliente implements Runnable {
      */
     private Mensagem processarRegisto(Mensagem pedido) throws IOException {
         // Extrair credenciais
-        String[] credenciais = pedido.extrairDadosAutenticacao();
+        String[] credenciais = Protocolo.lerAutenticacao(pedido.getPayload());
         String username = credenciais[0];
         String password = credenciais[1];
         
         // Validar dados
-        if (username == null || username.trim().isEmpty()) {
-            return Mensagem.criarRespostaErro("Username inválido");
-        }
-        if (password == null || password.length() < 4) {
-            return Mensagem.criarRespostaErro("Password deve ter pelo menos 4 caracteres");
-        }
+        if (username == null || username.isBlank())
+            return Mensagem.criarRespostaErro("[DEBUG] Username inválido");
         
-        // Tentar registar
-        boolean sucesso = gestorUtilizadores.registar(username, password);
+        if (password == null || password.length() < 4) 
+            return Mensagem.criarRespostaErro("[DEBUG] Password deve ter pelo menos 4 caracteres");
         
-        if (sucesso) {
-            System.out.println("Novo utilizador registado: " + username);
-            return Mensagem.criarRespostaOk("Utilizador registado com sucesso");
-        } else {
-            return Mensagem.criarRespostaErro("Username já existe");
-        }
+        if (!gestorUtilizadores.registar(username, password))
+            return Mensagem.criarRespostaErro("[DEBUG] Username já existe.");
+
+        System.out.println("Novo utilizador registado: " + username);
+        gestorUtilizadores.registar(username, password);
+        return Mensagem.criarRespostaOk("[DEBUG] Utilizador registado com sucesso");
     }
     
     /**
@@ -198,22 +203,24 @@ public class WorkerCliente implements Runnable {
      */
     private Mensagem processarLogin(Mensagem pedido) throws IOException {
         // Extrair credenciais
-        String[] credenciais = pedido.extrairDadosAutenticacao();
+        String[] credenciais = Protocolo.lerAutenticacao(pedido.getPayload());
         String username = credenciais[0];
         String password = credenciais[1];
         
-        // Tentar autenticar
         boolean sucesso = gestorUtilizadores.autenticar(username, password);
         
         if (sucesso) {
             this.username = username; // Marcar como autenticado
             System.out.println("Utilizador autenticado: " + username);
-            return Mensagem.criarRespostaOk("Autenticação bem-sucedida");
+            return Mensagem.criarRespostaOk("[DEBUG] Autenticação bem-sucedida");
         } else {
-            return Mensagem.criarRespostaErro("Credenciais inválidas");
+            return Mensagem.criarRespostaErro("[DEBUG] Credenciais inválidas");
         }
     }
     
+    /**
+     * Processa pedido de registar evento de venda
+     */
     private Mensagem processarRegistarEvento(Mensagem pedido) throws IOException {
 
         Evento evento = Protocolo.lerEvento(pedido.getPayload());
@@ -227,8 +234,13 @@ public class WorkerCliente implements Runnable {
         return Mensagem.criarRespostaOk("Evento registado com sucesso");
     }
     
-
-
+    /**
+     * Processa pedido de iniciar novo dia
+     */
+    private Mensagem processarNovoDia() throws IOException {
+        gestorEventos.iniciarNovoDia();
+        return Mensagem.criarRespostaOk("[DEBUG] Novo dia iniciado com sucesso");
+    }
 
     /**
      * Fecha a conexão com o cliente e liberta recursos.
@@ -242,27 +254,16 @@ public class WorkerCliente implements Runnable {
     private void fecharConexao() {
         ativo = false;
         try {
+            threadPool.shutdownNow(); // Interrompe threads ativas
             if (output != null) output.close();
             if (input != null) input.close();
             if (clienteSocket != null) clienteSocket.close();
+
         } catch (IOException e) {
             System.err.println("Erro ao fechar conexão: " + e.getMessage());
         }
     }
     
-    /**
-     * Verifica se o cliente está autenticado
-     */
-    public boolean isAutenticado() {
-        return username != null;
-    }
-    
-    /**
-     * Obtém username do cliente (null se não autenticado)
-     */
-    public String getUsername() {
-        return username;
-    }
 }
 
 //=================================TIRAR DEPOIS================================//

@@ -218,7 +218,7 @@ public class InterfaceUtilizador {
                 System.out.println("Erro ao registar evento");
             }
         } catch (Exception e) {
-            System.err.println("✗ Erro: " + e.getMessage());
+            System.err.println("Erro: " + e.getMessage());
         }
     }
 

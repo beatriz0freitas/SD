@@ -4,22 +4,23 @@ import java.io.*;
 import java.net.Socket;
 import java.util.concurrent.locks.ReentrantLock;
 
-import src.uteis.Evento;
 import src.uteis.Mensagem;
-import src.uteis.Protocolo;
 
 /**
  * Biblioteca de comunicação com o servidor.
  * Suporta múltiplas threads enviando pedidos em paralelo.
  */
 //nao sei se faz sentido termos locks aqui - Os locks devem existir APENAS no servidor
+//todo: nome da classe parece muito gpt, idk
 public class BibliotecaCliente {
-    private String host;
-    private int porta;
+    private final String host;
+    private final int porta;
+
     private Socket socket;
     private DataInputStream input;
     private DataOutputStream output;
-    private ReentrantLock lock;                           // Para sincronizar envio/recepção
+    
+    private final ReentrantLock lock;                           // Para sincronizar envio/recepção
     private boolean conectado;
 
     public BibliotecaCliente(String host, int porta) {
@@ -27,21 +28,6 @@ public class BibliotecaCliente {
         this.porta = porta;
         this.lock = new ReentrantLock(true);        // Lock justo (FIFO)
         this.conectado = false;
-    }
-
-    /**
-     * Envia uma mensagem para o servidor
-     */
-    private void enviarMensagem(Mensagem msg) throws IOException {
-        msg.escrever(output);
-        output.flush();
-    }
-
-    /**
-     * Recebe uma mensagem do servidor
-     */
-    private Mensagem receberMensagem() throws IOException {
-        return Mensagem.ler(input);
     }
 
     /**
@@ -55,9 +41,9 @@ public class BibliotecaCliente {
      * Estabelece conexão com o servidor
      */
     public void conectar() throws IOException {
-        if (conectado) {
+        if (conectado)
             return;
-        }
+    
         socket = new Socket(host, porta);
         input = new DataInputStream(socket.getInputStream());
         output = new DataOutputStream(socket.getOutputStream());
@@ -78,22 +64,33 @@ public class BibliotecaCliente {
         }
     }
 
+    // ============================================================
+    // MÉTODO BASE: pedido → resposta
+    // ============================================================
+
+    private Mensagem enviarPedido(Mensagem pedido) throws IOException {
+        lock.lock();
+        try {
+            pedido.escrever(output);
+            output.flush();
+            return Mensagem.ler(input);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    // ============================================================
+    // OPERACOES
+    // ============================================================
+
     /**
      * Regista um novo utilizador
      * @return true se sucesso, false se erro
      */
     public boolean registar(String username, String password) throws IOException {
-        lock.lock();
-        try {
-            Mensagem pedido = Mensagem.criarRegistarUtilizador(username, password);
-            enviarMensagem(pedido);
-
-            Mensagem resposta = receberMensagem();
-            return resposta.isSuccesso(); // Usa o tipo da mensagem
-
-        } finally {
-            lock.unlock();
-        }
+        Mensagem pedido = Mensagem.criarRegistarUtilizador(username, password);
+        Mensagem resposta = enviarPedido(pedido);
+        return resposta.isSuccesso();
     }
 
     /**
@@ -101,44 +98,30 @@ public class BibliotecaCliente {
      * @return true se sucesso, false se erro
      */
     public boolean autenticar(String username, String password) throws IOException {
-        lock.lock();
-        try {
-            Mensagem pedido = Mensagem.criarAutenticar(username, password);
-            enviarMensagem(pedido);
-
-            Mensagem resposta = receberMensagem();
-            return resposta.isSuccesso(); // Usa o tipo da mensagem
-
-        } finally {
-            lock.unlock();
-        }
+        Mensagem pedido = Mensagem.criarAutenticar(username, password);
+        Mensagem resposta = enviarPedido(pedido);
+        return resposta.isSuccesso();
     }
 
     /**
      * Regista um evento de venda no dia corrente
      */
     public boolean registarEvento(int produtoID, int quantidade, double preco) throws IOException {
-        lock.lock();
-        try {
-            byte[] payload = Protocolo.escreverPayload(out -> {
-                out.writeInt(produtoID);
-                out.writeInt(quantidade);
-                out.writeDouble(preco);
-            });
-            
-            Mensagem pedido = Mensagem.criar(Mensagem.TipoOperacao.REG_EVENTO, payload);
-            
-            enviarMensagem(pedido);
-            Mensagem resposta = receberMensagem();
-    
-            return resposta.isSuccesso();
-    
-        } finally {
-            lock.unlock();
-        }
+        Mensagem pedido = Mensagem.criarRegistarEvento(produtoID, quantidade, preco);
+        Mensagem resposta = enviarPedido(pedido);
+        return resposta.isSuccesso();
     }
     
-
+    /**
+     * Inicia um novo dia de vendas
+     * @return true se sucesso, false se erro
+     */
+    public boolean novoDia() throws IOException {
+        Mensagem pedido = Mensagem.criarNovoDia();
+        Mensagem resposta = enviarPedido(pedido);
+        return resposta.isSuccesso();
+    }
+    
     /**
      * Consulta agregação sobre dias anteriores
      * @param dias Número de dias anteriores (1 a D)
