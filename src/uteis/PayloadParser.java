@@ -37,4 +37,17 @@ public class PayloadParser {
             new Evento(in.readInt(), in.readInt(), in.readDouble())
         );
     }
+
+    // --- Admin ---
+    public static String lerPasswordAdmin(byte[] payload) throws IOException {
+        return Protocolo.deserializar(payload, Protocolo::lerString);
+    }
+    
+    public static String lerListaClientes(byte[] payload) throws IOException {
+        return Protocolo.deserializar(payload, Protocolo::lerString);
+    }
+    
+    public static String lerListaEventos(byte[] payload) throws IOException {
+        return Protocolo.deserializar(payload, Protocolo::lerString);
+    }
 }

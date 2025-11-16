@@ -109,6 +109,21 @@ public class BibliotecaCliente {
         Mensagem pedido = Mensagem.criarRegistarEvento(produtoID, quantidade, preco);
         return enviarPedido(pedido);
     }
+
+    public Mensagem loginAdmin(String password) throws IOException {
+        Mensagem pedido = Mensagem.criarLoginAdmin(password);
+        return enviarPedido(pedido);
+    }
+    
+    public Mensagem listarClientes() throws IOException {
+        Mensagem pedido = Mensagem.criarListarClientes();
+        return enviarPedido(pedido);
+    }
+    
+    public Mensagem listarEventos() throws IOException {
+        Mensagem pedido = Mensagem.criarListarEventos();
+        return enviarPedido(pedido);
+    }
     
     public Mensagem novoDia() throws IOException {
         Mensagem pedido = Mensagem.criarNovoDia();

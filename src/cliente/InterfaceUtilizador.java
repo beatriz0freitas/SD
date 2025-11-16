@@ -10,11 +10,14 @@ public class InterfaceUtilizador {
     private Scanner scanner;
     private boolean autenticado;
     private String nomeUtilizador;
+    private boolean isAdmin;
 
     public InterfaceUtilizador(String host, int porta) {
         this.bibliotecaCliente = new BibliotecaCliente(host, porta);
         this.scanner = new Scanner(System.in);
         this.autenticado = false;
+        this.nomeUtilizador = null;
+        this.isAdmin = false;
     }
 
     private void limparEcrã() {
@@ -96,6 +99,7 @@ public class InterfaceUtilizador {
         System.out.println("\n------ MENU DE AUTENTICAÇÃO ------");
         System.out.println("1. Registar novo utilizador (SignUp)");
         System.out.println("2. Autenticar (Login)");
+        System.out.println("3. Login Administrador"); 
         System.out.println("0. Sair");
         System.out.print("Escolha uma opção: ");
     }
@@ -107,6 +111,9 @@ public class InterfaceUtilizador {
                 break;
             case 2:
                 autenticarUtilizador();
+                break;
+            case 3: 
+                autenticarAdmin();
                 break;
             case 0:
                 System.out.println("A sair...");
@@ -159,28 +166,73 @@ public class InterfaceUtilizador {
         }
     }
 
+    private void autenticarAdmin() {
+        System.out.print("\nSenha de administrador: ");
+        String password = scanner.nextLine();
+    
+        try {
+            Mensagem resposta = bibliotecaCliente.loginAdmin(password);
+            
+            if (resposta.isSuccesso()) {
+                this.autenticado = true;
+                this.isAdmin = true;
+                this.nomeUtilizador = "ADMIN";
+                System.out.println("Acesso de administrador concedido!");
+            }
+            
+            mostrarResposta(resposta);
+        } catch (IOException e) {
+            System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } finally {
+            esperaEnter();
+        }
+    }
+
     private void mostrarMenuPrincipal() {
         limparEcrã();
         System.out.println("\n=== MENU PRINCIPAL [" + nomeUtilizador + "] ===");
-        System.out.println("1. Registar evento de venda");
-        System.out.println("2. Iniciar novo dia");
+        
+        if (isAdmin) {
+            System.out.println("1. Listar clientes registados");
+            System.out.println("2. Listar eventos");
+            System.out.println("3. Avançar dia");
+        } else {
+            System.out.println("1. Registar evento de venda");
+        }
+        
         System.out.println("0. Logout e Sair");
         System.out.print("Escolha uma opção: ");
     }
     
     private void processarOpcaoPrincipal(int opcao) {
-        switch (opcao) {
-            case 1:
-                registarEvento();
-                break;
-            case 2:
-                novoDia();
-                break;
-            case 0:
-                logout();
-                break;
-            default:
-                System.out.println("Opção inválida!");
+        if (isAdmin) {
+            switch (opcao) {
+                case 1:
+                    listarClientes();
+                    break;
+                case 2:
+                    listarEventos();
+                    break;
+                case 3:
+                    novoDia();
+                    break;
+                case 0:
+                    logout();
+                    break;
+                default:
+                    System.out.println("Opção inválida!");
+            }
+        } else {
+            switch (opcao) {
+                case 1:
+                    registarEvento();
+                    break;
+                case 0:
+                    logout();
+                    break;
+                default:
+                    System.out.println("Opção inválida!");
+            }
         }
     }
 
@@ -207,23 +259,42 @@ public class InterfaceUtilizador {
         }
     }
     
+    private void listarClientes() {
+        limparEcrã();
+        try {
+            Mensagem resposta = bibliotecaCliente.listarClientes();
+            mostrarResposta(resposta);
+        } catch (IOException e) {
+            System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } finally {
+            esperaEnter();
+        }
+    }
+    
+    private void listarEventos() {
+        limparEcrã();
+        try {
+            Mensagem resposta = bibliotecaCliente.listarEventos();
+            mostrarResposta(resposta);
+        } catch (IOException e) {
+            System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } finally {
+            esperaEnter();
+        }
+    }
+    
+    // Remover confirmação do novoDia() (admin não precisa confirmar):
     private void novoDia() {
         limparEcrã();
-        System.out.println("\n--- INICIAR NOVO DIA ---");
-        System.out.println("Tem certeza que deseja iniciar um novo dia?");
-        System.out.print("(S/N): ");
+        System.out.println("\n--- AVANÇAR DIA ---");
         
-        String confirmacao = scanner.nextLine();
-        
-        if (confirmacao.equalsIgnoreCase("S")) {
-            try {
-                Mensagem resposta = bibliotecaCliente.novoDia();
-                mostrarResposta(resposta);
-            } catch (IOException e) {
-                System.err.println("✗ Erro de comunicação: " + e.getMessage());
-            } finally {
-                esperaEnter();
-            }
+        try {
+            Mensagem resposta = bibliotecaCliente.novoDia();
+            mostrarResposta(resposta);
+        } catch (IOException e) {
+            System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } finally {
+            esperaEnter();
         }
     }
 

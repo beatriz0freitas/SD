@@ -32,6 +32,8 @@ public class ClienteHandler implements Runnable {
 
     private ExecutorService threadPool; 
     private final ReentrantLock outputLock;
+    private boolean isAdmin ;
+    private static final String ADMIN_PASSWORD = "admin123"; 
     
     public ClienteHandler(Socket clienteSocket, GestorUtilizadores gestorUtilizadores, GestorEventos gestorEventos) {
         this.clienteSocket = clienteSocket;
@@ -41,6 +43,7 @@ public class ClienteHandler implements Runnable {
         this.ativo = true;
         this.threadPool = Executors.newCachedThreadPool();
         this.outputLock = new ReentrantLock();
+        this.isAdmin = false;
     }
     
     public boolean isAutenticado() {
@@ -87,7 +90,7 @@ public class ClienteHandler implements Runnable {
             
             outputLock.lock();
             try {
-                // ← MUDANÇA: usar Protocolo em vez de Mensagem
+               
                 Protocolo.escreverMensagem(resposta, output);
             } finally {
                 outputLock.unlock();
@@ -100,7 +103,7 @@ public class ClienteHandler implements Runnable {
 
     private Mensagem processarPedido(Mensagem pedido) {
         try {
-            // ← MUDANÇA: getTipo() em vez de getTipoOperacao()
+
             Mensagem.TipoOperacao tipo = pedido.getTipo();
 
             if (tipo == Mensagem.TipoOperacao.REGISTO) {
@@ -110,6 +113,11 @@ public class ClienteHandler implements Runnable {
                 return processarLogin(pedido);
             }
 
+            if (tipo == Mensagem.TipoOperacao.LOGIN_ADMIN) {
+                return processarLoginAdmin(pedido);
+            }
+            
+
             if (!isAutenticado()) {
                 return Mensagem.criarRespostaErro("Operação requer autenticação");
             }
@@ -118,7 +126,22 @@ public class ClienteHandler implements Runnable {
                 case REG_EVENTO:
                     return processarRegistarEvento(pedido);
                 case NOVO_DIA:
+                    if (!isAdmin) {
+                        return Mensagem.criarRespostaErro("Apenas administrador pode avançar o dia");
+                    }
                     return processarNovoDia();
+                
+                case LISTAR_CLIENTES:
+                    if (!isAdmin) {
+                        return Mensagem.criarRespostaErro("Acesso negado");
+                    }
+                    return processarListarClientes();
+
+                case LISTAR_EVENTOS:
+                    if (!isAdmin) {
+                        return Mensagem.criarRespostaErro("Acesso negado");
+                    }
+                    return processarListarEventos();
                 case QUANTIDADE_VENDAS:
                 case VOLUME_VENDAS:
                 case PRECO_MEDIO:
@@ -173,6 +196,9 @@ public class ClienteHandler implements Runnable {
             return Mensagem.criarRespostaErro("Credenciais inválidas");
         }
     }
+
+
+    
     
     private Mensagem processarRegistarEvento(Mensagem pedido) throws IOException {
         Evento evento = PayloadParser.lerEvento(pedido.getPayload());
@@ -189,6 +215,29 @@ public class ClienteHandler implements Runnable {
     private Mensagem processarNovoDia() throws IOException {
         gestorEventos.iniciarNovoDia();
         return Mensagem.criarRespostaOk("Novo dia iniciado com sucesso");
+    }
+
+    private Mensagem processarLoginAdmin(Mensagem pedido) throws IOException {
+        String password = PayloadParser.lerPasswordAdmin(pedido.getPayload());
+        
+        if (ADMIN_PASSWORD.equals(password)) {
+            this.isAdmin = true;
+            this.username = "ADMIN";
+            System.out.println("Administrador autenticado");
+            return Mensagem.criarRespostaOk("Login de administrador bem-sucedido");
+        } else {
+            return Mensagem.criarRespostaErro("Senha de administrador inválida");
+        }
+    }
+
+    private Mensagem processarListarClientes() throws IOException {
+        String listaClientes = gestorUtilizadores.listarUtilizadores();
+        return Mensagem.criarRespostaOk(listaClientes);
+    }
+    
+    private Mensagem processarListarEventos() throws IOException {
+        String listaEventos = gestorEventos.listarEventos();
+        return Mensagem.criarRespostaOk(listaEventos);
     }
 
     private void fecharConexao() {

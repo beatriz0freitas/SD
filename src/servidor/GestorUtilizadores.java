@@ -108,6 +108,20 @@ public class GestorUtilizadores {
             System.err.println("A iniciar com lista vazia de utilizadores.");
         }
     }
+
+    public String listarUtilizadores() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== CLIENTES REGISTADOS ===\n");
+        sb.append("Total de utilizadores: ");
+        sb.append(utilizadores.size());
+        sb.append("\n\nUtilizadores:\n");
+        
+        for (String user : utilizadores.keySet()) {
+            sb.append("- ").append(user).append("\n");
+        }
+        
+        return sb.toString();
+    }
     
     
 }

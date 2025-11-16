@@ -43,4 +43,36 @@ public class GestorEventos {
             lock.unlock();
         }
     }
+
+
+    public String listarEventos() {
+        lock.lock();
+        try {
+            StringBuilder sb = new StringBuilder();
+            sb.append("=== EVENTOS POR DIA ===\n");
+            sb.append("Dia atual: ").append(diaAtual).append("\n\n");
+            
+            for (Map.Entry<Integer, List<Evento>> entry : eventosPorDia.entrySet()) {
+                int dia = entry.getKey();
+                List<Evento> eventos = entry.getValue();
+                
+                sb.append("DIA ").append(dia).append(" (").append(eventos.size()).append(" eventos):\n");
+                
+                if (eventos.isEmpty()) {
+                    sb.append("  (sem eventos)\n");
+                } else {
+                    for (int i = 0; i < eventos.size(); i++) {
+                        Evento e = eventos.get(i);
+                        sb.append(String.format("  %d. Produto %d - Qtd: %d - Preço: %.2f€ (Volume: %.2f€)\n",
+                            i + 1, e.getProdutoID(), e.getQuantidade(), e.getPreco(), e.getVolume()));
+                    }
+                }
+                sb.append("\n");
+            }
+            
+            return sb.toString();
+        } finally {
+            lock.unlock();
+        }
+    }
 }
