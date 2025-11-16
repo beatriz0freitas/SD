@@ -6,7 +6,7 @@ package src.servidor;
 public class Servidor {
     public static void main(String[] args) {
         int porta = 5000; // Porta padrão
-        System.out.println("PID: " + ProcessHandle.current().pid());
+        // System.out.println("PID: " + ProcessHandle.current().pid());
         if (args.length > 0) {
             try {
                 porta = Integer.parseInt(args[0]);          // Permitir especificar porta por argumento

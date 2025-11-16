@@ -72,17 +72,17 @@ public class WorkerCliente implements Runnable {
                      threadPool.execute(() -> processarPedidoAssinc(pedido));
                     
                 } catch (EOFException e) {
-                    System.out.println("[DEBUG] Cliente desconectado: " + (username != null ? username : clienteSocket.getInetAddress()));
+                    System.out.println("Cliente desconectado: " + (username != null ? username : clienteSocket.getInetAddress()));
                     break;
 
                 } catch (IOException e) {
-                    System.err.println("[DEBUG] Erro na comunicação: " + e.getMessage());
+                    System.err.println("Erro na comunicação: " + e.getMessage());
                     break;
                 }
             }
             
         } catch (IOException e) {
-            System.err.println("[DEBUG] Erro ao inicializar ligação: " + e.getMessage());
+            System.err.println("Erro ao inicializar ligação: " + e.getMessage());
         } finally {
             fecharConexao();
         }
@@ -107,7 +107,7 @@ public class WorkerCliente implements Runnable {
             }
             
         } catch (IOException e) {
-            System.err.println("[DEBUG] Erro ao enviar resposta: " + e.getMessage());
+            System.err.println("Erro ao enviar resposta: " + e.getMessage());
         }
     }
 
@@ -164,16 +164,16 @@ public class WorkerCliente implements Runnable {
         String password = credenciais[1];
         
         if (username == null || username.isBlank())
-            return Mensagem.criarRespostaErro("[DEBUG] Username inválido");
+            return Mensagem.criarRespostaErro("Username inválido");
         
         if (password == null || password.length() < 4) 
-            return Mensagem.criarRespostaErro("[DEBUG] Password deve ter pelo menos 4 caracteres");
+            return Mensagem.criarRespostaErro("Password deve ter pelo menos 4 caracteres");
         
         if (!gestorUtilizadores.registar(username, password))
-            return Mensagem.criarRespostaErro("[DEBUG] Username já existe.");
+            return Mensagem.criarRespostaErro("Username já existe.");
 
         System.out.println("Novo utilizador registado: " + username);
-        return Mensagem.criarRespostaOk("[DEBUG] Utilizador registado com sucesso");
+        return Mensagem.criarRespostaOk("Utilizador registado com sucesso");
     }
     
     private Mensagem processarLogin(Mensagem pedido) throws IOException {
@@ -186,9 +186,9 @@ public class WorkerCliente implements Runnable {
         if (sucesso) {
             this.username = username;
             System.out.println("Utilizador autenticado: " + username);
-            return Mensagem.criarRespostaOk("[DEBUG] Autenticação bem-sucedida");
+            return Mensagem.criarRespostaOk("Autenticação bem-sucedida");
         } else {
-            return Mensagem.criarRespostaErro("[DEBUG] Credenciais inválidas");
+            return Mensagem.criarRespostaErro("Credenciais inválidas");
         }
     }
     
@@ -206,7 +206,7 @@ public class WorkerCliente implements Runnable {
     
     private Mensagem processarNovoDia() throws IOException {
         gestorEventos.iniciarNovoDia();
-        return Mensagem.criarRespostaOk("[DEBUG] Novo dia iniciado com sucesso");
+        return Mensagem.criarRespostaOk("Novo dia iniciado com sucesso");
     }
 
      /**
