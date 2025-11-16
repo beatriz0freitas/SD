@@ -40,21 +40,27 @@ public class InterfaceUtilizador {
     }
 
     private double lerDouble() {
-        try {
-            return Double.parseDouble(scanner.nextLine());
-        } catch (NumberFormatException e) {
-            System.out.println("Valor inválido, usando 0.0");
-            return 0.0;
+        while (true) {
+            try {
+                System.out.print("Digite um valor numérico: ");
+                return Double.parseDouble(scanner.nextLine());
+            } catch (NumberFormatException e) {
+                System.out.println("Valor inválido. Tente novamente.");
+            }
         }
     }
     
     /**
      * Helper para mostrar resposta do servidor com formatação
      */
-    private void mostrarResposta(Mensagem resposta) throws IOException {
-        String mensagem = PayloadParser.lerResposta(resposta.getPayload());
-        String icone = resposta.isSuccesso() ? "✓" : "✗";
-        System.out.println("\n" + icone + " " + mensagem);
+    private void mostrarResposta(Mensagem resposta) {
+        try {
+            String mensagem = PayloadParser.lerResposta(resposta.getPayload());
+            String icone = resposta.isSuccesso() ? "✓" : "✗";
+            System.out.println("\n" + icone + " " + mensagem);
+        } catch (IOException e) {
+            System.out.println("Erro ao processar a resposta do servidor: " + e.getMessage());
+        }
     }
 
     public void iniciar() {
@@ -115,20 +121,19 @@ public class InterfaceUtilizador {
         System.out.print("\nNome de utilizador: ");
         String nome = scanner.nextLine();
         
-        System.out.print("Palavra-passe (mínimo 4 caracteres): ");
+        System.out.print("Palavra-passe: ");
         String password = scanner.nextLine();
-
+    
         try {
             Mensagem resposta = bibliotecaCliente.registar(nome, password);
             mostrarResposta(resposta);
-            
-            System.out.println("\nPressione ENTER para continuar...");
-            scanner.nextLine();
-
         } catch (IOException e) {
             System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } finally {
+            esperaEnter();
         }
     }
+    
 
     private void autenticarUtilizador() {
         System.out.print("\nNome de utilizador: ");
@@ -136,24 +141,21 @@ public class InterfaceUtilizador {
         
         System.out.print("Palavra-passe: ");
         String password = scanner.nextLine();
-
+    
         try {
             Mensagem resposta = bibliotecaCliente.autenticar(nome, password);
             
             if (resposta.isSuccesso()) {
                 this.autenticado = true;
                 this.nomeUtilizador = nome;
-                mostrarResposta(resposta);
                 System.out.println("Bem-vindo, " + nome + "!");
-            } else {
-                mostrarResposta(resposta);
             }
             
-            System.out.println("\nPressione ENTER para continuar...");
-            scanner.nextLine();
-            
+            mostrarResposta(resposta);
         } catch (IOException e) {
             System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } finally {
+            esperaEnter();
         }
     }
 
@@ -194,19 +196,17 @@ public class InterfaceUtilizador {
         
         System.out.print("Preço unitário: ");
         double preco = lerDouble();
-
+    
         try {
             Mensagem resposta = bibliotecaCliente.registarEvento(produtoID, quantidade, preco);
             mostrarResposta(resposta);
-            
-            System.out.println("\nPressione ENTER para continuar...");
-            scanner.nextLine();
-            
         } catch (IOException e) {
             System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } finally {
+            esperaEnter();
         }
     }
-
+    
     private void novoDia() {
         limparEcrã();
         System.out.println("\n--- INICIAR NOVO DIA ---");
@@ -219,12 +219,10 @@ public class InterfaceUtilizador {
             try {
                 Mensagem resposta = bibliotecaCliente.novoDia();
                 mostrarResposta(resposta);
-                
-                System.out.println("\nPressione ENTER para continuar...");
-                scanner.nextLine();
-                
             } catch (IOException e) {
                 System.err.println("✗ Erro de comunicação: " + e.getMessage());
+            } finally {
+                esperaEnter();
             }
         }
     }
@@ -234,5 +232,11 @@ public class InterfaceUtilizador {
         autenticado = false;
         bibliotecaCliente.desconectar();
         System.exit(0);
+    }
+
+
+    private void esperaEnter() {
+        System.out.println("\nPressione ENTER para continuar...");
+        scanner.nextLine();
     }
 }

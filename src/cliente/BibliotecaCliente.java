@@ -36,27 +36,44 @@ public class BibliotecaCliente {
     }
 
     public boolean isConectado() {
-        return conectado && socket != null && socket.isConnected() && !socket.isClosed();
+        readLock.lock();
+        try {
+            return conectado && socket != null && socket.isConnected() && !socket.isClosed();
+        } finally {
+            readLock.unlock();
+        }
     }
 
     public void conectar() throws IOException {
-        if (conectado) return;
-        socket = new Socket(host, porta);
-        input = new DataInputStream(socket.getInputStream());
-        output = new DataOutputStream(socket.getOutputStream());
-        conectado = true;
+        writeLock.lock();
+        try {
+            if (!conectado) {
+                this.socket = new Socket(host, porta);
+                this.input = new DataInputStream(socket.getInputStream());
+                this.output = new DataOutputStream(socket.getOutputStream());
+                this.conectado = true;
+            }
+        } finally {
+            writeLock.unlock();
+        }
     }
 
     public void desconectar() {
-        conectado = false;
+        writeLock.lock();
         try {
-            if (output != null) output.close();
-            if (input != null) input.close();
-            if (socket != null) socket.close();
+            if (conectado) {
+                if (socket != null) {
+                    socket.close();
+                }
+                conectado = false;
+            }
         } catch (IOException e) {
-            System.err.println("Erro ao fechar conexão: " + e.getMessage());
+            e.printStackTrace(); // Tratar exceção adequadamente
+        } finally {
+            writeLock.unlock();
         }
     }
+
 
     private Mensagem enviarPedido(Mensagem pedido) throws IOException {
         // FASE 1: Enviar
