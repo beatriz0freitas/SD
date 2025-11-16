@@ -83,7 +83,7 @@ public class InterfaceUtilizador {
                 processarOpcaoPrincipal(opcao);
             }
 
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             System.err.println("Erro: " + e.getMessage());
         } finally {
             bibliotecaCliente.desconectar();

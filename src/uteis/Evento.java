@@ -1,5 +1,7 @@
 package src.uteis;
 
+import java.util.Objects;
+
 // Representa um evento de venda
 public class Evento {
 
@@ -58,6 +60,7 @@ public class Evento {
                 '}';
     }
 
+    @Override
     public boolean equals (Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
@@ -66,5 +69,11 @@ public class Evento {
         return produtoID == evento.produtoID &&
                quantidade == evento.quantidade &&
                Double.compare(evento.preco, preco) == 0;
+    }
+    
+    //mesmo que objetos tenham os mesmos atributos so sao considerados iguais se tiverem o mesmo hashcode (complemento do equals)
+    @Override 
+    public int hashCode() {
+        return Objects.hash(produtoID, quantidade, preco);
     }
 }
