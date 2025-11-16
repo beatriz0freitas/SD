@@ -56,8 +56,7 @@ public class Evento {
                 + "produtoID=" + produtoID
                 + ", quantidade=" + quantidade
                 + ", preco=" + preco
-                + // ", dia=" + dia +
-                '}';
+                + '}';
     }
 
     @Override
