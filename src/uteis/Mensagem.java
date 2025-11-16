@@ -18,6 +18,7 @@ import java.io.*;
  * ler()           - rede → Mensagem (via DataInputStream)
  */
 
+//todo: dar clean à classe inteira prinicpalmente em comentarios - aspeto confuso. acho que codigo está fire tho
 public class Mensagem {
     
     /**

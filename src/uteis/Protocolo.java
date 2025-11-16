@@ -19,6 +19,7 @@ import java.util.function.Consumer;
  * - escreverMensagem() : Mensagem → DataOutputStream (rede)
  * - lerMensagem()     : DataInputStream (rede) → Mensagem
  */
+//todo: perceber se alguns metodos nao fariam sentido transitar para outra classe
 public class Protocolo {
 
      // ========== ESCRITA/LEITURA NA REDE (bytes -> stream) ==========

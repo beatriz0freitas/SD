@@ -11,6 +11,7 @@ import src.uteis.Mensagem;
  * Suporta múltiplas threads enviando pedidos em paralelo.
  */
 //nao sei se faz sentido termos locks aqui - Os locks devem existir APENAS no servidor
+//todo: nome da classe parece muito gpt, idk
 public class BibliotecaCliente {
     private final String host;
     private final int porta;

@@ -18,6 +18,7 @@ import src.uteis.Protocolo;
  * - ThreadPool: processa cada pedido em thread separada
  * - Lock de escrita: garante que respostas não se misturam
  */
+//todo: nome da classe parece gpt as well
 public class WorkerCliente implements Runnable {
     
     private Socket clienteSocket;

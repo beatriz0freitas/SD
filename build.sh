@@ -23,3 +23,5 @@ rm manifest_server.txt manifest_cliente.txt
 echo "Build concluído!"
 echo "Execute: java -jar "Servidor.jar" para iniciar o servidor"
 echo "         java -jar "Cliente.jar" para iniciar o cliente"
+
+#temos de arranjar forma de dar kill à porta utilizada - penso que está sempre a dar estrilho por causa disso
