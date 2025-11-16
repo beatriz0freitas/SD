@@ -61,10 +61,7 @@ public class Mensagem {
         this.tipoOperacao = tipoOperacao;
         this.payload = payload;
     }
-    
-    
-    // ========== GETTERS ==========
-    
+        
     public TipoOperacao getTipoOperacao() {
         return tipoOperacao;
     }
@@ -101,45 +98,32 @@ public class Mensagem {
     /**
      * Escreve esta mensagem no stream de saída (envia pela rede)
      */
-    public void escrever(DataOutputStream out) throws IOException {
-        Protocolo.escreverMensagem(out, this);
+    public void escrever(DataOutputStream output) throws IOException {
+        Protocolo.escreverMensagem(output, this);
     }
     
     /**
      * Lê uma mensagem do stream de entrada (recebe da rede)
      */
-    public static Mensagem ler(DataInputStream in) throws IOException {
-        return Protocolo.lerMensagem(in);
+    public static Mensagem ler(DataInputStream input) throws IOException {
+        return Protocolo.lerMensagem(input);
     }
     
 
 
     // ========== FACTORY METHODS - CRIAÇÃO DE MENSAGENS ==========
     
-    /**
-     * Cria mensagem de registo de utilizador
-     */
-    public static Mensagem criarRegistarUtilizador(String username, String password) throws IOException {
-        byte[] payload = Protocolo.serializarPayloadAutenticacao(username, password);
-        return new Mensagem(TipoOperacao.REGISTO, payload);
+    public static Mensagem criar(TipoOperacao tipo, byte[] payload) {
+        return new Mensagem(tipo, payload);
     }
-    
-    /**
-     * Cria mensagem de autenticação (login)
-     */
-    public static Mensagem criarAutenticar(String username, String password) throws IOException {
-        byte[] payload = Protocolo.serializarPayloadAutenticacao(username, password);
-        return new Mensagem(TipoOperacao.LOGIN, payload);
-    }
-    
+
     /**
      * Cria mensagem de resposta de sucesso.
      * 
      * @param mensagem Mensagem descritiva do resultado
      */
     public static Mensagem criarRespostaOk(String mensagem) throws IOException {
-        byte[] payload = Protocolo.serializarPayloadResposta(mensagem);
-        return new Mensagem(TipoOperacao.RESPOSTA_OK, payload);
+        return new Mensagem(TipoOperacao.RESPOSTA_OK, Protocolo.payloadResposta(mensagem));
     }
     
     /** Cria mensagem de resposta de erro.
@@ -147,27 +131,33 @@ public class Mensagem {
      * @param mensagem Descrição do erro
      */
     public static Mensagem criarRespostaErro(String mensagem) throws IOException {
-        byte[] payload = Protocolo.serializarPayloadResposta(mensagem);
-        return new Mensagem(TipoOperacao.RESPOSTA_ERRO, payload);
+        return new Mensagem(TipoOperacao.RESPOSTA_ERRO, Protocolo.payloadResposta(mensagem));
     }
 
-    public static Mensagem criar(TipoOperacao tipo, byte[] payload) {
-        return new Mensagem(tipo, payload); // funciona porque está na própria classe
+    /**
+     * Cria mensagem de registo de utilizador (signup)
+     */
+    public static Mensagem criarRegistarUtilizador(String username, String password) throws IOException {
+        return new Mensagem(TipoOperacao.REGISTO, Protocolo.payloadAutenticacao(username, password));
     }
+
+    /**
+     * Cria mensagem de autenticação (login)
+     */
+    public static Mensagem criarAutenticar(String username, String password) throws IOException {
+        return new Mensagem(TipoOperacao.LOGIN, Protocolo.payloadAutenticacao(username, password));
+    }
+    
+    /**
+     * Cria mensagem de registo de evento
+     */
+    public static Mensagem criarRegistarEvento(int produtoID, int quantidade, double preco) throws IOException {
+        return new Mensagem(TipoOperacao.REG_EVENTO, Protocolo.payloadEvento(produtoID, quantidade, preco));
+    }
+    
     
     
     // ========== EXTRAÇÃO DE DADOS DO PAYLOAD ==========
-    
-    /**
-     * Extrai dados de autenticação do payload
-     * @return Array com [username, password]
-     */
-    public String[] extrairDadosAutenticacao() throws IOException {
-        if (payload == null) {
-            throw new IOException("Payload vazio");
-        }
-        return Protocolo.deserializarPayloadAutenticacao(payload);
-    }
     
     /**
      * Extrai resposta do servidor do payload
@@ -179,7 +169,6 @@ public class Mensagem {
     //     return Protocolo.deserializarPayloadResposta(payload);
     // }
     
-
 
     // ========== MÉTODOS UTEIS ==========
 
@@ -193,6 +182,10 @@ public class Mensagem {
         return TipoOperacao.RESPOSTA_OK.equals(tipoOperacao);
     }
     
+    //todo: perceber se esta definicao nao faz mais sentido
+    //public boolean isSuccesso() {
+    //  return tipoOperacao == TipoOperacao.RESPOSTA_OK;
+    //}
     
     /**
      * Obtém mensagem de erro/sucesso (atalho)
@@ -205,7 +198,7 @@ public class Mensagem {
     //     }
     // }
 
-    // ========== EQUALS & TOSTRING ==========
+
 
  
 

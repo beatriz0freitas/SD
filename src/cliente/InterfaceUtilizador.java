@@ -19,13 +19,41 @@ public class InterfaceUtilizador {
         this.autenticado = false;
     }
 
-  
-
+    // ------------ UTEIS -------------------
     private void limparEcrã() {
         System.out.print("\033[H\033[2J");
         System.out.flush();
     }
     
+    private int lerOpcao() {
+        try {
+            return Integer.parseInt(scanner.nextLine());
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    private int lerInteiro() {
+        try {
+            return Integer.parseInt(scanner.nextLine());
+        } catch (NumberFormatException e) {
+            System.out.println("Valor inválido, usando 0");
+                return 0;
+        }
+    }
+
+    private double lerDouble() {
+        try {
+            return Double.parseDouble(scanner.nextLine());
+        } catch (NumberFormatException e) {
+            System.out.println("Valor inválido, usando 0.0");
+            return 0.0;
+        }
+    }
+
+
+    // ------------ LÓGICA PRINCIPAL --------------
+
     public void iniciar() {
         try {
             bibliotecaCliente.conectar();
@@ -82,10 +110,10 @@ public class InterfaceUtilizador {
         }
     }
 
-
     private void registarUtilizador() {
         System.out.print("\nNome de utilizador: ");
         String nome = scanner.nextLine();
+        
         System.out.print("Palavra-passe (mínimo 4 caracteres): ");
         String password = scanner.nextLine();
 
@@ -93,22 +121,23 @@ public class InterfaceUtilizador {
             boolean sucesso = bibliotecaCliente.registar(nome, password);
 
             if (sucesso) {
-                System.out.println("✓ Utilizador registado com sucesso!");
+                System.out.println("Utilizador registado com sucesso!");
             } else {
-                System.out.println("✗ Erro ao registar utilizador (username já existe ou password inválida)");
+                System.out.println("Erro ao registar utilizador (username já existe ou password inválida)");
             }
 
         } catch (IOException e) {
-            System.err.println("✗ Erro de comunicação com o servidor: " + e.getMessage());
+            System.err.println("Erro de comunicação com o servidor: " + e.getMessage());
         } catch (Exception e) {
-            System.err.println("✗ Ocorreu um erro inesperado: " + e.getMessage());
+            System.err.println("Ocorreu um erro inesperado: " + e.getMessage());
         }
     }
 
-
+    //TODO: [fix] depois de autenticar está em loop nao passa para o menu prinicpal
     private void autenticarUtilizador() {
         System.out.print("\nNome de utilizador: ");
         String nome = scanner.nextLine();
+        
         System.out.print("Palavra-passe: ");
         String password = scanner.nextLine();
 
@@ -118,15 +147,14 @@ public class InterfaceUtilizador {
             if (sucesso) {
                 this.autenticado = true;
                 this.nomeUtilizador = nome;
-                System.out.println("✓ Autenticação bem-sucedida! Bem-vindo, " + nome + "!");
+                System.out.println("Autenticação bem-sucedida! Bem-vindo, " + nome + "!");
             } else {
-                System.out.println("✗ Credenciais inválidas");
+                System.out.println("Credenciais inválidas");
             }
         } catch (Exception e) {
             System.err.println("✗ Erro: " + e.getMessage());
         }
     }
-
 
     private void mostrarMenuPrincipal() {
         limparEcrã();
@@ -140,12 +168,11 @@ public class InterfaceUtilizador {
         System.out.println("0. Logout e Sair");
         System.out.print("Escolha uma opção: ");
     }
-
-
+    
     private void processarOpcaoPrincipal(int opcao) {
         switch (opcao) {
             case 1:
-                // registarEvento();
+                registarEvento();
                 break;
             case 2:
                 // consultarAgregacoes();
@@ -170,26 +197,30 @@ public class InterfaceUtilizador {
         }
     }
 
-    // private void registarEvento() {
-    //     System.out.println("\n--- Registar Evento de Venda ---");
-    //     System.out.print("Nome do produto: ");
-    //     String produto = scanner.nextLine();
-    //     System.out.print("Quantidade: ");
-    //     int quantidade = lerInteiro();
-    //     System.out.print("Preço unitário: ");
-    //     double preco = lerDouble();
+    private void registarEvento() {
+        limparEcrã();
+        System.out.println("\n--- REGISTAR EVENTO DE VENDA ---");
+        
+        System.out.print("ID do produto: ");
+        int produtoID = lerInteiro();
+        
+        System.out.print("Quantidade: ");
+        int quantidade = lerInteiro();
+        
+        System.out.print("Preço unitário: ");
+        double preco = lerDouble();
 
-    //     try {
-    //         boolean sucesso = bibliotecacliente.registarEvento(produto, quantidade, preco);
-    //         if (sucesso) {
-    //             System.out.println("✓ Evento registado com sucesso!");
-    //         } else {
-    //             System.out.println("✗ Erro ao registar evento");
-    //         }
-    //     } catch (Exception e) {
-    //         System.err.println("✗ Erro: " + e.getMessage());
-    //     }
-    // }
+        try {
+            boolean sucesso = bibliotecaCliente.registarEvento(produtoID, quantidade, preco);
+            if (sucesso) {
+                System.out.println("Evento registado com sucesso!");
+            } else {
+                System.out.println("Erro ao registar evento");
+            }
+        } catch (Exception e) {
+            System.err.println("✗ Erro: " + e.getMessage());
+        }
+    }
 
     // private void consultarAgregacoes() {
     //     System.out.println("\n--- Consultar Agregações ---");
@@ -301,32 +332,6 @@ public class InterfaceUtilizador {
         bibliotecaCliente.desconectar();
         System.exit(0);
     }
-
-    private int lerOpcao() {
-        try {
-            return Integer.parseInt(scanner.nextLine());
-        } catch (NumberFormatException e) {
-            return -1;
-        }
-    }
-
-    // private int lerInteiro() {
-    //     try {
-    //         return Integer.parseInt(scanner.nextLine());
-    //     } catch (NumberFormatException e) {
-    //         System.out.println("Valor inválido, usando 0");
-    //         return 0;
-    //     }
-    // }
-
-    // private double lerDouble() {
-    //     try {
-    //         return Double.parseDouble(scanner.nextLine());
-    //     } catch (NumberFormatException e) {
-    //         System.out.println("Valor inválido, usando 0.0");
-    //         return 0.0;
-    //     }
-    // }
 
     
 }

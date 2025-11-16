@@ -19,8 +19,6 @@ public class GestorUtilizadores {
         this.persistencia = new PersistenciaUtilizadores();
         carregarUtilizadores();
     }
-    
-   
   
     /**
      * Calcula hash da password (para quem tiver acesso ao ficheiro não ver a password em texto claro)
@@ -62,7 +60,7 @@ public class GestorUtilizadores {
      * Regista um novo utilizador
      * @return true se registado com sucesso, false se já existe
      */
-    public synchronized boolean registar(String username, String password) {
+    public boolean registar(String username, String password) {
         if (utilizadores.containsKey(username)) {
             return false;
         }
