@@ -14,6 +14,11 @@ import src.uteis.Evento;
  *
  * - Em disco: eventos de dias anteriores, guardados por PersistenciaEventos.
  *
+ * INICIALIZAÇÃO:
+ * - O diaAtual é inicializado com o valor do último dia persistido em disco + 1.
+ * - Se não existirem eventos em disco, diaAtual começa em 0.
+ * - Isto permite retomar o estado correto após reinicialização do sistema.
+ *
  * CONCORRÊNCIA:
  * - ReadWriteLock:
  *   - writeLock: iniciarNovoDia, adicionarEvento
@@ -39,6 +44,18 @@ public class GestorEventos {
 
     public GestorEventos() {
         this.persistenciaEventos = new PersistenciaEventos("dados/eventos");
+        
+        // Inicializar diaAtual com o último dia registado em disco
+        int ultimoDia = persistenciaEventos.obterUltimoDia();
+        if (ultimoDia >= 0) {
+            // Existe pelo menos um dia em disco, iniciar no dia seguinte
+            this.diaAtual = ultimoDia + 1;
+            System.out.println("GestorEventos iniciado com diaAtual = " + diaAtual + " (último dia em disco: " + ultimoDia + ")");
+        } else {
+            // Não existem eventos em disco, começar no dia 0
+            this.diaAtual = 0;
+            System.out.println("GestorEventos iniciado com diaAtual = 0 (sem eventos em disco)");
+        }
     }
 
     /**
