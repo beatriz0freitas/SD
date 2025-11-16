@@ -38,7 +38,7 @@ public class BibliotecaCliente {
         this.conectado = false;
     }
 
-    public boolean isConectado() throws IOException {
+    public boolean isConectado() {
         lock.lock();
         try {
             return conectado
@@ -50,7 +50,8 @@ public class BibliotecaCliente {
         }
     }
 
-    //locks em conectar e desconectar nao são estritamente necessários, só existe ligacao por cliente, apenas 
+    //locks em conectar e desconectar nao são estritamente necessários, só existe uma ligacao por cliente
+    // mas é boa prática proteger o estado de conexão (robustez)
     public void conectar() throws IOException {
         lock.lock();
         try {

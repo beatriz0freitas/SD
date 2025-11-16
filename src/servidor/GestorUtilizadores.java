@@ -6,6 +6,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Base64; //Para codificação em Base64 (hash da password)
 import java.util.HashMap; 
 import java.util.Map;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Gere registo e autenticação de utilizadores com persistência
@@ -13,6 +14,7 @@ import java.util.Map;
 public class GestorUtilizadores {
     private Map<String, String> utilizadores; // username -> password hash
     private PersistenciaUtilizadores persistencia; // Classe de persistência
+    private final ReentrantLock lock = new ReentrantLock();
     
     public GestorUtilizadores() {
         this.utilizadores = new HashMap<>();
@@ -38,11 +40,24 @@ public class GestorUtilizadores {
      * Verifica se um utilizador existe
      */
     public boolean existeUtilizador(String username) {
-        return utilizadores.containsKey(username);
+        lock.lock();
+        try {
+            return utilizadores.containsKey(username);
+        } finally {
+            lock.unlock();
+        }
     }
     
-    public Map<String, String> getUtilizadores() {
-        return utilizadores;
+    /**
+     * Obtém número de utilizadores registados
+     */
+    public int getNumUtilizadores() {
+        lock.lock();
+        try {
+            return utilizadores.size();
+        } finally {
+            lock.unlock();
+        }
     }
 
     public PersistenciaUtilizadores getPersistencia() {
@@ -50,32 +65,28 @@ public class GestorUtilizadores {
     }
 
     /**
-     * Obtém número de utilizadores registados
-     */
-    public int getNumUtilizadores() {
-        return utilizadores.size();
-    }
-
-    /**
      * Regista um novo utilizador
      * @return true se registado com sucesso, false se já existe
      */
     public boolean registar(String username, String password) {
-        if (utilizadores.containsKey(username)) {
-            return false;
-        }
-        
-        String passwordHash = hashPassword(password); // Hash da password para segurança (não guardar em texto claro)
-        utilizadores.put(username, passwordHash);
-        
-        // Persistir imediatamente após registo
+        lock.lock();
         try {
-            persistencia.guardarUtilizadores(utilizadores);
-            return true;
-        } catch (IOException e) {
-            System.err.println("Erro ao guardar utilizadores: " + e.getMessage());
-            utilizadores.remove(username); // Rollback
-            return false;
+            if (utilizadores.containsKey(username)) {
+                return false;
+            }
+            String passwordHash = hashPassword(password);
+            utilizadores.put(username, passwordHash);
+
+            try {
+                persistencia.guardarUtilizadores(utilizadores);
+                return true;
+            } catch (IOException e) {
+                System.err.println("Erro ao guardar utilizadores: " + e.getMessage());
+                utilizadores.remove(username); // rollback
+                return false;
+            }
+        } finally {
+            lock.unlock();
         }
     }
     
@@ -84,43 +95,47 @@ public class GestorUtilizadores {
      * @return true se credenciais válidas, false caso contrário
      */
     public boolean autenticar(String username, String password) {
-
-        // Obter password armazenada
-        String storedPassword = utilizadores.get(username); 
-        if (storedPassword == null) {
-            return false;
+        lock.lock();
+        try {
+            String storedPassword = utilizadores.get(username);
+            if (storedPassword == null) return false;
+            String passwordHash = hashPassword(password);
+            return storedPassword.equals(passwordHash);
+        } finally {
+            lock.unlock();
         }
-        
-        // Comparar hash da password
-        String passwordHash = hashPassword(password);
-        return storedPassword.equals(passwordHash);
     }
     
     /**
      * Carrega utilizadores do disco
      */
     private void carregarUtilizadores() {
+        lock.lock();
         try {
             Map<String, String> carregados = persistencia.carregarUtilizadores();
             utilizadores.putAll(carregados);
         } catch (IOException e) {
             System.err.println("Erro ao carregar utilizadores: " + e.getMessage());
             System.err.println("A iniciar com lista vazia de utilizadores.");
+        } finally {
+            lock.unlock();
         }
     }
 
     public String listarUtilizadores() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("=== CLIENTES REGISTADOS ===\n");
-        sb.append("Total de utilizadores: ");
-        sb.append(utilizadores.size());
-        sb.append("\n\nUtilizadores:\n");
-        
-        for (String user : utilizadores.keySet()) {
-            sb.append("- ").append(user).append("\n");
+        lock.lock();
+        try {
+            StringBuilder sb = new StringBuilder();
+            sb.append("=== CLIENTES REGISTADOS ===\n");
+            sb.append("Total de utilizadores: ").append(utilizadores.size()).append("\n\n");
+            sb.append("Utilizadores:\n");
+            for (String user : utilizadores.keySet()) {
+                sb.append("- ").append(user).append("\n");
+            }
+            return sb.toString();
+        } finally {
+            lock.unlock();
         }
-        
-        return sb.toString();
     }
     
     
