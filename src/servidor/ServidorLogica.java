@@ -12,18 +12,22 @@ import java.util.concurrent.Executors;
 public class ServidorLogica {
 
     private int porta;
+    private int D; 
+    private int S;  
     private ServerSocket serverSocket;
     private GestorUtilizadores gestorUtilizadores;
     private GestorEventos gestorEventos;
     private ExecutorService threadPool;                  // Pool de threads dinâmico
     private volatile boolean ativo;                               // Flag de estado do servidor
     
-    public ServidorLogica(int porta) {
+    public ServidorLogica(int porta, int D, int S) {  
         this.porta = porta; 
+        this.D = D;
+        this.S = S;
         this.gestorUtilizadores = new GestorUtilizadores(); 
-        this.gestorEventos = new GestorEventos();
+        this.gestorEventos = new GestorEventos(D, S); 
         this.threadPool = Executors.newCachedThreadPool();
-        this.ativo = false;                             // Servidor inicialmente inativo
+        this.ativo = false;
     }
     
     /**
@@ -43,6 +47,8 @@ public class ServidorLogica {
             System.out.println(" SERVIÇO DE GESTÃO DE VENDAS - servidor ");
             System.out.println("========================================");
             System.out.println("Servidor iniciado na porta: " + porta);
+            System.out.println("Dias anteriores (D): " + D);        
+            System.out.println("Séries em memória (S): " + S);      
             System.out.println("Utilizadores registados: " + gestorUtilizadores.getNumUtilizadores());
             System.out.println("Aguardando conexões...\n");
             

@@ -33,6 +33,10 @@ public class GestorEventos {
     private final ReentrantReadWriteLock.ReadLock readLock = rwLock.readLock();
     private final ReentrantReadWriteLock.WriteLock writeLock = rwLock.writeLock();
 
+
+    private final int D;  // Dias anteriores a considerar
+    private final int S;  // Máximo de séries em memória
+
     // Dia atual mantido em memória
     private int diaAtual = 0;
 
@@ -42,20 +46,10 @@ public class GestorEventos {
     // Persistência de eventos em disco
     private final PersistenciaEventos persistenciaEventos;
 
-    public GestorEventos() {
+    public GestorEventos(int D, int S) {
+        this.D = D;
+        this.S = S;
         this.persistenciaEventos = new PersistenciaEventos("dados/eventos");
-        
-        // Inicializar diaAtual com o último dia registado em disco
-        int ultimoDia = persistenciaEventos.obterUltimoDia();
-        if (ultimoDia >= 0) {
-            // Existe pelo menos um dia em disco, iniciar no dia seguinte
-            this.diaAtual = ultimoDia + 1;
-            System.out.println("GestorEventos iniciado com diaAtual = " + diaAtual + " (último dia em disco: " + ultimoDia + ")");
-        } else {
-            // Não existem eventos em disco, começar no dia 0
-            this.diaAtual = 0;
-            System.out.println("GestorEventos iniciado com diaAtual = 0 (sem eventos em disco)");
-        }
     }
 
     /**

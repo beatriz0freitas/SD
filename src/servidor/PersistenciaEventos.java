@@ -107,33 +107,35 @@ public class PersistenciaEventos {
      */
     public int obterUltimoDia() {
         File dir = new File(pastaBase);
-        if (!dir.exists() || !dir.isDirectory()) {
+        if (!dir.isDirectory()) {
             return -1;
         }
-
-        File[] ficheiros = dir.listFiles((d, name) -> 
-            name.startsWith("eventos_dia_") && name.endsWith(".dat"));
-
+    
+        File[] ficheiros = dir.listFiles((d, name) ->
+            name.startsWith("eventos_dia_") && name.endsWith(".dat")
+        );
+    
         if (ficheiros == null || ficheiros.length == 0) {
             return -1;
         }
-
+    
         int maxDia = -1;
+        final String prefix = "eventos_dia_";
+        final String suffix = ".dat";
+    
         for (File f : ficheiros) {
             String nome = f.getName();
-            // Extrair número do dia do formato "eventos_dia_X.dat"
             try {
-                String diaStr = nome.substring("eventos_dia_".length(), nome.length() - ".dat".length());
+                String diaStr = nome.substring(prefix.length(), nome.length() - suffix.length());
                 int dia = Integer.parseInt(diaStr);
                 if (dia > maxDia) {
                     maxDia = dia;
                 }
-            } catch (NumberFormatException | StringIndexOutOfBoundsException e) {
-                // Ignorar ficheiros com formato inválido
+            } catch (RuntimeException e) { // NumberFormatException + StringIndexOutOfBoundsException
                 System.err.println("Ficheiro com formato inválido ignorado: " + nome);
             }
         }
-
+    
         return maxDia;
     }
 }
