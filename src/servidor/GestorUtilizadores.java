@@ -46,7 +46,7 @@ public class GestorUtilizadores {
     /**
      * Calcula hash da password (para quem tiver acesso ao ficheiro não ver a password em texto claro)
      */
-    //FIXME: dar clean up nisto
+    //TODO: dar clean up nisto
     private String hashPassword(String password) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");

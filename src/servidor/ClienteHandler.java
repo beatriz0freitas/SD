@@ -20,10 +20,11 @@ import src.uteis.Protocolo;  // ← ADICIONAR
  */
 public class ClienteHandler implements Runnable {
     
-    private Socket clienteSocket;
+    
     private GestorUtilizadores gestorUtilizadores;
     private GestorEventos gestorEventos; 
 
+    private Socket clienteSocket;
     private DataInputStream input;
     private DataOutputStream output;
 

@@ -67,8 +67,7 @@ public class GestorEventos {
                 System.out.println("Eventos do dia " + diaAtual + " guardados em disco.");
             } catch (IOException e) {
                 System.err.println("Erro ao guardar eventos do dia " + diaAtual + ": " + e.getMessage());
-                // Dependendo do enunciado, podias aqui decidir não avançar o dia
-                // mas para simplificar, avançamos mesmo assim.
+                // TODO: verificar se deve abortar a transição de dia ja que os eventos podem ser perdidos
             }
 
             // Limpar memória e avançar dia
