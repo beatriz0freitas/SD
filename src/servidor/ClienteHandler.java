@@ -8,7 +8,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import src.uteis.Evento;
 import src.uteis.Mensagem;
 import src.uteis.PayloadParser;
-import src.uteis.Protocolo;  // ← ADICIONAR
+import src.uteis.Protocolo; 
 
 /**
  * Thread que processa pedidos de um cliente específico
@@ -69,7 +69,7 @@ public class ClienteHandler implements Runnable {
             
             while (ativo) {
                 try {
-                    // ← MUDANÇA: usar Protocolo em vez de Mensagem
+                    
                     Mensagem pedido = Protocolo.lerMensagem(input);
                     threadPool.execute(() -> processarPedidoAssinc(pedido));
                     

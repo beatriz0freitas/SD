@@ -15,9 +15,10 @@ public class PayloadParser {
         return Protocolo.deserializar(payload, in -> {
             String username = Protocolo.lerString(in);
             String password = Protocolo.lerString(in);
-            if (username == null || password == null) {
-                throw new IOException("Credenciais nulas");
-            }
+            // if (username == null || password == null) {
+            //     throw new IOException("Credenciais nulas");
+            // }
+            //Nunca sao nulas porque o Protocolo.lerString nunca retorna null
             return new String[]{username, password};
         });
     }

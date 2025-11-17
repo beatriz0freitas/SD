@@ -83,12 +83,6 @@ public class Mensagem {
         return new Mensagem(TipoOperacao.LOGIN, payload);
     }
 
-    public static Mensagem criarAutenticarAdmin(String password) throws IOException {
-        byte[] payload = Protocolo.serializar(out -> 
-            Protocolo.escreverString(out, password)
-        );
-        return new Mensagem(TipoOperacao.LOGIN_ADMIN, payload);
-    }
     
     // --- Eventos ---
     
@@ -103,7 +97,7 @@ public class Mensagem {
 
     // --- Admin ---
 
-    public static Mensagem criarLoginAdmin(String password) throws IOException {
+    public static Mensagem criarAutenticarAdmin(String password) throws IOException {
         byte[] payload = Protocolo.serializar(out -> 
             Protocolo.escreverString(out, password)
         );

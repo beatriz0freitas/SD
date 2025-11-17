@@ -154,7 +154,7 @@ public class BibliotecaCliente {
     }
 
     public Mensagem loginAdmin(String password) throws IOException {
-        Mensagem pedido = Mensagem.criarLoginAdmin(password);
+        Mensagem pedido = Mensagem.criarAutenticarAdmin(password);
         return enviarPedido(pedido);
     }
 

@@ -10,27 +10,14 @@ public class Protocolo {
     
     // ========== PRIMITIVOS ==========
     
+    // assume sempre str != null
     public static void escreverString(DataOutputStream out, String str) throws IOException {
-        if (str == null) {
-            out.writeInt(-1);
-        } else {
-            byte[] bytes = str.getBytes("UTF-8");
-            out.writeInt(bytes.length);
-            out.write(bytes);
-        }
+        out.writeUTF(str); 
     }
     
+    // assume sempre str != null
     public static String lerString(DataInputStream in) throws IOException {
-        int length = in.readInt();
-        if (length == -1) {
-            return null;
-        }
-        if (length < 0 || length > 10_000_000) {
-            throw new IOException("String muito grande: " + length);
-        }
-        byte[] bytes = new byte[length];
-        in.readFully(bytes);
-        return new String(bytes, "UTF-8");
+        return in.readUTF();
     }
     
     // ========== API GENÉRICA PARA PAYLOADS ==========
@@ -47,18 +34,21 @@ public class Protocolo {
     
     public static byte[] serializar(PayloadWriter writer) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        DataOutputStream out = new DataOutputStream(baos);
-        writer.write(out);
-        out.flush();
-        return baos.toByteArray();
+        try (DataOutputStream out = new DataOutputStream(baos)) {
+            writer.write(out);
+            out.flush();
+            return baos.toByteArray();
+        }
     }
     
     public static <T> T deserializar(byte[] payload, PayloadReader<T> reader) throws IOException {
         if (payload == null || payload.length == 0) {
             throw new IOException("Payload vazio");
         }
-        DataInputStream in = new DataInputStream(new ByteArrayInputStream(payload));
-        return reader.read(in);
+        ByteArrayInputStream bais = new ByteArrayInputStream(payload);
+        try (DataInputStream in = new DataInputStream(bais)) {
+            return reader.read(in);
+        }
     }
     
     // ========== MENSAGEM I/O ==========
@@ -72,8 +62,10 @@ public class Protocolo {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         DataOutputStream temp = new DataOutputStream(buffer);
         
-        // Escrever tipo e payload no buffer
+        // Escrever tipo no buffer
         temp.writeInt(msg.getTipo().ordinal());
+
+        //Escrever payload no buffer
         byte[] payload = msg.getPayload();
         temp.writeInt(payload != null ? payload.length : 0);
         if (payload != null && payload.length > 0) {
@@ -105,15 +97,17 @@ public class Protocolo {
         byte[] dados = new byte[tamanhoTotal];
         in.readFully(dados);
         
-        // Deserializar
+        // Processar dados em buffer temporário
         DataInputStream temp = new DataInputStream(new ByteArrayInputStream(dados));
         
+        // Ler tipo da mensagem 
         int tipoOrdinal = temp.readInt();
         if (tipoOrdinal < 0 || tipoOrdinal >= Mensagem.TipoOperacao.values().length) {
             throw new IOException("Tipo inválido: " + tipoOrdinal);
         }
         Mensagem.TipoOperacao tipo = Mensagem.TipoOperacao.values()[tipoOrdinal];
         
+        // Ler payload da mensagem
         int payloadSize = temp.readInt();
         if (payloadSize < 0 || payloadSize > 100_000_000) {
             throw new IOException("Payload inválido: " + payloadSize);
