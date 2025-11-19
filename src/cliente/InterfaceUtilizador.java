@@ -198,6 +198,7 @@ public class InterfaceUtilizador {
             System.out.println("3. Avançar dia");
         } else {
             System.out.println("1. Registar evento de venda");
+            System.out.println("2. Quantidade de Vendas");
         }
         
         System.out.println("0. Logout e Sair");
@@ -227,6 +228,8 @@ public class InterfaceUtilizador {
                 case 1:
                     registarEvento();
                     break;
+                case 2:
+                    quantidadeVendas();
                 case 0:
                     logout();
                     break;
@@ -290,6 +293,26 @@ public class InterfaceUtilizador {
         
         try {
             Mensagem resposta = bibliotecaCliente.novoDia();
+            mostrarResposta(resposta);
+        } catch (IOException e) {
+            System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } finally {
+            esperaEnter();
+        }
+    }
+
+    private void quantidadeVendas() {
+        limparEcrã();
+        System.out.println("\n--- PROCURAR QUANTIDADE DE VENDAS ---");
+
+        System.out.print("ID do produto: ");
+        int produtoID = lerInteiro();
+
+        System.out.print("Últimos N dias: ");
+        int dias = lerInteiro();
+
+        try {
+            Mensagem resposta = bibliotecaCliente.quantidadeVendas(produtoID, dias);
             mostrarResposta(resposta);
         } catch (IOException e) {
             System.err.println("✗ Erro de comunicação: " + e.getMessage());

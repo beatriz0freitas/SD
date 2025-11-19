@@ -5,7 +5,7 @@ package src.servidor;
  */
 public class Servidor {
     public static void main(String[] args) {
-        int porta = 5000; // Porta padrão
+        int porta = 5001; // Porta padrão
         int D = 30;       // Dias anteriores (padrão)
         int S = 5;        // Séries em memória (padrão)
         

@@ -2,6 +2,7 @@ package src.servidor;
 
 import java.io.*;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
@@ -150,7 +151,7 @@ public class ClienteHandler implements Runnable {
                         return Mensagem.criarRespostaErro("Acesso negado");
                     }
                     return processarListarEventos();
-                case QUANTIDADE_VENDAS:
+                case QUANTIDADE_VENDAS: return processarQuantidadeVendas(pedido);
                 case VOLUME_VENDAS:
                 case PRECO_MEDIO:
                 case PRECO_MAXIMO:
@@ -246,6 +247,19 @@ public class ClienteHandler implements Runnable {
     private Mensagem processarListarEventos() throws IOException {
         String listaEventos = gestorEventos.listarEventosDiaAtual();
         return Mensagem.criarRespostaOk(listaEventos);
+    }
+
+    // TODO Testar
+    private Mensagem processarQuantidadeVendas(Mensagem pedido) throws IOException {
+        byte[] payload = pedido.getPayload();
+        ByteBuffer bb = ByteBuffer.wrap(payload);
+        int produto = bb.getInt();
+        int dias = bb.getInt();
+
+        // atualiza a cache se nao estiver registado
+        int qt = gestorEventos.getCacheQuantidade(produto, dias);
+
+        return Mensagem.criarRespostaOk(qt + " de vendas nos últimos " + dias + " dias");
     }
 
     private void fecharConexao() {

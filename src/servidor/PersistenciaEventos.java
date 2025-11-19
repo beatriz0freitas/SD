@@ -138,4 +138,45 @@ public class PersistenciaEventos {
     
         return maxDia;
     }
+
+    /**
+     * Agrega os dados de um dia na estrutura de CacheEntry
+     */
+    public Agregacao agregarEventosDia(int produto, int dia) throws IOException {
+        File ficheiro = ficheiroDia(dia);
+        Agregacao agregacao = new Agregacao();
+
+        if (!ficheiro.exists()) {
+            return agregacao; // dia sem ficheiro → sem eventos
+        }
+
+        try (DataInputStream in = new DataInputStream(
+                new BufferedInputStream(new FileInputStream(ficheiro)))) {
+
+            int numProdutos = in.readInt();
+
+            for (int i = 0; i < numProdutos; i++) {
+                int produtoID = in.readInt();
+                int numEventos = in.readInt();
+
+                // percorre o ficheiro até encontrar o produto correto
+                if (produtoID != produto) {
+                    for (int j = 0; j < numEventos; j++) {
+                        in.readInt();
+                        in.readDouble();
+                    }
+                } else {
+                    for (int j = 0; j < numEventos; j++) {
+                        int quantidade = in.readInt();
+                        double preco = in.readDouble();
+                        agregacao.update(quantidade, preco);
+                    }
+                    agregacao.updatePrecoMedio();
+                    break;
+                }
+            }
+        }
+
+        return agregacao;
+    }
 }

@@ -172,4 +172,9 @@ public class BibliotecaCliente {
         Mensagem pedido = Mensagem.criarNovoDia();
         return enviarPedido(pedido);
     }
+
+    public Mensagem quantidadeVendas(int produto, int dias) throws IOException {
+        Mensagem pedido = Mensagem.criarQuantidadeVendas(produto, dias);
+        return enviarPedido(pedido);
+    }
 }

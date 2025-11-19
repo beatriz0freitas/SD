@@ -7,7 +7,7 @@ public class Cliente {
     
     public static void main(String[] args) {
         String host = "localhost";
-        int porta = 5000;
+        int porta = 5001;
         
         // Permitir especificar host e porta por argumentos
         if (args.length > 0) {

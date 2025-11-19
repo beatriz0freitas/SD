@@ -43,6 +43,9 @@ public class GestorEventos {
     // Eventos do dia atual organizados por produto
     private final Map<Integer, List<Evento>> eventosDiaAtualPorProduto = new HashMap<>();
 
+    // TODO Cache de agregação
+    private final CacheAgregacoes cache;
+
     // Persistência de eventos em disco
     private final PersistenciaEventos persistenciaEventos;
 
@@ -50,6 +53,7 @@ public class GestorEventos {
         this.D = D;
         this.S = S;
         this.persistenciaEventos = new PersistenciaEventos("dados/eventos");
+        this.cache = new CacheAgregacoes(persistenciaEventos);
     }
 
     /**
@@ -134,6 +138,23 @@ public class GestorEventos {
             readLock.unlock();
         }
     }
+
+    public int getCacheQuantidade(int produto, int dias) throws IOException {
+        return cache.getQuantidade(produto, dias);
+    }
+
+    public double getCacheVolume(int produto, int dias) throws IOException {
+        return cache.getVolume(produto, dias);
+    }
+
+    public double getCachePrecoMedio(int produto, int dias) throws IOException {
+        return cache.getPrecoMedio(produto, dias);
+    }
+
+    public double getCachePrecoMaximo(int produto, int dias) throws IOException {
+        return cache.getPrecoMaximo(produto, dias);
+    }
+
 
     // No futuro aqui entram métodos de agregação (quantidadeTotal, volumeTotal, etc.),
     // todos com readLock, usando eventosDiaAtualPorProduto.

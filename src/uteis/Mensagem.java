@@ -9,7 +9,7 @@ import java.io.IOException;
  * I/O delegado para Protocolo.
  */
 public class Mensagem {
-    
+
     public enum TipoOperacao {
         REGISTO, LOGIN, LOGIN_ADMIN,
         REG_EVENTO, NOVO_DIA,  LISTAR_CLIENTES, LISTAR_EVENTOS,
@@ -114,6 +114,14 @@ public class Mensagem {
     
     public static Mensagem criarNovoDia() {
         return new Mensagem(TipoOperacao.NOVO_DIA, new byte[0]);
+    }
+
+    public static Mensagem criarQuantidadeVendas(int produto, int dias) throws IOException {
+        byte[] payload = Protocolo.serializar(out -> {
+            out.writeInt(produto);
+            out.writeInt(dias);
+        });
+        return new Mensagem(TipoOperacao.QUANTIDADE_VENDAS, payload);
     }
     
     @Override
