@@ -27,7 +27,7 @@ public class BibliotecaCliente {
     private DataInputStream input;
     private DataOutputStream output;
 
-    // Lock único para proteger socket/input/output e o estado "conectado"
+    // Lock único para proteger socket/input/output
     private final ReentrantLock lock;
     private boolean conectado;
 
@@ -55,35 +55,37 @@ public class BibliotecaCliente {
     public void conectar() throws IOException {
         lock.lock();
         try {
-            if (!conectado) {
-                Socket novoSocket = null;
-                DataInputStream novoInput = null;
-                DataOutputStream novoOutput = null;
+            if (isConectado()) {
+                return;
+            }
+
+            Socket novoSocket = null;
+            DataInputStream novoInput = null;
+            DataOutputStream novoOutput = null;
+            
+            try {
+                // Criar recursos localmente
+                novoSocket = new Socket(host, porta);
+                novoInput = new DataInputStream(novoSocket.getInputStream());
+                novoOutput = new DataOutputStream(novoSocket.getOutputStream());
                 
-                try {
-                    // Criar recursos localmente
-                    novoSocket = new Socket(host, porta);
-                    novoInput = new DataInputStream(novoSocket.getInputStream());
-                    novoOutput = new DataOutputStream(novoSocket.getOutputStream());
-                    
-                    // Só atribuir aos campos se tudo correu bem para nao deixar a instância em estado inconsistent
-                    this.socket = novoSocket;
-                    this.input = novoInput;
-                    this.output = novoOutput;
-                    this.conectado = true;
-                    
-                } catch (IOException e) {
-                    // Cleanup: fechar recursos se algo falhou
-                    if (novoSocket != null && !novoSocket.isClosed()) {
-                        try {
-                            novoSocket.close();
-                        } catch (IOException ignored) {
-                            // Ignorar erros ao fechar
-                        }
+                // Só atribuir aos campos se tudo correu bem para nao deixar a instância em estado inconsistent
+                this.socket = novoSocket;
+                this.input = novoInput;
+                this.output = novoOutput;
+                this.conectado = true;
+                
+            } catch (IOException e) {
+                // Cleanup: fechar recursos se algo falhou
+                if (novoSocket != null && !novoSocket.isClosed()) {
+                    try {
+                        novoSocket.close();
+                    } catch (IOException ignored) {
+                        // Ignorar erros ao fechar
                     }
-                    // Re-lançar a exceção original
-                    throw e;
                 }
+                // Re-lançar a exceção original
+                throw e;
             }
         } finally {
             lock.unlock();
@@ -124,11 +126,8 @@ public class BibliotecaCliente {
                 throw new IOException("Cliente não está conectado ao servidor.");
             }
 
-            // FASE 1: enviar pedido
             Protocolo.escreverMensagem(pedido, output);
             output.flush();
-
-            // FASE 2: ler resposta correspondente
             return Protocolo.lerMensagem(input);
 
         } finally {

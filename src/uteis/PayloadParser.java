@@ -8,6 +8,10 @@ import java.io.IOException;
  */
 public class PayloadParser {
     
+    private PayloadParser() {
+        // Construtor privado para evitar instanciação
+    }
+
     /**
      * Extrai credenciais de payload de autenticação
      */
@@ -15,10 +19,6 @@ public class PayloadParser {
         return Protocolo.deserializar(payload, in -> {
             String username = Protocolo.lerString(in);
             String password = Protocolo.lerString(in);
-            // if (username == null || password == null) {
-            //     throw new IOException("Credenciais nulas");
-            // }
-            //Nunca sao nulas porque o Protocolo.lerString nunca retorna null
             return new String[]{username, password};
         });
     }

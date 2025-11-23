@@ -19,8 +19,7 @@ import src.uteis.Protocolo;
  * - ThreadPool: processa cada pedido em thread separada
  * - Lock de escrita: garante que respostas não se misturam
  */
-public class ClienteHandler implements Runnable {
-    
+public class SessaoCliente implements Runnable {
     
     private GestorUtilizadores gestorUtilizadores;
     private GestorEventos gestorEventos; 
@@ -31,6 +30,7 @@ public class ClienteHandler implements Runnable {
 
     private String username; // null = não autenticado
     private boolean ativo;   // true = conexão ativa
+    private boolean isAdmin ;
 
     private ExecutorService threadPool; 
 
@@ -39,10 +39,9 @@ public class ClienteHandler implements Runnable {
     // em paralelo pelo threadPool e podem tentar escrever ao mesmo tempo.
     // Não usamos ReadWriteLock porque só há escritas concorrentes no socket.
     private final ReentrantLock outputLock;
-    private boolean isAdmin ;
     private static final String ADMIN_PASSWORD = "admin123"; 
     
-    public ClienteHandler(Socket clienteSocket, GestorUtilizadores gestorUtilizadores, GestorEventos gestorEventos) {
+    public SessaoCliente(Socket clienteSocket, GestorUtilizadores gestorUtilizadores, GestorEventos gestorEventos) {
         this.clienteSocket = clienteSocket;
         this.gestorUtilizadores = gestorUtilizadores;
         this.gestorEventos = gestorEventos;
@@ -69,8 +68,7 @@ public class ClienteHandler implements Runnable {
             System.out.println("Nova conexão de: " + clienteSocket.getInetAddress());
             
             while (ativo) {
-                try {
-                    
+                try {  
                     Mensagem pedido = Protocolo.lerMensagem(input);
                     threadPool.execute(() -> processarPedidoAssinc(pedido));
                     
@@ -83,7 +81,6 @@ public class ClienteHandler implements Runnable {
                     break;
                 }
             }
-            
         } catch (IOException e) {
             System.err.println("Erro ao inicializar ligação: " + e.getMessage());
         } finally {
@@ -115,21 +112,17 @@ public class ClienteHandler implements Runnable {
 
             Mensagem.TipoOperacao tipo = pedido.getTipo();
 
-            if (tipo == Mensagem.TipoOperacao.REGISTO) {
+            if (tipo == Mensagem.TipoOperacao.REGISTO)
                 return processarRegisto(pedido);
-            }
-            if (tipo == Mensagem.TipoOperacao.LOGIN) {
+        
+            if (tipo == Mensagem.TipoOperacao.LOGIN)
                 return processarLogin(pedido);
-            }
 
-            if (tipo == Mensagem.TipoOperacao.LOGIN_ADMIN) {
+            if (tipo == Mensagem.TipoOperacao.LOGIN_ADMIN)
                 return processarLoginAdmin(pedido);
-            }
-            
 
-            if (!isAutenticado()) {
+            if (!isAutenticado())
                 return Mensagem.criarRespostaErro("Operação requer autenticação");
-            }
 
             switch (tipo) {
                 case REG_EVENTO:
@@ -139,19 +132,18 @@ public class ClienteHandler implements Runnable {
                         return Mensagem.criarRespostaErro("Apenas administrador pode avançar o dia");
                     }
                     return processarNovoDia();
-                
                 case LISTAR_CLIENTES:
                     if (!isAdmin) {
                         return Mensagem.criarRespostaErro("Acesso negado");
                     }
                     return processarListarClientes();
-
                 case LISTAR_EVENTOS:
                     if (!isAdmin) {
                         return Mensagem.criarRespostaErro("Acesso negado");
                     }
                     return processarListarEventos();
-                case QUANTIDADE_VENDAS: return processarQuantidadeVendas(pedido);
+                case QUANTIDADE_VENDAS: 
+                    return processarQuantidadeVendas(pedido);
                 case VOLUME_VENDAS:
                 case PRECO_MEDIO:
                 case PRECO_MAXIMO:
@@ -172,6 +164,8 @@ public class ClienteHandler implements Runnable {
         }
     }
     
+
+
     private Mensagem processarRegisto(Mensagem pedido) throws IOException {
         String[] credenciais = PayloadParser.lerAutenticacao(pedido.getPayload());
         String username = credenciais[0];
@@ -206,26 +200,6 @@ public class ClienteHandler implements Runnable {
         }
     }
 
-
-    
-    
-    private Mensagem processarRegistarEvento(Mensagem pedido) throws IOException {
-        Evento evento = PayloadParser.lerEvento(pedido.getPayload());
-    
-        gestorEventos.adicionarEvento(
-            evento.getProdutoID(),
-            evento.getQuantidade(),
-            evento.getPreco()
-        );
-    
-        return Mensagem.criarRespostaOk("Evento registado com sucesso");
-    }
-    
-    private Mensagem processarNovoDia() throws IOException {
-        gestorEventos.iniciarNovoDia();
-        return Mensagem.criarRespostaOk("Novo dia iniciado com sucesso");
-    }
-
     private Mensagem processarLoginAdmin(Mensagem pedido) throws IOException {
         String password = PayloadParser.lerPasswordAdmin(pedido.getPayload());
         
@@ -237,6 +211,21 @@ public class ClienteHandler implements Runnable {
         } else {
             return Mensagem.criarRespostaErro("Senha de administrador inválida");
         }
+    }
+
+    private Mensagem processarRegistarEvento(Mensagem pedido) throws IOException {
+        Evento evento = PayloadParser.lerEvento(pedido.getPayload());
+        if (evento == null) {
+            return Mensagem.criarRespostaErro("Payload de evento inválido");
+        }
+
+        gestorEventos.adicionarEvento(evento.getProdutoID(), evento.getQuantidade(), evento.getPreco() );
+        return Mensagem.criarRespostaOk("Evento registado com sucesso");
+    }
+    
+    private Mensagem processarNovoDia() throws IOException {
+        gestorEventos.iniciarNovoDia();
+        return Mensagem.criarRespostaOk("Novo dia iniciado com sucesso");
     }
 
     private Mensagem processarListarClientes() throws IOException {
@@ -252,13 +241,16 @@ public class ClienteHandler implements Runnable {
     // TODO Testar
     private Mensagem processarQuantidadeVendas(Mensagem pedido) throws IOException {
         byte[] payload = pedido.getPayload();
+        if (payload == null || payload.length < Integer.BYTES * 2) {
+            return Mensagem.criarRespostaErro("Payload inválido para quantidade de vendas");
+        }
+
         ByteBuffer bb = ByteBuffer.wrap(payload);
         int produto = bb.getInt();
         int dias = bb.getInt();
 
         // atualiza a cache se nao estiver registado
         int qt = gestorEventos.getCacheQuantidade(produto, dias);
-
         return Mensagem.criarRespostaOk(qt + " de vendas nos últimos " + dias + " dias");
     }
 
@@ -269,6 +261,7 @@ public class ClienteHandler implements Runnable {
             if (output != null) output.close();
             if (input != null) input.close();
             if (clienteSocket != null) clienteSocket.close();
+            System.out.println("Conexão fechada: " + (username != null ? username : clienteSocket.getInetAddress()));
         } catch (IOException e) {
             System.err.println("Erro ao fechar conexão: " + e.getMessage());
         }
