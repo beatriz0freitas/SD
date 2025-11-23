@@ -8,6 +8,7 @@ import src.uteis.PayloadParser;
 public class InterfaceUtilizador {
     private BibliotecaCliente bibliotecaCliente;
     private Scanner scanner;
+
     private boolean autenticado;
     private String nomeUtilizador;
     private boolean isAdmin;
@@ -20,79 +21,40 @@ public class InterfaceUtilizador {
         this.isAdmin = false;
     }
 
-    private void limparEcrã() {
-        System.out.print("\033[H\033[2J");
-        System.out.flush();
-    }
-    
-    private int lerOpcao() {
-        try {
-            return Integer.parseInt(scanner.nextLine());
-        } catch (NumberFormatException e) {
-            return -1;
-        }
-    }
-
-    private int lerInteiro() {
-        try {
-            return Integer.parseInt(scanner.nextLine());
-        } catch (NumberFormatException e) {
-            System.out.println("Valor inválido, usando 0");
-            return 0;
-        }
-    }
-
-    private double lerDouble() {
-        while (true) {
-            try {
-                System.out.print("Digite um valor numérico: ");
-                return Double.parseDouble(scanner.nextLine());
-            } catch (NumberFormatException e) {
-                System.out.println("Valor inválido. Tente novamente.");
-            }
-        }
-    }
-    
-    /**
-     * Helper para mostrar resposta do servidor com formatação
-     */
-    private void mostrarResposta(Mensagem resposta) {
-        try {
-            String mensagem = PayloadParser.lerResposta(resposta.getPayload());
-            String icone = resposta.isSuccesso() ? "✓" : "✗";
-            System.out.println("\n" + icone + " " + mensagem);
-        } catch (IOException e) {
-            System.out.println("Erro ao processar a resposta do servidor: " + e.getMessage());
-        }
-    }
-
     public void iniciar() {
         try {
             bibliotecaCliente.conectar();
-            System.out.println("========================================");
-            System.out.println("  SERVIÇO DE GESTÃO DE VENDAS - cliente ");
-            System.out.println("========================================");
-            System.out.println("Conectado ao servidor!\n");
-
-            while (!autenticado) {
-                mostrarMenuAutenticacao();
-                int opcao = lerOpcao();
-                processarAutenticacao(opcao);
-            }
-
-            while (autenticado) {
-                mostrarMenuPrincipal();
-                int opcao = lerOpcao();
-                processarOpcaoPrincipal(opcao);
-            }
-
-        } catch (IOException | RuntimeException e) {
-            System.err.println("Erro: " + e.getMessage());
+            correrLoopPrincpal();
+        } catch (IOException e) {
+            System.err.println("Erro ao conectar: " + e.getMessage());
         } finally {
             bibliotecaCliente.desconectar();
             scanner.close();
         }
     }
+
+    private void correrLoopPrincpal() {
+        mostrarHeader();
+        while (!autenticado) {
+            mostrarMenuAutenticacao();
+            int opt = lerOpcao();
+            processarMenuAutenticacao(opt);
+        }
+
+        while (autenticado) {
+            mostrarMenuPrincipal();
+            int opt = lerOpcao();
+            processarMenuPrincipal(opt);
+        }
+    }
+
+    private void mostrarHeader() {
+        System.out.println("========================================");
+        System.out.println("  SERVIÇO DE GESTÃO DE VENDAS - cliente ");
+        System.out.println("========================================");
+    }
+
+    // ============ MENUS =============
 
     private void mostrarMenuAutenticacao() {
         limparEcrã();
@@ -104,7 +66,28 @@ public class InterfaceUtilizador {
         System.out.print("Escolha uma opção: ");
     }
 
-    private void processarAutenticacao(int opcao) {
+    private void mostrarMenuPrincipal() {
+        limparEcrã();
+        System.out.println("\n=== MENU PRINCIPAL [" + nomeUtilizador + "] ===");
+        
+        if (isAdmin) {
+            System.out.println("1. Listar clientes registados");
+            System.out.println("2. Listar eventos");
+            System.out.println("3. Avançar dia");
+        } else {
+            System.out.println("1. Registar evento de venda");
+            System.out.println("2. Quantidade de Vendas");
+        }
+        
+        System.out.println("0. Logout e Sair");
+        System.out.print("Escolha uma opção: ");
+    }
+
+
+
+    // ============ PROCESSAR MENUS =============
+
+    private void processarMenuAutenticacao(int opcao) {
         switch (opcao) {
             case 1:
                 registarUtilizador();
@@ -116,13 +99,49 @@ public class InterfaceUtilizador {
                 autenticarAdmin();
                 break;
             case 0:
-                System.out.println("A sair...");
-                System.exit(0);
+                sairPrograma();
                 break;
             default:
                 System.out.println("Opção inválida!");
         }
     }
+    
+    private void processarMenuPrincipal(int opcao) {
+        if (isAdmin) {
+            switch (opcao) {
+                case 1:
+                    listarClientes();
+                    break;
+                case 2:
+                    listarEventos();
+                    break;
+                case 3:
+                    novoDia();
+                    break;
+                case 0:
+                    logout();
+                    break;
+                default:
+                    System.out.println("Opção inválida!");
+            }
+        } else {
+            switch (opcao) {
+                case 1:
+                    registarEvento();
+                    break;
+                case 2:
+                    quantidadeVendas();
+                case 0:
+                    logout();
+                    break;
+                default:
+                    System.out.println("Opção inválida!");
+            }
+        }
+    }
+
+
+    // ============ AÇÕES MENUS =============
 
     private void registarUtilizador() {
         System.out.print("\nNome de utilizador: ");
@@ -157,8 +176,8 @@ public class InterfaceUtilizador {
                 this.nomeUtilizador = nome;
                 System.out.println("Bem-vindo, " + nome + "!");
             }
-            
             mostrarResposta(resposta);
+
         } catch (IOException e) {
             System.err.println("✗ Erro de comunicação: " + e.getMessage());
         } finally {
@@ -179,8 +198,8 @@ public class InterfaceUtilizador {
                 this.nomeUtilizador = "ADMIN";
                 System.out.println("Acesso de administrador concedido!");
             }
-            
             mostrarResposta(resposta);
+
         } catch (IOException e) {
             System.err.println("✗ Erro de comunicação: " + e.getMessage());
         } finally {
@@ -188,61 +207,13 @@ public class InterfaceUtilizador {
         }
     }
 
-    private void mostrarMenuPrincipal() {
-        limparEcrã();
-        System.out.println("\n=== MENU PRINCIPAL [" + nomeUtilizador + "] ===");
-        
-        if (isAdmin) {
-            System.out.println("1. Listar clientes registados");
-            System.out.println("2. Listar eventos");
-            System.out.println("3. Avançar dia");
-        } else {
-            System.out.println("1. Registar evento de venda");
-            System.out.println("2. Quantidade de Vendas");
-        }
-        
-        System.out.println("0. Logout e Sair");
-        System.out.print("Escolha uma opção: ");
-    }
-    
-    private void processarOpcaoPrincipal(int opcao) {
-        if (isAdmin) {
-            switch (opcao) {
-                case 1:
-                    listarClientes();
-                    break;
-                case 2:
-                    listarEventos();
-                    break;
-                case 3:
-                    novoDia();
-                    break;
-                case 0:
-                    logout();
-                    break;
-                default:
-                    System.out.println("Opção inválida!");
-            }
-        } else {
-            switch (opcao) {
-                case 1:
-                    registarEvento();
-                    break;
-                case 2:
-                    quantidadeVendas();
-                case 0:
-                    logout();
-                    break;
-                default:
-                    System.out.println("Opção inválida!");
-            }
-        }
+    private void sairPrograma() {
+        System.out.println("\nA sair do programa...");
+        bibliotecaCliente.desconectar();
+        System.exit(0);
     }
 
     private void registarEvento() {
-        limparEcrã();
-        System.out.println("\n--- REGISTAR EVENTO DE VENDA ---");
-        
         System.out.print("ID do produto: ");
         int produtoID = lerInteiro();
         
@@ -263,7 +234,6 @@ public class InterfaceUtilizador {
     }
     
     private void listarClientes() {
-        limparEcrã();
         try {
             Mensagem resposta = bibliotecaCliente.listarClientes();
             mostrarResposta(resposta);
@@ -275,7 +245,6 @@ public class InterfaceUtilizador {
     }
     
     private void listarEventos() {
-        limparEcrã();
         try {
             Mensagem resposta = bibliotecaCliente.listarEventos();
             mostrarResposta(resposta);
@@ -286,11 +255,8 @@ public class InterfaceUtilizador {
         }
     }
     
-    // Remover confirmação do novoDia() (admin não precisa confirmar):
-    private void novoDia() {
-        limparEcrã();
-        System.out.println("\n--- AVANÇAR DIA ---");
-        
+    // TODO: Remover confirmação do novoDia() (admin não precisa confirmar) - nao sei ao certo o que querem dizer
+    private void novoDia() {        
         try {
             Mensagem resposta = bibliotecaCliente.novoDia();
             mostrarResposta(resposta);
@@ -302,9 +268,6 @@ public class InterfaceUtilizador {
     }
 
     private void quantidadeVendas() {
-        limparEcrã();
-        System.out.println("\n--- PROCURAR QUANTIDADE DE VENDAS ---");
-
         System.out.print("ID do produto: ");
         int produtoID = lerInteiro();
 
@@ -324,13 +287,64 @@ public class InterfaceUtilizador {
     private void logout() {
         System.out.println("\nA terminar sessão...");
         autenticado = false;
+        isAdmin = false;
         bibliotecaCliente.desconectar();
+        System.out.println("\nSessão terminada...");
+        esperaEnter();
         System.exit(0);
     }
 
+
+    // =========== UTEIS =============
 
     private void esperaEnter() {
         System.out.println("\nPressione ENTER para continuar...");
         scanner.nextLine();
     }
+
+    private void limparEcrã() {
+        System.out.print("\033[H\033[2J");
+        System.out.flush();
+    }
+    
+    private int lerOpcao() {
+        try {
+            return Integer.parseInt(scanner.nextLine());
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    private int lerInteiro() {
+        try {
+            return Integer.parseInt(scanner.nextLine());
+        } catch (NumberFormatException e) {
+            System.out.println("Valor inválido, usando 0");
+            return 0;
+        }
+    }
+
+    private double lerDouble() {
+        while (true) {
+            try {
+                return Double.parseDouble(scanner.nextLine());
+            } catch (NumberFormatException e) {
+                System.out.println("Valor inválido. Tente novamente.");
+            }
+        }
+    }
+    
+    /**
+     * Helper para mostrar resposta do servidor com formatação
+     */
+    private void mostrarResposta(Mensagem resposta) {
+        try {
+            String mensagem = PayloadParser.lerResposta(resposta.getPayload());
+            String icone = resposta.isSuccesso() ? "✓" : "✗";
+            System.out.println("\n" + icone + " " + mensagem);
+        } catch (IOException e) {
+            System.out.println("Erro ao processar a resposta do servidor: " + e.getMessage());
+        }
+    }
+
 }

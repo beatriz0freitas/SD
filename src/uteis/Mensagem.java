@@ -21,16 +21,12 @@ public class Mensagem {
     
     private final TipoOperacao tipo;
     private final byte[] payload;
-    
-    // ========== CONSTRUTOR ==========
-    
+        
     private Mensagem(TipoOperacao tipo, byte[] payload) {
         this.tipo = tipo;
         this.payload = payload;
     }
-    
-    // ========== GETTERS ==========
-    
+        
     public TipoOperacao getTipo() {
         return tipo;
     }
@@ -42,9 +38,7 @@ public class Mensagem {
     public boolean isSuccesso() {
         return tipo == TipoOperacao.RESPOSTA_OK;
     }
-    
-    // ========== FACTORY METHODS ==========
-    
+        
     public static Mensagem criar(TipoOperacao tipo, byte[] payload) {
         return new Mensagem(tipo, payload);
     }

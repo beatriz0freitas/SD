@@ -21,7 +21,6 @@ public class Cliente {
             }
         }
         
-        // Criar e iniciar interface do utilizador
         InterfaceUtilizador ui = new InterfaceUtilizador(host, porta);
         ui.iniciar();
     }

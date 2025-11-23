@@ -56,7 +56,7 @@ public class ServidorLogica {
             while (ativo) {
                 try {
                     Socket clienteSocket = serverSocket.accept();                                        // Aceitar nova conexão
-                    ClienteHandler worker = new ClienteHandler(clienteSocket, gestorUtilizadores, gestorEventos);         // Criar e submeter worker ao thread pool (cria uma nova thread se necessário e reutiliza threads)
+                    SessaoCliente worker = new SessaoCliente(clienteSocket, gestorUtilizadores, gestorEventos);         // Criar e submeter worker ao thread pool (cria uma nova thread se necessário e reutiliza threads)
                     threadPool.execute(worker);
                     
                 } catch (IOException e) {
