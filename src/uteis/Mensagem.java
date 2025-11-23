@@ -116,12 +116,13 @@ public class Mensagem {
         return new Mensagem(TipoOperacao.NOVO_DIA, new byte[0]);
     }
 
-    public static Mensagem criarQuantidadeVendas(int produto, int dias) throws IOException {
+    // generalizado para evitar duplicação de código, recebe o tipo de operação
+    public static Mensagem criarPedidoAgregacao(int produto, int dias, TipoOperacao tipo) throws IOException {
         byte[] payload = Protocolo.serializar(out -> {
             out.writeInt(produto);
             out.writeInt(dias);
         });
-        return new Mensagem(TipoOperacao.QUANTIDADE_VENDAS, payload);
+        return new Mensagem(tipo, payload);
     }
     
     @Override

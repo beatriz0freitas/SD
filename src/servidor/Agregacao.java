@@ -58,4 +58,15 @@ public class Agregacao {
         // precoMedio so deve ser calculado no fim
         updatePrecoMaximo(entrada.getPrecoMaximo());
     }
+
+    @Override
+    public String toString() {
+        return "Agregacao{\n" +
+                "  quantidadeVendas=" + quantidadeVendas + ",\n" +
+                "  volumeVendas=" + volumeVendas + ",\n" +
+                "  precoMedio=" + precoMedio + ",\n" +
+                "  precoMaximo=" + precoMaximo + "\n" +
+                '}';
+    }
+
 }

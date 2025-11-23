@@ -174,7 +174,22 @@ public class BibliotecaCliente {
     }
 
     public Mensagem quantidadeVendas(int produto, int dias) throws IOException {
-        Mensagem pedido = Mensagem.criarQuantidadeVendas(produto, dias);
+        Mensagem pedido = Mensagem.criarPedidoAgregacao(produto, dias, Mensagem.TipoOperacao.QUANTIDADE_VENDAS);
+        return enviarPedido(pedido);
+    }
+
+    public Mensagem volumeVendas(int produto, int dias) throws IOException {
+        Mensagem pedido = Mensagem.criarPedidoAgregacao(produto, dias, Mensagem.TipoOperacao.VOLUME_VENDAS);
+        return enviarPedido(pedido);
+    }
+
+    public Mensagem precoMedio(int produto, int dias) throws IOException {
+        Mensagem pedido = Mensagem.criarPedidoAgregacao(produto, dias, Mensagem.TipoOperacao.PRECO_MEDIO);
+        return enviarPedido(pedido);
+    }
+
+    public Mensagem precoMaximo(int produto, int dias) throws IOException {
+        Mensagem pedido = Mensagem.criarPedidoAgregacao(produto, dias, Mensagem.TipoOperacao.PRECO_MAXIMO);
         return enviarPedido(pedido);
     }
 }

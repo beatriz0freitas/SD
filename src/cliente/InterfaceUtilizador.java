@@ -42,6 +42,20 @@ public class InterfaceUtilizador {
         }
     }
 
+    private int lerNatural() {
+        try {
+            int input = Integer.parseInt(scanner.nextLine());
+            if (input <= 0) {
+                System.out.println("Valor inválido, usando 0");
+                return 0;
+            }
+            return input;
+        } catch (NumberFormatException e) {
+            System.out.println("Valor inválido, usando 0");
+            return 0;
+        }
+    }
+
     private double lerDouble() {
         while (true) {
             try {
@@ -199,6 +213,9 @@ public class InterfaceUtilizador {
         } else {
             System.out.println("1. Registar evento de venda");
             System.out.println("2. Quantidade de Vendas");
+            System.out.println("3. Volume de Vendas");
+            System.out.println("4. Preço Médio de Vendas");
+            System.out.println("5. Preço Máximo de Vendas");
         }
         
         System.out.println("0. Logout e Sair");
@@ -230,6 +247,16 @@ public class InterfaceUtilizador {
                     break;
                 case 2:
                     quantidadeVendas();
+                    break;
+                case 3:
+                    volumeVendas();
+                    break;
+                case 4:
+                    precoMedio();
+                    break;
+                case 5:
+                    precoMaximo();
+                    break;
                 case 0:
                     logout();
                     break;
@@ -306,13 +333,73 @@ public class InterfaceUtilizador {
         System.out.println("\n--- PROCURAR QUANTIDADE DE VENDAS ---");
 
         System.out.print("ID do produto: ");
-        int produtoID = lerInteiro();
+        int produtoID = lerNatural();
 
         System.out.print("Últimos N dias: ");
-        int dias = lerInteiro();
+        int dias = lerNatural();
 
         try {
             Mensagem resposta = bibliotecaCliente.quantidadeVendas(produtoID, dias);
+            mostrarResposta(resposta);
+        } catch (IOException e) {
+            System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } finally {
+            esperaEnter();
+        }
+    }
+
+    private void volumeVendas() {
+        limparEcrã();
+        System.out.println("\n--- PROCURAR VOLUME DE VENDAS ---");
+
+        System.out.print("ID do produto: ");
+        int produtoID = lerNatural();
+
+        System.out.print("Últimos N dias: ");
+        int dias = lerNatural();
+
+        try {
+            Mensagem resposta = bibliotecaCliente.volumeVendas(produtoID, dias);
+            mostrarResposta(resposta);
+        } catch (IOException e) {
+            System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } finally {
+            esperaEnter();
+        }
+    }
+
+    private void precoMedio() {
+        limparEcrã();
+        System.out.println("\n--- PROCURAR PREÇO MÉDIO DE VENDAS ---");
+
+        System.out.print("ID do produto: ");
+        int produtoID = lerNatural();
+
+        System.out.print("Últimos N dias: ");
+        int dias = lerNatural();
+
+        try {
+            Mensagem resposta = bibliotecaCliente.precoMedio(produtoID, dias);
+            mostrarResposta(resposta);
+        } catch (IOException e) {
+            System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } finally {
+            esperaEnter();
+        }
+    }
+
+    private void precoMaximo() {
+        limparEcrã();
+        System.out.println("\n--- PROCURAR PREÇO MÁXIMO DE VENDAS ---");
+
+        System.out.print("ID do produto: ");
+        int produtoID = lerNatural();
+
+        System.out.print("Últimos N dias: ");
+        int dias = lerNatural();
+
+        try {
+            Mensagem resposta = bibliotecaCliente.precoMaximo(produtoID, dias);
             mostrarResposta(resposta);
         } catch (IOException e) {
             System.err.println("✗ Erro de comunicação: " + e.getMessage());
