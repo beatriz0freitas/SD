@@ -1,12 +1,17 @@
 package src.servidor;
 
+import com.sun.source.tree.Tree;
+
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Function;
 
-// TODO fazer expirar entradas demasiado antigas
+// TODO
+//  - neste momento só serve para dia atual, não guarda info calculada em dias anteriores
+//  - fazer expirar entradas demasiado antigas (?) -> isso acontece quando?
+
 //Mantém dados em cache para agilizar consultas e evitar recalcular agregações repetidamente.
 public class CacheAgregacoes {
     private PersistenciaEventos persistenciaEventos;
@@ -24,32 +29,43 @@ public class CacheAgregacoes {
     }
 
     public Agregacao agregar(int produto, int dias) throws IOException {
+        // Obtém a cache para o produto
         TreeMap<Integer, Agregacao> cacheProduto = cache.get(produto);
         if (cacheProduto == null) {
-            cacheProduto = new TreeMap<>(); // facilita as procuras de chave em baixo
+            cacheProduto = new TreeMap<>();  // TreeMap facilita as procuras de chave mais proxima
             cache.put(produto, cacheProduto);
-            // TODO ... fazer do 0 agregação
         }
 
-        // TLDR: pode-se calcular cumulativamente num sentido as métricas, mas nao no outro por causa de preçoMax
+        // Obtém a chave mais próxima do "dias" (menor ou igual)
+        // TLDR: pode-se calcular cumulativamente as métricas, mas nao "subtrair" por causa de preçoMax
         // se houver chave menor registada, podemos ler a partir daí apenas
-        Agregacao cacheEntry = new Agregacao();
-        // chave menor mais proxima
         Integer lower = cacheProduto.floorKey(dias);
 
-        if (lower != null){
+        // Cria a agregação, caso não exista na cache
+        Agregacao cacheEntry;
+        if (lower != null) {
+            // Se já tiver algo em cache para o intervalo até "lower", faz uma cópia
             cacheEntry = new Agregacao(cacheProduto.get(lower));
-            lower++; // para nao recalcular o que ja sabemos
         } else {
-            lower = 1;
+            // Se não tiver nada, inicia uma nova agregação
+            cacheEntry = new Agregacao();
         }
 
-        for(int i = lower; i <= dias; i++){
-            Agregacao agregacaoDia = persistenciaEventos.agregarEventosDia(produto, i);
+        // Obtém o último dia disponível
+        int ultimoDia = persistenciaEventos.obterUltimoDia();
+
+        // Começa o loop do dia "lower", ou de 0 se não houver na cache
+        for (int i = lower != null ? lower : 0; i < dias; i++) {
+            // Calcula o dia físico com base no último dia registado
+            int diaFisico = ultimoDia - i;
+            Agregacao agregacaoDia = persistenciaEventos.agregarEventosDia(produto, diaFisico);
             cacheEntry.acumular(agregacaoDia);
         }
 
-        // regista a nova entrada na cache
+        // só se pode calcular no fim
+        cacheEntry.updatePrecoMedio();
+
+        // Registra a nova entrada na cache
         cacheProduto.put(dias, cacheEntry);
 
         return cacheEntry;
@@ -65,8 +81,10 @@ public class CacheAgregacoes {
         Agregacao entrada;
         if (isCached(produto, dias)) {
             entrada = cache.get(produto).get(dias);
+            System.out.println("Acesso à Cache: " + produto + " " + dias);
         } else {
             entrada = agregar(produto, dias);
+            System.out.println("Criação de Entrada na Cache: " + produto + " " + dias);
         }
 
         return extractor.apply(entrada);
@@ -90,4 +108,7 @@ public class CacheAgregacoes {
         return obterAgregacao(produto, dias, Agregacao::getPrecoMaximo);
     }
 
+    public void clear() {
+        cache.clear();
+    }
 }

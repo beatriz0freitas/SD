@@ -142,11 +142,10 @@ public class SessaoCliente implements Runnable {
                         return Mensagem.criarRespostaErro("Acesso negado");
                     }
                     return processarListarEventos();
-                case QUANTIDADE_VENDAS: 
-                    return processarQuantidadeVendas(pedido);
-                case VOLUME_VENDAS:
-                case PRECO_MEDIO:
-                case PRECO_MAXIMO:
+                case QUANTIDADE_VENDAS: return processarQuantidadeVendas(pedido);
+                case VOLUME_VENDAS: return processarVolumeVendas(pedido);
+                case PRECO_MEDIO: return processarPrecoMedio(pedido);
+                case PRECO_MAXIMO: return processarPrecoMaximo(pedido);
                 case FILTRAR_EVENTOS:
                 case VENDAS_SIMULTANEAS:
                 case VENDAS_CONSECUTIVAS:
@@ -238,7 +237,6 @@ public class SessaoCliente implements Runnable {
         return Mensagem.criarRespostaOk(listaEventos);
     }
 
-    // TODO Testar
     private Mensagem processarQuantidadeVendas(Mensagem pedido) throws IOException {
         byte[] payload = pedido.getPayload();
         if (payload == null || payload.length < Integer.BYTES * 2) {
@@ -250,8 +248,42 @@ public class SessaoCliente implements Runnable {
         int dias = bb.getInt();
 
         // atualiza a cache se nao estiver registado
-        int qt = gestorEventos.getCacheQuantidade(produto, dias);
-        return Mensagem.criarRespostaOk(qt + " de vendas nos últimos " + dias + " dias");
+        int res = gestorEventos.getCacheQuantidade(produto, dias);
+
+        return Mensagem.criarRespostaOk("Quantidade de Vendas nos últimos " + dias + " dias: " + res);
+    }
+
+    private Mensagem processarVolumeVendas(Mensagem pedido) throws IOException {
+        byte[] payload = pedido.getPayload();
+        ByteBuffer bb = ByteBuffer.wrap(payload);
+        int produto = bb.getInt();
+        int dias = bb.getInt();
+
+        double res = gestorEventos.getCacheVolume(produto, dias);
+
+        return Mensagem.criarRespostaOk("Volume de Vendas nos últimos " + dias + " dias: " + res);
+    }
+
+    private Mensagem processarPrecoMedio(Mensagem pedido) throws IOException {
+        byte[] payload = pedido.getPayload();
+        ByteBuffer bb = ByteBuffer.wrap(payload);
+        int produto = bb.getInt();
+        int dias = bb.getInt();
+
+        double res = gestorEventos.getCachePrecoMedio(produto, dias);
+
+        return Mensagem.criarRespostaOk("Preço Médio de Vendas nos últimos " + dias + " dias: " + res);
+    }
+
+    private Mensagem processarPrecoMaximo(Mensagem pedido) throws IOException {
+        byte[] payload = pedido.getPayload();
+        ByteBuffer bb = ByteBuffer.wrap(payload);
+        int produto = bb.getInt();
+        int dias = bb.getInt();
+
+        double res = gestorEventos.getCachePrecoMaximo(produto, dias);
+
+        return Mensagem.criarRespostaOk("Preço Máximo de Vendas nos últimos " + dias + " dias: " + res);
     }
 
     private void fecharConexao() {

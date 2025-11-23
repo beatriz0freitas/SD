@@ -140,7 +140,7 @@ public class PersistenciaEventos {
     }
 
     /**
-     * Agrega os dados de um dia na estrutura de CacheEntry
+     * Agrega os dados de um dia na estrutura de Agregacao
      */
     public Agregacao agregarEventosDia(int produto, int dia) throws IOException {
         File ficheiro = ficheiroDia(dia);

@@ -43,7 +43,7 @@ public class GestorEventos {
     // Eventos do dia atual organizados por produto
     private final Map<Integer, List<Evento>> eventosDiaAtualPorProduto = new HashMap<>();
 
-    // TODO Cache de agregação
+    // Cache de Agregações iniciada vazia
     private final CacheAgregacoes cache;
 
     // Persistência de eventos em disco
@@ -53,6 +53,7 @@ public class GestorEventos {
         this.D = D;
         this.S = S;
         this.persistenciaEventos = new PersistenciaEventos("dados/eventos");
+        this.diaAtual = persistenciaEventos.obterUltimoDia()+1;
         this.cache = new CacheAgregacoes(persistenciaEventos);
     }
 
@@ -76,6 +77,7 @@ public class GestorEventos {
 
             // Limpar memória e avançar dia
             eventosDiaAtualPorProduto.clear();
+            cache.clear(); // por agora reinicia a cada dia novo
             diaAtual++;
             System.out.println("Novo dia iniciado: " + diaAtual);
         } finally {
@@ -140,18 +142,26 @@ public class GestorEventos {
     }
 
     public int getCacheQuantidade(int produto, int dias) throws IOException {
+        if (dias > diaAtual) dias = diaAtual;
+        if (dias == 0) return 0;
         return cache.getQuantidade(produto, dias);
     }
 
     public double getCacheVolume(int produto, int dias) throws IOException {
+        if (dias > diaAtual) dias = diaAtual;
+        if (dias == 0) return 0;
         return cache.getVolume(produto, dias);
     }
 
     public double getCachePrecoMedio(int produto, int dias) throws IOException {
+        if (dias > diaAtual) dias = diaAtual;
+        if (dias == 0) return 0;
         return cache.getPrecoMedio(produto, dias);
     }
 
     public double getCachePrecoMaximo(int produto, int dias) throws IOException {
+        if (dias > diaAtual) dias = diaAtual;
+        if (dias == 0) return 0;
         return cache.getPrecoMaximo(produto, dias);
     }
 

@@ -21,6 +21,69 @@ public class InterfaceUtilizador {
         this.isAdmin = false;
     }
 
+<<<<<<< HEAD
+=======
+    private void limparEcrã() {
+        System.out.print("\033[H\033[2J");
+        System.out.flush();
+    }
+    
+    private int lerOpcao() {
+        try {
+            return Integer.parseInt(scanner.nextLine());
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    private int lerInteiro() {
+        try {
+            return Integer.parseInt(scanner.nextLine());
+        } catch (NumberFormatException e) {
+            System.out.println("Valor inválido, usando 0");
+            return 0;
+        }
+    }
+
+    private int lerNatural() {
+        try {
+            int input = Integer.parseInt(scanner.nextLine());
+            if (input <= 0) {
+                System.out.println("Valor inválido, usando 0");
+                return 0;
+            }
+            return input;
+        } catch (NumberFormatException e) {
+            System.out.println("Valor inválido, usando 0");
+            return 0;
+        }
+    }
+
+    private double lerDouble() {
+        while (true) {
+            try {
+                System.out.print("Digite um valor numérico: ");
+                return Double.parseDouble(scanner.nextLine());
+            } catch (NumberFormatException e) {
+                System.out.println("Valor inválido. Tente novamente.");
+            }
+        }
+    }
+    
+    /**
+     * Helper para mostrar resposta do servidor com formatação
+     */
+    private void mostrarResposta(Mensagem resposta) {
+        try {
+            String mensagem = PayloadParser.lerResposta(resposta.getPayload());
+            String icone = resposta.isSuccesso() ? "✓" : "✗";
+            System.out.println("\n" + icone + " " + mensagem);
+        } catch (IOException e) {
+            System.out.println("Erro ao processar a resposta do servidor: " + e.getMessage());
+        }
+    }
+
+>>>>>>> Lucas
     public void iniciar() {
         try {
             bibliotecaCliente.conectar();
@@ -207,10 +270,75 @@ public class InterfaceUtilizador {
         }
     }
 
+<<<<<<< HEAD
     private void sairPrograma() {
         System.out.println("\nA sair do programa...");
         bibliotecaCliente.desconectar();
         System.exit(0);
+=======
+    private void mostrarMenuPrincipal() {
+        limparEcrã();
+        System.out.println("\n=== MENU PRINCIPAL [" + nomeUtilizador + "] ===");
+        
+        if (isAdmin) {
+            System.out.println("1. Listar clientes registados");
+            System.out.println("2. Listar eventos");
+            System.out.println("3. Avançar dia");
+        } else {
+            System.out.println("1. Registar evento de venda");
+            System.out.println("2. Quantidade de Vendas");
+            System.out.println("3. Volume de Vendas");
+            System.out.println("4. Preço Médio de Vendas");
+            System.out.println("5. Preço Máximo de Vendas");
+        }
+        
+        System.out.println("0. Logout e Sair");
+        System.out.print("Escolha uma opção: ");
+    }
+    
+    private void processarOpcaoPrincipal(int opcao) {
+        if (isAdmin) {
+            switch (opcao) {
+                case 1:
+                    listarClientes();
+                    break;
+                case 2:
+                    listarEventos();
+                    break;
+                case 3:
+                    novoDia();
+                    break;
+                case 0:
+                    logout();
+                    break;
+                default:
+                    System.out.println("Opção inválida!");
+            }
+        } else {
+            switch (opcao) {
+                case 1:
+                    registarEvento();
+                    break;
+                case 2:
+                    quantidadeVendas();
+                    break;
+                case 3:
+                    volumeVendas();
+                    break;
+                case 4:
+                    precoMedio();
+                    break;
+                case 5:
+                    precoMaximo();
+                    break;
+                case 0:
+                    logout();
+                    break;
+                default:
+                    System.out.println("Opção inválida!");
+            }
+        }
+>>>>>>> Lucas
     }
 
     private void registarEvento() {
@@ -269,13 +397,73 @@ public class InterfaceUtilizador {
 
     private void quantidadeVendas() {
         System.out.print("ID do produto: ");
-        int produtoID = lerInteiro();
+        int produtoID = lerNatural();
 
         System.out.print("Últimos N dias: ");
-        int dias = lerInteiro();
+        int dias = lerNatural();
 
         try {
             Mensagem resposta = bibliotecaCliente.quantidadeVendas(produtoID, dias);
+            mostrarResposta(resposta);
+        } catch (IOException e) {
+            System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } finally {
+            esperaEnter();
+        }
+    }
+
+    private void volumeVendas() {
+        limparEcrã();
+        System.out.println("\n--- PROCURAR VOLUME DE VENDAS ---");
+
+        System.out.print("ID do produto: ");
+        int produtoID = lerNatural();
+
+        System.out.print("Últimos N dias: ");
+        int dias = lerNatural();
+
+        try {
+            Mensagem resposta = bibliotecaCliente.volumeVendas(produtoID, dias);
+            mostrarResposta(resposta);
+        } catch (IOException e) {
+            System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } finally {
+            esperaEnter();
+        }
+    }
+
+    private void precoMedio() {
+        limparEcrã();
+        System.out.println("\n--- PROCURAR PREÇO MÉDIO DE VENDAS ---");
+
+        System.out.print("ID do produto: ");
+        int produtoID = lerNatural();
+
+        System.out.print("Últimos N dias: ");
+        int dias = lerNatural();
+
+        try {
+            Mensagem resposta = bibliotecaCliente.precoMedio(produtoID, dias);
+            mostrarResposta(resposta);
+        } catch (IOException e) {
+            System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } finally {
+            esperaEnter();
+        }
+    }
+
+    private void precoMaximo() {
+        limparEcrã();
+        System.out.println("\n--- PROCURAR PREÇO MÁXIMO DE VENDAS ---");
+
+        System.out.print("ID do produto: ");
+        int produtoID = lerNatural();
+
+        System.out.print("Últimos N dias: ");
+        int dias = lerNatural();
+
+        try {
+            Mensagem resposta = bibliotecaCliente.precoMaximo(produtoID, dias);
             mostrarResposta(resposta);
         } catch (IOException e) {
             System.err.println("✗ Erro de comunicação: " + e.getMessage());
