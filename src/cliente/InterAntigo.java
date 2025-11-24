@@ -5,7 +5,7 @@ import java.util.Scanner;
 import src.uteis.Mensagem;
 import src.uteis.PayloadParser;
 
-public class Inter {
+public class InterfaceUtilizador {
     private BibliotecaCliente bibliotecaCliente;
     private Scanner scanner;
 
@@ -13,7 +13,7 @@ public class Inter {
     private String nomeUtilizador;
     private boolean isAdmin;
 
-    public Inter(String host, int porta) {
+    public InterfaceUtilizador(String host, int porta) {
         this.bibliotecaCliente = new BibliotecaCliente(host, porta);
         this.scanner = new Scanner(System.in);
         this.autenticado = false;
@@ -61,7 +61,7 @@ public class Inter {
         System.out.println("\n------ MENU DE AUTENTICAÇÃO ------");
         System.out.println("1. Registar novo utilizador (SignUp)");
         System.out.println("2. Autenticar (Login)");
-        System.out.println("3. Login Administrador");
+        System.out.println("3. Login Administrador"); 
         System.out.println("0. Sair");
         System.out.print("Escolha uma opção: ");
     }
@@ -69,7 +69,7 @@ public class Inter {
     private void mostrarMenuPrincipal() {
         limparEcrã();
         System.out.println("\n=== MENU PRINCIPAL [" + nomeUtilizador + "] ===");
-
+        
         if (isAdmin) {
             System.out.println("1. Listar clientes registados");
             System.out.println("2. Listar eventos");
@@ -78,7 +78,7 @@ public class Inter {
             System.out.println("1. Registar evento de venda");
             System.out.println("2. Quantidade de Vendas");
         }
-
+        
         System.out.println("0. Logout e Sair");
         System.out.print("Escolha uma opção: ");
     }
@@ -95,7 +95,7 @@ public class Inter {
             case 2:
                 autenticarUtilizador();
                 break;
-            case 3:
+            case 3: 
                 autenticarAdmin();
                 break;
             case 0:
@@ -105,7 +105,7 @@ public class Inter {
                 System.out.println("Opção inválida!");
         }
     }
-
+    
     private void processarMenuPrincipal(int opcao) {
         if (isAdmin) {
             switch (opcao) {
@@ -146,10 +146,10 @@ public class Inter {
     private void registarUtilizador() {
         System.out.print("\nNome de utilizador: ");
         String nome = scanner.nextLine();
-
+        
         System.out.print("Palavra-passe: ");
         String password = scanner.nextLine();
-
+    
         try {
             Mensagem resposta = bibliotecaCliente.registar(nome, password);
             mostrarResposta(resposta);
@@ -159,18 +159,18 @@ public class Inter {
             esperaEnter();
         }
     }
-
+    
 
     private void autenticarUtilizador() {
         System.out.print("\nNome de utilizador: ");
         String nome = scanner.nextLine();
-
+        
         System.out.print("Palavra-passe: ");
         String password = scanner.nextLine();
-
+    
         try {
             Mensagem resposta = bibliotecaCliente.autenticar(nome, password);
-
+            
             if (resposta.isSuccesso()) {
                 this.autenticado = true;
                 this.nomeUtilizador = nome;
@@ -188,10 +188,10 @@ public class Inter {
     private void autenticarAdmin() {
         System.out.print("\nSenha de administrador: ");
         String password = scanner.nextLine();
-
+    
         try {
             Mensagem resposta = bibliotecaCliente.loginAdmin(password);
-
+            
             if (resposta.isSuccesso()) {
                 this.autenticado = true;
                 this.isAdmin = true;
@@ -212,17 +212,61 @@ public class Inter {
         bibliotecaCliente.desconectar();
         System.exit(0);
     }
+    
+    private void processarOpcaoPrincipal(int opcao) {
+        if (isAdmin) {
+            switch (opcao) {
+                case 1:
+                    listarClientes();
+                    break;
+                case 2:
+                    listarEventos();
+                    break;
+                case 3:
+                    novoDia();
+                    break;
+                case 0:
+                    logout();
+                    break;
+                default:
+                    System.out.println("Opção inválida!");
+            }
+        } else {
+            switch (opcao) {
+                case 1:
+                    registarEvento();
+                    break;
+                case 2:
+                    quantidadeVendas();
+                    break;
+                case 3:
+                    volumeVendas();
+                    break;
+                case 4:
+                    precoMedio();
+                    break;
+                case 5:
+                    precoMaximo();
+                    break;
+                case 0:
+                    logout();
+                    break;
+                default:
+                    System.out.println("Opção inválida!");
+            }
+        }
+    }
 
     private void registarEvento() {
         System.out.print("ID do produto: ");
         int produtoID = lerInteiro();
-
+        
         System.out.print("Quantidade: ");
         int quantidade = lerInteiro();
-
+        
         System.out.print("Preço unitário: ");
         double preco = lerDouble();
-
+    
         try {
             Mensagem resposta = bibliotecaCliente.registarEvento(produtoID, quantidade, preco);
             mostrarResposta(resposta);
@@ -232,7 +276,7 @@ public class Inter {
             esperaEnter();
         }
     }
-
+    
     private void listarClientes() {
         try {
             Mensagem resposta = bibliotecaCliente.listarClientes();
@@ -243,7 +287,7 @@ public class Inter {
             esperaEnter();
         }
     }
-
+    
     private void listarEventos() {
         try {
             Mensagem resposta = bibliotecaCliente.listarEventos();
@@ -254,9 +298,9 @@ public class Inter {
             esperaEnter();
         }
     }
-
+    
     // TODO: Remover confirmação do novoDia() (admin não precisa confirmar) - nao sei ao certo o que querem dizer
-    private void novoDia() {
+    private void novoDia() {        
         try {
             Mensagem resposta = bibliotecaCliente.novoDia();
             mostrarResposta(resposta);
@@ -269,13 +313,73 @@ public class Inter {
 
     private void quantidadeVendas() {
         System.out.print("ID do produto: ");
-        int produtoID = lerInteiro();
+        int produtoID = lerNatural();
 
         System.out.print("Últimos N dias: ");
-        int dias = lerInteiro();
+        int dias = lerNatural();
 
         try {
             Mensagem resposta = bibliotecaCliente.quantidadeVendas(produtoID, dias);
+            mostrarResposta(resposta);
+        } catch (IOException e) {
+            System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } finally {
+            esperaEnter();
+        }
+    }
+
+    private void volumeVendas() {
+        limparEcrã();
+        System.out.println("\n--- PROCURAR VOLUME DE VENDAS ---");
+
+        System.out.print("ID do produto: ");
+        int produtoID = lerNatural();
+
+        System.out.print("Últimos N dias: ");
+        int dias = lerNatural();
+
+        try {
+            Mensagem resposta = bibliotecaCliente.volumeVendas(produtoID, dias);
+            mostrarResposta(resposta);
+        } catch (IOException e) {
+            System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } finally {
+            esperaEnter();
+        }
+    }
+
+    private void precoMedio() {
+        limparEcrã();
+        System.out.println("\n--- PROCURAR PREÇO MÉDIO DE VENDAS ---");
+
+        System.out.print("ID do produto: ");
+        int produtoID = lerNatural();
+
+        System.out.print("Últimos N dias: ");
+        int dias = lerNatural();
+
+        try {
+            Mensagem resposta = bibliotecaCliente.precoMedio(produtoID, dias);
+            mostrarResposta(resposta);
+        } catch (IOException e) {
+            System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } finally {
+            esperaEnter();
+        }
+    }
+
+    private void precoMaximo() {
+        limparEcrã();
+        System.out.println("\n--- PROCURAR PREÇO MÁXIMO DE VENDAS ---");
+
+        System.out.print("ID do produto: ");
+        int produtoID = lerNatural();
+
+        System.out.print("Últimos N dias: ");
+        int dias = lerNatural();
+
+        try {
+            Mensagem resposta = bibliotecaCliente.precoMaximo(produtoID, dias);
             mostrarResposta(resposta);
         } catch (IOException e) {
             System.err.println("✗ Erro de comunicação: " + e.getMessage());
@@ -306,7 +410,7 @@ public class Inter {
         System.out.print("\033[H\033[2J");
         System.out.flush();
     }
-
+    
     private int lerOpcao() {
         try {
             return Integer.parseInt(scanner.nextLine());
@@ -333,7 +437,7 @@ public class Inter {
             }
         }
     }
-
+    
     /**
      * Helper para mostrar resposta do servidor com formatação
      */
