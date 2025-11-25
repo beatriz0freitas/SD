@@ -54,7 +54,7 @@ public class GestorEventos {
         this.S = S;
         this.persistenciaEventos = new PersistenciaEventos("dados/eventos");
         this.diaAtual = persistenciaEventos.obterUltimoDia()+1;
-        this.cache = new CacheAgregacoes(persistenciaEventos);
+        this.cache = new CacheAgregacoes(persistenciaEventos, D);
     }
 
     /**
@@ -76,9 +76,9 @@ public class GestorEventos {
             }
 
             // Limpar memória e avançar dia
-            eventosDiaAtualPorProduto.clear();
-            cache.clear(); // por agora reinicia a cada dia novo
             diaAtual++;
+            eventosDiaAtualPorProduto.clear();
+            cache.clearOld(diaAtual);
             System.out.println("Novo dia iniciado: " + diaAtual);
         } finally {
             writeLock.unlock();

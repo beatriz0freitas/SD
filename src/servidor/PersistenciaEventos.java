@@ -1,6 +1,9 @@
 package src.servidor;
 
 import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -141,42 +144,40 @@ public class PersistenciaEventos {
 
     /**
      * Agrega os dados de um dia na estrutura de Agregacao
+     * Retorna null se nao existir no ficheiro
      */
     public Agregacao agregarEventosDia(int produto, int dia) throws IOException {
         File ficheiro = ficheiroDia(dia);
-        Agregacao agregacao = new Agregacao();
+        Agregacao agregacao = null;
 
         if (!ficheiro.exists()) {
-            return agregacao; // dia sem ficheiro → sem eventos
+            return null; // dia sem ficheiro → sem eventos
         }
+        
+        try (RandomAccessFile raf = new RandomAccessFile(ficheiro, "r")){
+            int numProdutos = raf.readInt();
+                
+            for(int i = 0; i < numProdutos; i++){
+                int produtoID  = raf.readInt();
+                int numEventos = raf.readInt();
 
-        try (DataInputStream in = new DataInputStream(
-                new BufferedInputStream(new FileInputStream(ficheiro)))) {
+                if(produtoID < produto){
+                    raf.skipBytes(numEventos * 12);
+                } else if (produtoID == produto) {
+                    agregacao = new Agregacao();
 
-            int numProdutos = in.readInt();
-
-            for (int i = 0; i < numProdutos; i++) {
-                int produtoID = in.readInt();
-                int numEventos = in.readInt();
-
-                // percorre o ficheiro até encontrar o produto correto
-                if (produtoID != produto) {
                     for (int j = 0; j < numEventos; j++) {
-                        in.readInt();
-                        in.readDouble();
-                    }
-                } else {
-                    for (int j = 0; j < numEventos; j++) {
-                        int quantidade = in.readInt();
-                        double preco = in.readDouble();
+                        int quantidade = raf.readInt();
+                        double preco = raf.readDouble();
                         agregacao.update(quantidade, preco);
                     }
                     agregacao.updatePrecoMedio();
+                    break; // interrompe a leitura do ficheiro
+                } else { // se produto nao existe no ficheiro (assumindo ordem crescente no ficheiro)
                     break;
                 }
             }
         }
-
         return agregacao;
     }
 }

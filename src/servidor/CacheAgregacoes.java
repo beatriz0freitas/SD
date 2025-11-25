@@ -15,60 +15,29 @@ import java.util.function.Function;
 //Mantém dados em cache para agilizar consultas e evitar recalcular agregações repetidamente.
 public class CacheAgregacoes {
     private PersistenciaEventos persistenciaEventos;
+    int D; // para saber os dias que tem em cache
     // map produtoID -> nºDias -> Agregacao
-    private Map<Integer, TreeMap<Integer, Agregacao>> cache = new HashMap<>();
+    private Map<Integer, Map<Integer, Agregacao>> cache = new HashMap<>();
 
-    public CacheAgregacoes(PersistenciaEventos persistenciaEventos) {
+    public CacheAgregacoes(PersistenciaEventos persistenciaEventos, int D) {
         this.persistenciaEventos = persistenciaEventos;
+        this.D = D;
     }
 
-    // verifica se a entrada está na cache
-    public boolean isCached(int produto, int dia) {
-        Map<Integer, Agregacao> porDia = cache.get(produto);
-        return porDia != null && porDia.containsKey(dia);
-    }
-
-    public Agregacao agregar(int produto, int dias) throws IOException {
+    // recebe um dia a agregar, se nao existir cria na cache
+    public Agregacao getEntradaDia(int produto, int dia) throws IOException {
         // Obtém a cache para o produto
-        TreeMap<Integer, Agregacao> cacheProduto = cache.get(produto);
+        Map<Integer, Agregacao> cacheProduto = cache.get(produto);
         if (cacheProduto == null) {
-            cacheProduto = new TreeMap<>();  // TreeMap facilita as procuras de chave mais proxima
+            cacheProduto = new HashMap<>();
             cache.put(produto, cacheProduto);
         }
 
-        // Obtém a chave mais próxima do "dias" (menor ou igual)
-        // TLDR: pode-se calcular cumulativamente as métricas, mas nao "subtrair" por causa de preçoMax
-        // se houver chave menor registada, podemos ler a partir daí apenas
-        Integer lower = cacheProduto.floorKey(dias);
-
-        // Cria a agregação, caso não exista na cache
-        Agregacao cacheEntry;
-        if (lower != null) {
-            // Se já tiver algo em cache para o intervalo até "lower", faz uma cópia
-            cacheEntry = new Agregacao(cacheProduto.get(lower));
-        } else {
-            // Se não tiver nada, inicia uma nova agregação
-            cacheEntry = new Agregacao();
+        if (!cacheProduto.containsKey(dia)) {
+            cacheProduto.put(dia, persistenciaEventos.agregarEventosDia(produto, dia));
         }
 
-        // Obtém o último dia disponível
-        int ultimoDia = persistenciaEventos.obterUltimoDia();
-
-        // Começa o loop do dia "lower", ou de 0 se não houver na cache
-        for (int i = lower != null ? lower : 0; i < dias; i++) {
-            // Calcula o dia físico com base no último dia registado
-            int diaFisico = ultimoDia - i;
-            Agregacao agregacaoDia = persistenciaEventos.agregarEventosDia(produto, diaFisico);
-            cacheEntry.acumular(agregacaoDia);
-        }
-
-        // só se pode calcular no fim
-        cacheEntry.updatePrecoMedio();
-
-        // Registra a nova entrada na cache
-        cacheProduto.put(dias, cacheEntry);
-
-        return cacheEntry;
+        return cacheProduto.get(dia);
     }
 
     // metodo genérico para evitar duplicação de código
@@ -78,14 +47,12 @@ public class CacheAgregacoes {
             int dias,
             Function<Agregacao, T> extractor) throws IOException {
 
-        Agregacao entrada;
-        if (isCached(produto, dias)) {
-            entrada = cache.get(produto).get(dias);
-            System.out.println("Acesso à Cache: " + produto + " " + dias);
-        } else {
-            entrada = agregar(produto, dias);
-            System.out.println("Criação de Entrada na Cache: " + produto + " " + dias);
+        Agregacao entrada = new Agregacao();
+        int ultimoDia = persistenciaEventos.obterUltimoDia();
+        for (int i = 0; i < dias; i++){
+            entrada.acumular(getEntradaDia(produto, (ultimoDia - i)%D));
         }
+        entrada.updatePrecoMedio();
 
         return extractor.apply(entrada);
     }
@@ -106,6 +73,12 @@ public class CacheAgregacoes {
 
     public double getPrecoMaximo(int produto, int dias) throws IOException {
         return obterAgregacao(produto, dias, Agregacao::getPrecoMaximo);
+    }
+
+    public void clearOld(int dia){
+        for(Map<Integer, Agregacao> cacheProduto : cache.values()){
+            cacheProduto.remove(dia%D);
+        }
     }
 
     public void clear() {
