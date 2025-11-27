@@ -46,6 +46,7 @@ public class CacheAgregacoes {
             int dias,
             Function<Agregacao, T> extractor) throws IOException {
 
+        if (dias > D) dias = D;
         Agregacao entrada = new Agregacao();
         int ultimoDia = persistenciaEventos.obterUltimoDia();
         for (int i = 0; i < dias; i++){
