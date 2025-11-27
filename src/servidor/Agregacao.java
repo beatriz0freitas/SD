@@ -53,6 +53,7 @@ public class Agregacao {
 
     // para "somar" entradas, de modo a que representem os N ultimos dias
     public void acumular(Agregacao entrada){
+        if (entrada == null) return;
         this.quantidadeVendas += entrada.getQuantidadeVendas();
         this.volumeVendas += entrada.getVolumeVendas();
         // precoMedio so deve ser calculado no fim

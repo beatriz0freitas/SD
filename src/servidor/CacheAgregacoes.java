@@ -1,11 +1,9 @@
 package src.servidor;
 
-import com.sun.source.tree.Tree;
-
 import java.io.IOException;
+import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.function.Function;
 
 // TODO
@@ -35,7 +33,8 @@ public class CacheAgregacoes {
 
         if (!cacheProduto.containsKey(dia)) {
             cacheProduto.put(dia, persistenciaEventos.agregarEventosDia(produto, dia));
-        }
+            System.out.println("CREATED CACHE ENTRY: " + produto + " " + dia);
+        } else System.out.println("ACCESSED ENTRY: " + produto + " " + dia);
 
         return cacheProduto.get(dia);
     }
@@ -47,6 +46,7 @@ public class CacheAgregacoes {
             int dias,
             Function<Agregacao, T> extractor) throws IOException {
 
+        if (dias > D) dias = D;
         Agregacao entrada = new Agregacao();
         int ultimoDia = persistenciaEventos.obterUltimoDia();
         for (int i = 0; i < dias; i++){
@@ -77,7 +77,7 @@ public class CacheAgregacoes {
 
     public void clearOld(int dia){
         for(Map<Integer, Agregacao> cacheProduto : cache.values()){
-            cacheProduto.remove(dia%D);
+            if(cacheProduto.remove(dia%D)!=null) System.out.println("REMOVED CACHE ENTRY FOR DAY: " + dia + " -> " + dia%D);
         }
     }
 
