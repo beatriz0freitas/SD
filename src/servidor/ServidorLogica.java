@@ -5,6 +5,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import src.uteis.ThreadPool;
 
 /**
  * Lógica principal do servidor de gestão de vendas
@@ -17,7 +18,9 @@ public class ServidorLogica {
     private ServerSocket serverSocket;
     private GestorUtilizadores gestorUtilizadores;
     private GestorEventos gestorEventos;
-    private ExecutorService threadPool;                  // Pool de threads dinâmico
+    //private ExecutorService threadPool;                  // Pool de threads dinâmico
+    private int N_THREADS = 10;
+    private ThreadPool workers = new ThreadPool(N_THREADS);
     private volatile boolean ativo;                               // Flag de estado do servidor
     
     public ServidorLogica(int porta, int D, int S) {  
@@ -26,7 +29,7 @@ public class ServidorLogica {
         this.S = S;
         this.gestorUtilizadores = new GestorUtilizadores(); 
         this.gestorEventos = new GestorEventos(D, S); 
-        this.threadPool = Executors.newCachedThreadPool();
+        //this.threadPool = Executors.newCachedThreadPool();
         this.ativo = false;
     }
     
@@ -57,7 +60,9 @@ public class ServidorLogica {
                 try {
                     Socket clienteSocket = serverSocket.accept();                                        // Aceitar nova conexão
                     ClienteHandler worker = new ClienteHandler(clienteSocket, gestorUtilizadores, gestorEventos);         // Criar e submeter worker ao thread pool (cria uma nova thread se necessário e reutiliza threads)
-                    threadPool.execute(worker);
+                    //threadPool.execute(worker);
+                    workers.submit(worker);
+                    
                     
                 } catch (IOException e) {
                     if (ativo) {
@@ -87,7 +92,7 @@ public class ServidorLogica {
             System.err.println("Erro ao fechar ServerSocket: " + e.getMessage());
         }
         
-        threadPool.shutdown();               // Encerrar thread pool
+        //threadPool.shutdown();               // Encerrar thread pool
         System.out.println("Servidor encerrado.");
     }
 }

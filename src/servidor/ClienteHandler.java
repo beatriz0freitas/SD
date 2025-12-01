@@ -10,6 +10,7 @@ import src.uteis.Evento;
 import src.uteis.Mensagem;
 import src.uteis.PayloadParser;
 import src.uteis.Protocolo; 
+import src.uteis.ThreadPool;
 
 /**
  * Thread que processa pedidos de um cliente específico
@@ -32,7 +33,9 @@ public class ClienteHandler implements Runnable {
     private String username; // null = não autenticado
     private boolean ativo;   // true = conexão ativa
 
-    private ExecutorService threadPool; 
+    //private ExecutorService threadPool; 
+    private int N_THREADS = 10;                            // digamos 1 aceptor e 10 handlers
+    private ThreadPool workers = new ThreadPool(N_THREADS);
 
     // Lock de escrita apenas para o output do socket.
     // Necessário porque vários pedidos deste cliente são processados
@@ -48,7 +51,7 @@ public class ClienteHandler implements Runnable {
         this.gestorEventos = gestorEventos;
         this.username = null;
         this.ativo = true;
-        this.threadPool = Executors.newCachedThreadPool();
+        //this.threadPool = Executors.newCachedThreadPool();
         this.outputLock = new ReentrantLock();
         this.isAdmin = false;
     }
@@ -72,8 +75,9 @@ public class ClienteHandler implements Runnable {
                 try {
                     
                     Mensagem pedido = Protocolo.lerMensagem(input);
-                    threadPool.execute(() -> processarPedidoAssinc(pedido));
-                    
+                    // threadPool.execute(() -> processarPedidoAssinc(pedido));
+                    workers.submit(() -> processarPedidoAssinc(pedido));
+                                        
                 } catch (EOFException e) {
                     System.out.println("Cliente desconectado: " + (username != null ? username : clienteSocket.getInetAddress()));
                     break;
@@ -297,7 +301,8 @@ public class ClienteHandler implements Runnable {
     private void fecharConexao() {
         ativo = false;
         try {
-            threadPool.shutdownNow();
+            //threadPool.shutdownNow();
+            // TODO
             if (output != null) output.close();
             if (input != null) input.close();
             if (clienteSocket != null) clienteSocket.close();
