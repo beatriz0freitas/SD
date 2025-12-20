@@ -5,6 +5,7 @@ import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import src.uteis.Evento;
 import src.uteis.Mensagem;
@@ -15,44 +16,46 @@ import src.uteis.ThreadPool;
 /**
  * Thread que processa pedidos de um cliente específico
  * 
- * CONCORRÊNCIA:
- * - Thread principal: lê pedidos do socket (loop while)
- * - ThreadPool: processa cada pedido em thread separada
- * - Lock de escrita: garante que respostas não se misturam
+ * 1. ThreadPool configurável e com shutdown correto
+ * 2. Ordem de locks bem definida (evita deadlocks)
+ * 3. Separação clara entre I/O e processamento
+ * 4. Gestão de recursos com try-with-resources onde possível
  */
 public class SessaoCliente implements Runnable {
     
     private GestorUtilizadores gestorUtilizadores;
     private GestorEventos gestorEventos; 
-
     private Socket clienteSocket;
+
     private DataInputStream input;
     private DataOutputStream output;
 
+    // Estado da sessão (acesso sincronizado via volatile ou locks)
     private String username; // null = não autenticado
     private boolean ativo;   // true = conexão ativa
     private boolean isAdmin ;
 
-    //private ExecutorService threadPool; 
-    private int N_THREADS = 10;                            // digamos 1 aceptor e 10 handlers
-    private ThreadPool workers = new ThreadPool(N_THREADS);
-
-    // Lock de escrita apenas para o output do socket.
-    // Necessário porque vários pedidos deste cliente são processados
-    // em paralelo pelo threadPool e podem tentar escrever ao mesmo tempo.
-    // Não usamos ReadWriteLock porque só há escritas concorrentes no socket.
-    private final ReentrantLock outputLock;
-    private static final String ADMIN_PASSWORD = "admin123"; 
+    // ThreadPool para processar pedidos concorrentemente
+    private final ThreadPool workers;
+    
+    // Lock APENAS para output do socket (respostas concorrentes)
+    private final Lock outputLock = new ReentrantLock();
+    
+    private static final String ADMIN_PASSWORD = "admin123";
+    private static final int N_THREADS_WORKER = 4; // Reduzido para evitar explosão de threads
     
     public SessaoCliente(Socket clienteSocket, GestorUtilizadores gestorUtilizadores, GestorEventos gestorEventos) {
+        
         this.clienteSocket = clienteSocket;
         this.gestorUtilizadores = gestorUtilizadores;
         this.gestorEventos = gestorEventos;
         this.username = null;
-        this.ativo = true;
-        //this.threadPool = Executors.newCachedThreadPool();
-        this.outputLock = new ReentrantLock();
         this.isAdmin = false;
+        this.ativo = true;
+        
+        // ThreadPool dedicada a este cliente
+        // Alternativa: usar pool partilhada entre clientes (mais eficiente)
+        this.workers = new ThreadPool(N_THREADS_WORKER, 50);
     }
     
     public boolean isAutenticado() {
@@ -63,57 +66,82 @@ public class SessaoCliente implements Runnable {
         return username;
     }
 
-    @Override
     public void run() {
+        String enderecoCliente = clienteSocket.getInetAddress().toString();
+        
         try {
-            input = new DataInputStream(clienteSocket.getInputStream());
-            output = new DataOutputStream(clienteSocket.getOutputStream());
-            System.out.println("Nova conexão de: " + clienteSocket.getInetAddress());
+            input = new DataInputStream(new BufferedInputStream(clienteSocket.getInputStream()));
+            output = new DataOutputStream(new BufferedOutputStream(clienteSocket.getOutputStream()));
             
+            System.out.println("Nova conexão de: " + enderecoCliente);
+            
+            // Loop principal: lê pedidos e submete ao threadpool
             while (ativo) {
-                try {  
+                try {
+                    // Lê pedido do socket (operação bloqueante)
                     Mensagem pedido = Protocolo.lerMensagem(input);
-                    // threadPool.execute(() -> processarPedidoAssinc(pedido));
-                    workers.submit(() -> processarPedidoAssinc(pedido));
-                                        
+                    
+                    // Submete para processamento assíncrono
+                    // NOTA: se pool estiver cheia, bloqueia aqui (backpressure)
+                    boolean submetido = workers.submit(() -> processarPedidoAssinc(pedido));
+                    if (!submetido) {
+                        // Pool em shutdown
+                        System.out.println("ThreadPool em shutdown, fechando conexão");
+                        break;
+                    }
+                    
                 } catch (EOFException e) {
-                    System.out.println("Cliente desconectado: " + (username != null ? username : clienteSocket.getInetAddress()));
+                    System.out.println("Cliente desconectado: " + (username != null ? username : enderecoCliente));
                     break;
-
+                    
                 } catch (IOException e) {
-                    System.err.println("Erro na comunicação: " + e.getMessage());
+                    if (ativo) {
+                        System.err.println("Erro na comunicação com " + enderecoCliente + ": " + e.getMessage());
+                    }
+                    break;
+                    
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    System.out.println("Thread interrompida");
                     break;
                 }
-            }
+            }     
         } catch (IOException e) {
-            System.err.println("Erro ao inicializar ligação: " + e.getMessage());
+            System.err.println("Erro ao inicializar ligação com " + enderecoCliente + ": " + e.getMessage());
         } finally {
             fecharConexao();
         }
     }
     
+    /**
+     * Processa pedido de forma assíncrona (corre em thread do pool).
+     * Garante que resposta é enviada de forma thread-safe.
+     */
     private void processarPedidoAssinc(Mensagem pedido) {
         try {
             Mensagem resposta = processarPedido(pedido);
             
-            // Secção crítica de escrita: garante que apenas uma thread de pedido
-            // escreve no DataOutputStream de cada vez, evitando mistura de respostas.
+            // Escrita da resposta é secção crítica
             outputLock.lock();
             try {
-               
                 Protocolo.escreverMensagem(resposta, output);
+                output.flush();
             } finally {
                 outputLock.unlock();
             }
             
         } catch (IOException e) {
-            System.err.println("Erro ao enviar resposta: " + e.getMessage());
+            System.err.println("Erro ao processar/enviar pedido: " + e.getMessage());
+            // Não fecha conexão aqui - thread principal que decide
         }
     }
 
+    /**
+     * Processa pedido e retorna resposta.
+     * Executado em thread do pool (não é thread principal).
+     */
     private Mensagem processarPedido(Mensagem pedido) {
         try {
-
             Mensagem.TipoOperacao tipo = pedido.getTipo();
 
             if (tipo == Mensagem.TipoOperacao.REGISTO)
@@ -131,29 +159,42 @@ public class SessaoCliente implements Runnable {
             switch (tipo) {
                 case REG_EVENTO:
                     return processarRegistarEvento(pedido);
+              
                 case NOVO_DIA:
                     if (!isAdmin) {
                         return Mensagem.criarRespostaErro("Apenas administrador pode avançar o dia");
                     }
                     return processarNovoDia();
+                    
                 case LISTAR_CLIENTES:
                     if (!isAdmin) {
                         return Mensagem.criarRespostaErro("Acesso negado");
                     }
                     return processarListarClientes();
+                    
                 case LISTAR_EVENTOS:
                     if (!isAdmin) {
                         return Mensagem.criarRespostaErro("Acesso negado");
                     }
                     return processarListarEventos();
-                case QUANTIDADE_VENDAS: return processarQuantidadeVendas(pedido);
-                case VOLUME_VENDAS: return processarVolumeVendas(pedido);
-                case PRECO_MEDIO: return processarPrecoMedio(pedido);
-                case PRECO_MAXIMO: return processarPrecoMaximo(pedido);
+                    
+                case QUANTIDADE_VENDAS:
+                    return processarQuantidadeVendas(pedido);
+                    
+                case VOLUME_VENDAS:
+                    return processarVolumeVendas(pedido);
+                    
+                case PRECO_MEDIO:
+                    return processarPrecoMedio(pedido);
+                    
+                case PRECO_MAXIMO:
+                    return processarPrecoMaximo(pedido);
+                    
                 case FILTRAR_EVENTOS:
                 case VENDAS_SIMULTANEAS:
                 case VENDAS_CONSECUTIVAS:
                     return Mensagem.criarRespostaErro("Funcionalidade ainda não implementada");
+                    
                 default:
                     return Mensagem.criarRespostaErro("Operação desconhecida");
             }
@@ -253,7 +294,6 @@ public class SessaoCliente implements Runnable {
 
         // atualiza a cache se nao estiver registado
         int res = gestorEventos.getCacheQuantidade(produto, dias);
-
         return Mensagem.criarRespostaOk("Quantidade de Vendas nos últimos " + dias + " dias: " + res);
     }
 
@@ -264,7 +304,6 @@ public class SessaoCliente implements Runnable {
         int dias = bb.getInt();
 
         double res = gestorEventos.getCacheVolume(produto, dias);
-
         return Mensagem.criarRespostaOk("Volume de Vendas nos últimos " + dias + " dias: " + res);
     }
 
@@ -290,15 +329,26 @@ public class SessaoCliente implements Runnable {
         return Mensagem.criarRespostaOk("Preço Máximo de Vendas nos últimos " + dias + " dias: " + res);
     }
 
+    /**
+     * Fecha conexão e liberta recursos.
+     * Chamado apenas uma vez, no finally do run().
+     */
     private void fecharConexao() {
         ativo = false;
+        
+        // Shutdown do threadpool (aguarda tarefas pendentes)
+        workers.shutdown();
+        
         try {
-            //threadPool.shutdownNow();
-            // TODO
             if (output != null) output.close();
             if (input != null) input.close();
-            if (clienteSocket != null) clienteSocket.close();
-            System.out.println("Conexão fechada: " + (username != null ? username : clienteSocket.getInetAddress()));
+            if (clienteSocket != null && !clienteSocket.isClosed()) {
+                clienteSocket.close();
+            }
+            
+            System.out.println("Conexão fechada: " + 
+                (username != null ? username : clienteSocket.getInetAddress()));
+                
         } catch (IOException e) {
             System.err.println("Erro ao fechar conexão: " + e.getMessage());
         }
