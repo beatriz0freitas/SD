@@ -1,11 +1,9 @@
 package server.presentation.handlers;
 
 import common.dto.RespostaDTO;
-import middleware.proto.*;
-
 import java.io.*;
 import java.net.Socket;
-
+import middleware.proto.*;
 import server.presentation.skeleton.RequestDispatcher;
 
 /**
@@ -32,7 +30,7 @@ public class ClientHandler implements Runnable {
             while (!socket.isClosed()) {
                 try {
                     // 1. Receber requisição
-                    Requisicao requisicao = protocoloHandler.receber(in, Requisicao.class);
+                    Requisicao requisicao = (Requisicao) protocoloHandler.receber(in);
                     
                     System.out.println("Processando: " + requisicao.getOperacao());
                     
