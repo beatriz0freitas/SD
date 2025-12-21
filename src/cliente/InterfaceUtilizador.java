@@ -35,6 +35,7 @@ public class InterfaceUtilizador {
 
     private void correrLoopPrincpal() {
         mostrarHeader();
+
         while (!autenticado) {
             mostrarMenuAutenticacao();
             int opt = lerOpcao();
@@ -57,32 +58,35 @@ public class InterfaceUtilizador {
     // ============ MENUS =============
 
     private void mostrarMenuAutenticacao() {
-        limparEcrã();
-        System.out.println("\n------ MENU DE AUTENTICAÇÃO ------");
-        System.out.println("1. Registar novo utilizador (SignUp)");
-        System.out.println("2. Autenticar (Login)");
-        System.out.println("3. Login Administrador"); 
-        System.out.println("0. Sair");
+        limparEcra();
+        System.out.println("\n┌─ MENU DE AUTENTICAÇÃO ────────────────────────┐");
+        System.out.println("│ 1. Registar novo utilizador (SignUp)          │");
+        System.out.println("│ 2. Autenticar (Login)                         │");
+        System.out.println("│ 3. Login Administrador                         │");
+        System.out.println("│ 0. Sair                                        │");
+        System.out.println("└────────────────────────────────────────────────┘");
         System.out.print("Escolha uma opção: ");
     }
 
     private void mostrarMenuPrincipal() {
-        limparEcrã();
-        System.out.println("\n=== MENU PRINCIPAL [" + nomeUtilizador + "] ===");
-        
+        limparEcra();
+        System.out.printf("║  MENU PRINCIPAL - %-29s║%n", nomeUtilizador);        
         if (isAdmin) {
-            System.out.println("1. Listar clientes registados");
-            System.out.println("2. Listar eventos");
-            System.out.println("3. Avançar dia");
+            System.out.println("┌─ OPÇÕES DE ADMINISTRADOR ─────────────────────┐");
+            System.out.println("│ 1. Listar clientes registados                 │");
+            System.out.println("│ 2. Listar eventos do dia atual                │");
+            System.out.println("│ 3. Avançar para novo dia                      │");
         } else {
-            System.out.println("1. Registar evento de venda");
-            System.out.println("2. Quantidade de Vendas");
-            System.out.println("3. Volume de Vendas");
-            System.out.println("4. Preço Médio de Vendas");
-            System.out.println("5. Preço Máximo de Vendas");
+            System.out.println("┌─ OPÇÕES DE CLIENTE ───────────────────────────┐");
+            System.out.println("│ 1. Registar evento de venda                   │");
+            System.out.println("│ 2. Consultar quantidade de vendas             │");
+            System.out.println("│ 3. Consultar volume de vendas                 │");
+            System.out.println("│ 4. Consultar preço médio                      │");
+            System.out.println("│ 5. Consultar preço máximo                     │");
         }
         
-        System.out.println("0. Logout e Sair");
+        System.out.println("│ 0. Logout e Sair                               │");
+        System.out.println("└────────────────────────────────────────────────┘");
         System.out.print("Escolha uma opção: ");
     }
 
@@ -168,6 +172,9 @@ public class InterfaceUtilizador {
             mostrarResposta(resposta);
         } catch (IOException e) {
             System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println(" Operação interrompida");
         } finally {
             esperaEnter();
         }
@@ -193,6 +200,9 @@ public class InterfaceUtilizador {
 
         } catch (IOException e) {
             System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                System.err.println("Operação interrompida");
         } finally {
             esperaEnter();
         }
@@ -215,6 +225,9 @@ public class InterfaceUtilizador {
 
         } catch (IOException e) {
             System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println(" Operação interrompida");
         } finally {
             esperaEnter();
         }
@@ -241,6 +254,9 @@ public class InterfaceUtilizador {
             mostrarResposta(resposta);
         } catch (IOException e) {
             System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println(" Operação interrompida");
         } finally {
             esperaEnter();
         }
@@ -252,6 +268,9 @@ public class InterfaceUtilizador {
             mostrarResposta(resposta);
         } catch (IOException e) {
             System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println("⚠ Operação interrompida");
         } finally {
             esperaEnter();
         }
@@ -263,6 +282,9 @@ public class InterfaceUtilizador {
             mostrarResposta(resposta);
         } catch (IOException e) {
             System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println(" Operação interrompida");
         } finally {
             esperaEnter();
         }
@@ -275,6 +297,9 @@ public class InterfaceUtilizador {
             mostrarResposta(resposta);
         } catch (IOException e) {
             System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println(" Operação interrompida");
         } finally {
             esperaEnter();
         }
@@ -292,13 +317,16 @@ public class InterfaceUtilizador {
             mostrarResposta(resposta);
         } catch (IOException e) {
             System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println(" Operação interrompida");
         } finally {
             esperaEnter();
         }
     }
 
     private void volumeVendas() {
-        limparEcrã();
+        limparEcra();
         System.out.println("\n--- PROCURAR VOLUME DE VENDAS ---");
 
         System.out.print("ID do produto: ");
@@ -312,13 +340,16 @@ public class InterfaceUtilizador {
             mostrarResposta(resposta);
         } catch (IOException e) {
             System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println(" Operação interrompida");
         } finally {
             esperaEnter();
         }
     }
 
     private void precoMedio() {
-        limparEcrã();
+        limparEcra();
         System.out.println("\n--- PROCURAR PREÇO MÉDIO DE VENDAS ---");
 
         System.out.print("ID do produto: ");
@@ -332,6 +363,9 @@ public class InterfaceUtilizador {
             mostrarResposta(resposta);
         } catch (IOException e) {
             System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println(" Operação interrompida");
         } finally {
             esperaEnter();
         }
@@ -349,6 +383,9 @@ public class InterfaceUtilizador {
             mostrarResposta(resposta);
         } catch (IOException e) {
             System.err.println("✗ Erro de comunicação: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println(" Operação interrompida");
         } finally {
             esperaEnter();
         }
@@ -372,7 +409,7 @@ public class InterfaceUtilizador {
         scanner.nextLine();
     }
 
-    private void limparEcrã() {
+    private void limparEcra() {
         System.out.print("\033[H\033[2J");
         System.out.flush();
     }
