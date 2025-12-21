@@ -5,9 +5,9 @@ import common.dto.RespostaDTO;
 import common.exceptions.AgregacaoException;
 import common.interfaces.IServicoAgregacoes;
 import server.business.domain.Agregacao;
-import server.data.DAOFactory;
-import server.data.IEventoDAO;
 import server.data.cache.CacheManager;
+import server.data.dao.DAOFactory;
+import server.data.dao.IEventoDAO;
 
 /**
  * Serviço de negócio para agregações

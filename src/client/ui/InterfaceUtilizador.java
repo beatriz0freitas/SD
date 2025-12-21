@@ -1,7 +1,7 @@
 package client.ui;
 
 import client.ClienteMiddleware;
-import client.Stub.StubFactory;
+import client.stub.StubFactory;
 import common.dto.*;
 import common.interfaces.*;
 import java.util.Scanner;
@@ -25,6 +25,7 @@ public class InterfaceUtilizador {
     private String username;
     private boolean isAdmin;
     private volatile boolean executando;  // Flag para shutdown 
+    private final boolean clearScreenEnabled = true; //configurável
     
     public InterfaceUtilizador(ClienteMiddleware middleware, StubFactory stubFactory) {
         this.middleware = middleware;
@@ -272,13 +273,16 @@ public class InterfaceUtilizador {
     
     private void registarEvento() throws Exception {
         System.out.print("ID do produto: ");
-        int produtoID = lerInteiro();
+        Integer produtoID = lerInteiroOpt();
+        if (produtoID == null) { System.out.println("Operação cancelada."); return; }
         
         System.out.print("Quantidade: ");
-        int quantidade = lerInteiro();
+        Integer quantidade = lerInteiroOpt();
+        if (quantidade == null) { System.out.println("Operação cancelada."); return; }
         
         System.out.print("Preço unitário: ");
-        double preco = lerDouble();
+        Double preco = lerDoubleOpt();
+        if (preco == null) { System.out.println("Operação cancelada."); return; }
         
         EventoDTO dto = new EventoDTO(produtoID, quantidade, preco);
         RespostaDTO resposta = servicoEventos.registrarEvento(dto);
@@ -302,10 +306,12 @@ public class InterfaceUtilizador {
     
     private void quantidadeVendas() throws Exception {
         System.out.print("ID do produto: ");
-        int produtoID = lerInteiro();
+        Integer produtoID = lerInteiroOpt();
+        if (produtoID == null) { System.out.println("Operação cancelada."); return; }
         
         System.out.print("Últimos N dias: ");
-        int dias = lerInteiro();
+        Integer dias = lerInteiroOpt();
+        if (dias == null) { System.out.println("Operação cancelada."); return; }
         
         RespostaDTO resposta = servicoAgregacoes.obterQuantidadeVendas(produtoID, dias);
         mostrarResposta(resposta);
@@ -313,10 +319,12 @@ public class InterfaceUtilizador {
     
     private void volumeVendas() throws Exception {
         System.out.print("ID do produto: ");
-        int produtoID = lerInteiro();
+        Integer produtoID = lerInteiroOpt();
+        if (produtoID == null) { System.out.println("Operação cancelada."); return; }
         
         System.out.print("Últimos N dias: ");
-        int dias = lerInteiro();
+        Integer dias = lerInteiroOpt();
+        if (dias == null) { System.out.println("Operação cancelada."); return; }
         
         RespostaDTO resposta = servicoAgregacoes.obterVolumeVendas(produtoID, dias);
         mostrarResposta(resposta);
@@ -324,10 +332,12 @@ public class InterfaceUtilizador {
     
     private void precoMedio() throws Exception {
         System.out.print("ID do produto: ");
-        int produtoID = lerInteiro();
+        Integer produtoID = lerInteiroOpt();
+        if (produtoID == null) { System.out.println("Operação cancelada."); return; }
         
         System.out.print("Últimos N dias: ");
-        int dias = lerInteiro();
+        Integer dias = lerInteiroOpt();
+        if (dias == null) { System.out.println("Operação cancelada."); return; }
         
         RespostaDTO resposta = servicoAgregacoes.obterPrecoMedio(produtoID, dias);
         mostrarResposta(resposta);
@@ -335,10 +345,12 @@ public class InterfaceUtilizador {
     
     private void precoMaximo() throws Exception {
         System.out.print("ID do produto: ");
-        int produtoID = lerInteiro();
+        Integer produtoID = lerInteiroOpt();
+        if (produtoID == null) { System.out.println("Operação cancelada."); return; }
         
         System.out.print("Últimos N dias: ");
-        int dias = lerInteiro();
+        Integer dias = lerInteiroOpt();
+        if (dias == null) { System.out.println("Operação cancelada."); return; }
         
         RespostaDTO resposta = servicoAgregacoes.obterPrecoMaximo(produtoID, dias);
         mostrarResposta(resposta);
@@ -364,6 +376,7 @@ public class InterfaceUtilizador {
     }
     
     private void limparEcra() {
+        if (!clearScreenEnabled) return;
         System.out.print("\033[H\033[2J");
         System.out.flush();
     }
@@ -417,7 +430,7 @@ public class InterfaceUtilizador {
     }
     
     /**
-     * Lê inteiro com validação e retry
+     * Lê inteiro com validação e retry (menu). Retorna 0 em vazio.
      */
     private int lerInteiro() {
         while (executando && !Thread.currentThread().isInterrupted()) {
@@ -435,7 +448,39 @@ public class InterfaceUtilizador {
     }
     
     /**
-     * Lê double com validação e retry
+     * Lê inteiro opcional: retorna null em entrada vazia.
+     */
+    private Integer lerInteiroOpt() {
+        while (executando && !Thread.currentThread().isInterrupted()) {
+            try {
+                String input = lerString();
+                if (input.isEmpty()) return null;
+                return Integer.parseInt(input);
+            } catch (NumberFormatException e) {
+                System.out.print("Valor inválido! Digite um número inteiro: ");
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Lê double opcional: retorna null em entrada vazia.
+     */
+    private Double lerDoubleOpt() {
+        while (executando && !Thread.currentThread().isInterrupted()) {
+            try {
+                String input = lerString();
+                if (input.isEmpty()) return null;
+                return Double.parseDouble(input);
+            } catch (NumberFormatException e) {
+                System.out.print("Valor inválido! Digite um número: ");
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Lê double com validação e retry (mantido para compatibilidade). Retorna 0.0 em vazio.
      */
     private double lerDouble() {
         while (executando && !Thread.currentThread().isInterrupted()) {

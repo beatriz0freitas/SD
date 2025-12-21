@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.function.Function;
 
 import server.business.domain.Agregacao;
-import server.data.IEventoDAO;
+import server.data.dao.IEventoDAO;
 
 /**
  * Gerenciador de cache para agregações

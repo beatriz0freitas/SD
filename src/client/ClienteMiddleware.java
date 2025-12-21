@@ -1,11 +1,11 @@
 package client;
 
-import middleware.protocol.*;
 import common.dto.RespostaDTO;
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.concurrent.locks.ReentrantLock;
+import middleware.proto.*;
 
 /**
  * Middleware do lado do cliente
@@ -54,13 +54,20 @@ public class ClienteMiddleware {
     public void desconectar() {
         lock.lock();
         try {
-            if (socket != null && !socket.isClosed()) {
-                socket.close();
+            if (input != null) {
+                try { input.close(); } catch (IOException ignored) {}
+                input = null;
             }
-            conectado = false;
+            if (output != null) {
+                try { output.close(); } catch (IOException ignored) {}
+                output = null;
+            }
+            if (socket != null && !socket.isClosed()) {
+                try { socket.close(); } catch (IOException ignored) {}
+            }
+            socket = null;
+            conectado = false; // garantir mesmo se algum close falhar
             System.out.println("Desconectado do servidor");
-        } catch (IOException e) {
-            System.err.println("Erro ao desconectar: " + e.getMessage());
         } finally {
             lock.unlock();
         }
@@ -79,7 +86,7 @@ public class ClienteMiddleware {
             // 1. Verificar/reconectar
             if (!conectado || socket.isClosed()) {
                 System.out.println("Reconectando...");
-                conectar();
+                conectar(); //TODO aplicar tentativas
             }
             
             // 2. Criar requisição

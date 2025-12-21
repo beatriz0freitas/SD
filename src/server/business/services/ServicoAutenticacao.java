@@ -5,12 +5,12 @@ import common.dto.UsuarioDTO;
 import common.exceptions.AutenticacaoException;
 import common.exceptions.DadosInvalidosException; // Adicionar este import
 import common.interfaces.IServicoAutenticacao;
-import middleware.PasswordHasher;
+import middleware.security.PasswordHasher;
 import server.business.domain.Usuario;
 import server.business.validators.UsuarioValidator;
 import server.config.ServerConfig;
-import server.data.DAOFactory;
-import server.data.IUsuarioDAO;
+import server.data.dao.DAOFactory;
+import server.data.dao.IUsuarioDAO;
 
 /**
  * Serviço de negócio para autenticação

@@ -1,4 +1,4 @@
-package client.Stub;
+package client.stub;
 
 import client.ClienteMiddleware;
 import common.dto.AgregacaoRequestDTO;

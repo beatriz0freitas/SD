@@ -1,6 +1,6 @@
 package client;
 
-import client.Stub.*;
+import client.stub.*;
 import client.ui.InterfaceUtilizador;
 
 /**

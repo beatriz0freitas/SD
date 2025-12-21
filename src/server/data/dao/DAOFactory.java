@@ -1,4 +1,4 @@
-package server.data;
+package server.data.dao;
 
 /**
  * Factory para criação de DAOs

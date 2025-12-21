@@ -1,4 +1,4 @@
-package server.data;
+package server.data.dao;
 
 import java.io.*;
 import java.util.*;

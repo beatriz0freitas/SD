@@ -7,30 +7,32 @@ Sistema cliente-servidor com arquitetura em camadas seguindo padrões de sistema
 ```
 src/
 ├── common/              # Código compartilhado
-│   ├── dto/            # Data Transfer Objects
-│   ├── interfaces/     # Interfaces remotas (contratos)
-│   └── exceptions/     # Exceções personalizadas
+│   ├── dto/             # Data Transfer Objects
+│   ├── interfaces/      # Interfaces remotas (contratos)
+│   └── exceptions/      # Exceções personalizadas
 │
-├── client/             # Lado do cliente
-│   ├── stub/         # Stubs 
-│   ├── middleware/    # Camada de comunicação
-│   └── ui/           # Interface de utilizador
+├── client/              # Lado do cliente
+│   ├── stub/            # Stubs
+│   ├── middleware/      # Camada de comunicação
+│   └── ui/              # Interface de utilizador
 │
-├── server/            # Lado do servidor
-│   ├── business/      # Camada de negócio
-│   │   ├── domain/   # Entidades de domínio
-│   │   ├── services/ # Serviços de negócio
-│   │   └── validators/ # Validadores
-│   ├── data/         # Camada de dados
-│   │   ├── dao/     # Data Access Objects
-│   │   └── cache/   # Sistema de cache
-│   └── presentation/ # Camada de apresentação
-│       ├── skeleton/ # Skeletons (servidores de objetos)
-│       └── handlers/ # Handlers de requisições
+├── server/              # Lado do servidor
+│   ├── business/        # Camada de negócio
+│   │   ├── domain/      # Entidades de domínio
+│   │   ├── services/    # Serviços de negócio
+│   │   └── validators/  # Validadores
+|   |
+│   ├── data/            # Camada de dados
+│   │   ├── dao/         # Data Access Objects
+│   │   └── cache/       # Sistema de cache
+|   |
+│   └── presentation/    # Camada de apresentação
+│       ├── skeleton/    # Skeletons (servidores de objetos)
+│       └── handlers/    # Handlers de requisições
 │
-└── middleware/        # Middleware compartilhado
-    ├── protocol/     # Protocolo de comunicação
-    └── security/     # Segurança (hash de senhas)
+└── middleware/          # Middleware compartilhado
+    ├── protocol/        # Protocolo de comunicação
+    └── security/        # Segurança (hash de senhas)
 ```
 
 ## Arquitetura
@@ -103,6 +105,9 @@ java -cp bin client.Cliente
 
 # Host e porta customizados
 java -cp bin client.Cliente localhost 8080
+
+# Numero de clientes em simultaneo
+java -cp bin client.ClienteTeste 20
 ```
 
 ## Persistência
@@ -127,50 +132,9 @@ java -cp bin client.Cliente localhost 8080
       [preco:double]
   ```
 
-## Testes
-
-### Cliente de Teste de Concorrência
-
-Criar `ClienteTeste.java` (a adaptar para nova arquitetura):
-
-```java
-public class ClienteTeste {
-    public static void main(String[] args) {
-        String host = "localhost";
-        int porta = 5001;
-        int numThreads = 10;
-
-        for (int i = 0; i < numThreads; i++) {
-            final int id = i;
-            new Thread(() -> {
-                ClienteMiddleware mw = new ClienteMiddleware(host, porta);
-                StubFactory factory = new StubFactory(mw);
-
-                try {
-                    mw.conectar();
-
-                    IServicoAgregacoes servico = factory.criarStubAgregacoes();
-
-                    for (int j = 0; j < 100; j++) {
-                        RespostaDTO resp = servico.obterQuantidadeVendas(1, 5);
-                        System.out.println("Thread " + id + ": " + resp.getMensagem());
-                        Thread.sleep(100);
-                    }
-
-                } catch (Exception e) {
-                    e.printStackTrace();
-                } finally {
-                    mw.desconectar();
-                }
-            }).start();
-        }
-    }
-}
-```
-
 ## Comparação
 
-### Antes 
+### Antes
 
 ```
 Problemas:
@@ -201,3 +165,6 @@ Vantagens:
 
 //TODO guardar a stack tree nas excecoes
 //TODO fazer o nosso proprio threadpoll (nao acho necessario )
+//TODO Pool de conexões reutilizáveis (cada midleware do cliente gera uma nova conexcao)
+//TODO Logging estruturado 
+//TODO Config do server e cliente mais centralizada

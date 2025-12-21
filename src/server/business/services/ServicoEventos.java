@@ -10,9 +10,9 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import server.business.domain.Evento;
 import server.business.validators.EventoValidator;
-import server.data.DAOFactory;
-import server.data.IEventoDAO;
 import server.data.cache.CacheManager;
+import server.data.dao.DAOFactory;
+import server.data.dao.IEventoDAO;
 
 /**
  * Serviço de negócio para gestão de eventos

@@ -1,7 +1,7 @@
 package server.presentation.skeleton;
 
 import common.dto.RespostaDTO;
-import middleware.protocol.Requisicao;
+import middleware.proto.Requisicao;
 
 /**
  * Dispatcher que roteia requisições para os skeletons apropriados

@@ -6,8 +6,8 @@ import common.interfaces.IServicoAdmin;
 import java.util.List;
 
 import server.business.domain.Usuario;
-import server.data.DAOFactory;
-import server.data.IUsuarioDAO;
+import server.data.dao.DAOFactory;
+import server.data.dao.IUsuarioDAO;
 
 /**
  * Serviço de negócio para operações administrativas

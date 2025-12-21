@@ -1,9 +1,11 @@
 package server.presentation.handlers;
 
 import common.dto.RespostaDTO;
+import middleware.proto.*;
+
 import java.io.*;
 import java.net.Socket;
-import middleware.protocol.*;
+
 import server.presentation.skeleton.RequestDispatcher;
 
 /**
