@@ -34,14 +34,32 @@ public class ClienteTeste {
     private static class Metrics {
         private final AtomicLong totalLatencyNanos = new AtomicLong(0);
         private final AtomicLong totalRequests = new AtomicLong(0);
+        private final AtomicLong totalErrors = new AtomicLong(0);
+        private final AtomicLong totalInterrupted = new AtomicLong(0);
 
-        void registar(long latencyNanos) {
+        void registarSucesso(long latencyNanos) {
             totalLatencyNanos.addAndGet(latencyNanos);
             totalRequests.incrementAndGet();
+        }
+        
+        void registarErro() {
+            totalErrors.incrementAndGet();
+        }
+        
+        void registarInterrupcao() {
+            totalInterrupted.incrementAndGet();
         }
 
         long getTotalRequests() {
             return totalRequests.get();
+        }
+
+        long getTotalErrors() {
+            return totalErrors.get();
+        }
+        
+        long getTotalInterrupted() {
+            return totalInterrupted.get();
         }
 
         double getLatenciaMediaMs() {
@@ -49,6 +67,12 @@ public class ClienteTeste {
             if (n == 0) return 0.0;
             double totalMs = totalLatencyNanos.get() / 1_000_000.0;
             return totalMs / n;
+        }
+
+        double getTaxaSucesso() {
+            long total = totalRequests.get() + totalErrors.get() + totalInterrupted.get();
+            if (total == 0) return 0.0;
+            return (totalRequests.get() * 100.0) / total;
         }
     }
 
@@ -72,76 +96,107 @@ public class ClienteTeste {
             this.metrics = metrics;
         }
 
-        @Override
         public void run() {
             BibliotecaCliente cliente = new BibliotecaCliente(host, porta);
+            String threadName = String.format("T%02d", id);
+
             try {
                 cliente.conectar();
-                System.out.printf("[T%02d] Ligado a %s:%d%n", id, host, porta);
-                cliente.registar("bolas", "bolas");
-                cliente.autenticar("bolas", "bolas");
+                System.out.printf("[%s] Ligado a %s:%d%n", threadName, host, porta);
+                
+                // Registar/Autenticar
+                try {
+                    String username = "teste_" + id;
+                    String password = "pass_" + id;
+                    
+                    cliente.registar(username, password);
+                    Mensagem respAuth = cliente.autenticar(username, password);
+                    
+                    if (!respAuth.isSuccesso()) {
+                        System.err.printf("[%s] ✗ Autenticação falhada%n", threadName);
+                        return;
+                    }
+                    
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    System.err.printf("[%s] ⚠ Interrompido durante autenticação%n", threadName);
+                    return;
+                }
+                
             } catch (IOException e) {
-                System.err.printf("[T%02d] Falha ao conectar: %s%n", id, e.getMessage());
+                System.err.printf("[%s] ✗ Falha ao conectar: %s%n", threadName, e.getMessage());
                 return;
             }
 
-            try {
-                for (int i = 0; i < pedidos; i++) {
-                    // Escolhe aleatoriamente que métrica pedir (todas usam o mesmo produto/dias -> ótimo para testar cache)
-                    int op = random.nextInt(4); // 0..3
-                    String nomeOp;
-                    Mensagem resposta = null;
+            // Loop de pedidos
+            for (int i = 0; i < pedidos; i++) {
+                if (Thread.currentThread().isInterrupted()) {
+                    System.out.printf("[%s] ⚠ Thread interrompida, parando...%n", threadName);
+                    metrics.registarInterrupcao();
+                    break;
+                }
+                
+                // Escolhe operação aleatória
+                int op = random.nextInt(4);
+                String nomeOp;
+                Mensagem resposta = null;
 
-                    long t0 = System.nanoTime();
-                    try {
-                        switch (op) {
-                            case 0:
-                                nomeOp = "QUANTIDADE_VENDAS";
-                                resposta = cliente.quantidadeVendas(produto, dias);
-                                break;
-                            case 1:
-                                nomeOp = "VOLUME_VENDAS";
-                                resposta = cliente.volumeVendas(produto, dias);
-                                break;
-                            case 2:
-                                nomeOp = "PRECO_MEDIO";
-                                resposta = cliente.precoMedio(produto, dias);
-                                break;
-                            case 3:
-                            default:
-                                nomeOp = "PRECO_MAXIMO";
-                                resposta = cliente.precoMaximo(produto, dias);
-                                break;
-                        }
-                    } catch (IOException e) {
-                        System.err.printf("[T%02d] Erro ao enviar pedido: %s%n", id, e.getMessage());
-                        break; // esta thread pára
+                long t0 = System.nanoTime();
+                try {
+                    switch (op) {
+                        case 0:
+                            nomeOp = "QUANTIDADE_VENDAS";
+                            resposta = cliente.quantidadeVendas(produto, dias);
+                            break;
+                        case 1:
+                            nomeOp = "VOLUME_VENDAS";
+                            resposta = cliente.volumeVendas(produto, dias);
+                            break;
+                        case 2:
+                            nomeOp = "PRECO_MEDIO";
+                            resposta = cliente.precoMedio(produto, dias);
+                            break;
+                        case 3:
+                        default:
+                            nomeOp = "PRECO_MAXIMO";
+                            resposta = cliente.precoMaximo(produto, dias);
+                            break;
                     }
+                    
                     long t1 = System.nanoTime();
                     long latency = t1 - t0;
                     double latencyMs = latency / 1_000_000.0;
 
-                    metrics.registar(latency);
+                    metrics.registarSucesso(latency);
 
-                    System.out.printf(
-                            "[T%02d] op=%s produto=%d dias=%d latencia=%.3f ms resposta=%s%n",
-                            id, nomeOp, produto, dias, latencyMs,
-                            resposta != null ? resposta.toString() : "null"
-                    );
-
-                    // Pausa "realista" de ~1 segundo entre pedidos
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        System.out.printf("[T%02d] Interrompida.%n", id);
-                        Thread.currentThread().interrupt();
-                        break;
-                    }
+                    System.out.printf("[%s] %s | produto=%d dias=%d | %.2f ms | %s%n", threadName, nomeOp, produto, dias, latencyMs,
+                                        resposta != null && resposta.isSuccesso() ? "✓" : "✗");
+                    
+                } catch (IOException e) {
+                    metrics.registarErro();
+                    System.err.printf("[%s] ✗ IOException: %s%n", threadName, e.getMessage());
+                    break; // Conexão perdida, para esta thread
+                    
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    metrics.registarInterrupcao();
+                    System.out.printf("[%s] Interrompido%n", threadName);
+                    break;
                 }
-            } finally {
-                cliente.desconectar();
-                System.out.printf("[T%02d] Ligação fechada.%n", id);
+
+                // Pausa entre pedidos (~1 segundo)
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    System.out.printf("[%s] Interrompido durante sleep%n", threadName);
+                    break;
+                }
             }
+            
+            // Desconectar
+            cliente.desconectar();
+            System.out.printf("[%s] ✓ Desconectado%n", threadName);
         }
     }
 
@@ -153,18 +208,32 @@ public class ClienteTeste {
         int dias          = args.length > 4 ? Integer.parseInt(args[4]) : 5;
         int pedidosThread = args.length > 5 ? Integer.parseInt(args[5]) : 20;
 
-        System.out.printf(
-                "ClienteTeste: host=%s porta=%d threads=%d produto=%d dias=%d pedidosPorThread=%d%n",
-                host, porta, numThreads, produto, dias, pedidosThread
-        );
+        System.out.println("╔════════════════════════════════════════════════╗");
+        System.out.println("║       TESTE DE CONCORRÊNCIA - CLIENTE          ║");
+        System.out.println("╚════════════════════════════════════════════════╝");
+        System.out.printf("Host:              %s%n", host);
+        System.out.printf("Porta:             %d%n", porta);
+        System.out.printf("Threads:           %d%n", numThreads);
+        System.out.printf("Produto:           %d%n", produto);
+        System.out.printf("Dias:              %d%n", dias);
+        System.out.printf("Pedidos/Thread:    %d%n", pedidosThread);
+        System.out.printf("Total esperado:    %d pedidos%n", numThreads * pedidosThread);
+        System.out.println("════════════════════════════════════════════════");
+        System.out.println();
 
         Metrics metrics = new Metrics();
         List<Thread> workers = new ArrayList<>();
 
+        // Criar e iniciar threads
+        long startTime = System.currentTimeMillis();
+
         for (int i = 0; i < numThreads; i++) {
-            Thread t = new Thread(new Worker(i + 1, host, porta, produto, dias, pedidosThread, metrics));
+            Thread t = new Thread(new Worker(i + 1, host, porta, produto, dias, pedidosThread, metrics), "Worker-" + (i + 1));
             workers.add(t);
             t.start();
+
+            // Pequena pausa para escalonar o início
+            Thread.sleep(100);
         }
 
         // Esperar que todas as threads acabem
@@ -172,13 +241,49 @@ public class ClienteTeste {
             t.join();
         }
 
-        long total = metrics.getTotalRequests();
-        double media = metrics.getLatenciaMediaMs();
+        long endTime = System.currentTimeMillis();
+        long totalTimeMs = endTime - startTime;
 
-        System.out.println("==================================================");
-        System.out.printf("Teste terminado. Total de pedidos: %d%n", total);
-        System.out.printf("Latência média global: %.3f ms%n", media);
-        System.out.println("==================================================");
-        System.out.println("Dica: aumenta o nº de threads e repete para ver o impacto na cache e na carga do servidor.");
+        // Relatório final
+        long totalSucesso = metrics.getTotalRequests();
+        long totalErros = metrics.getTotalErrors();
+        long totalInterrupted = metrics.getTotalInterrupted();
+        long totalGeral = totalSucesso + totalErros + totalInterrupted;
+        double latenciaMedia = metrics.getLatenciaMediaMs();
+        double taxaSucesso = metrics.getTaxaSucesso();
+        double throughput = (totalSucesso * 1000.0) / totalTimeMs;
+
+        System.out.println("\n╔════════════════════════════════════════════════╗");
+        System.out.println("║           RELATÓRIO FINAL                      ║");
+        System.out.println("╚════════════════════════════════════════════════╝");
+        System.out.printf("Tempo total:       %.2f segundos%n", totalTimeMs / 1000.0);
+        System.out.printf("Pedidos esperados: %d%n", numThreads * pedidosThread);
+        System.out.printf("Pedidos enviados:  %d%n", totalGeral);
+        System.out.println("────────────────────────────────────────────────");
+        System.out.printf(" Sucesso:         %d (%.1f%%)%n", totalSucesso, taxaSucesso);
+        System.out.printf(" Erros I/O:       %d%n", totalErros);
+        System.out.printf(" Interrompidos:   %d%n", totalInterrupted);
+        System.out.println("────────────────────────────────────────────────");
+        System.out.printf("Latência média:    %.2f ms%n", latenciaMedia);
+        System.out.printf("Throughput:        %.2f req/s%n", throughput);
+        System.out.println("════════════════════════════════════════════════");
+        
+        // Análise
+        if (taxaSucesso >= 95.0) {
+            System.out.println("\n EXCELENTE: Taxa de sucesso >= 95%");
+        } else if (taxaSucesso >= 80.0) {
+            System.out.println("\n ACEITÁVEL: Taxa de sucesso >= 80%");
+        } else {
+            System.out.println("\n PROBLEMÁTICO: Taxa de sucesso < 80%");
+            System.out.println("   Verifique: servidor sobrecarregado? timeouts? cache?");
+        }
+        
+        if (latenciaMedia < 50) {
+            System.out.println(" EXCELENTE: Latência média < 50ms");
+        } else if (latenciaMedia < 200) {
+            System.out.println(" ACEITÁVEL: Latência média < 200ms");
+        } else {
+            System.out.println(" LENTO: Latência média >= 200ms");
+        }
     }
 }
