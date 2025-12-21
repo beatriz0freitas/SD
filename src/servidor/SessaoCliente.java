@@ -3,8 +3,6 @@ package src.servidor;
 import java.io.*;
 import java.net.Socket;
 import java.nio.ByteBuffer;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import src.uteis.Evento;
