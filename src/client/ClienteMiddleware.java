@@ -1,13 +1,12 @@
 package client;
 
 import common.dto.RespostaDTO;
-import middleware.proto.ProtocoloHandler;
-import middleware.proto.Requisicao;
-
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.concurrent.locks.ReentrantLock;
+import middleware.proto.ProtocoloHandler;
+import middleware.proto.Requisicao;
 
 /**
  * Middleware do lado do cliente
@@ -70,38 +69,32 @@ public class ClienteMiddleware {
         }
     }
 
-    /**
-     * Invoca operação remota
-     *
-     * @param operacao   nome da operação (ex: "AUTH:LOGIN")
-     * @param parametros parâmetros da operação (DTO ou null) — já serializado conforme seu protocolo
-     * @return RespostaDTO do servidor
-     */
-    public RespostaDTO invocar(String operacao, Object parametros) throws IOException {
+    
+    public RespostaDTO invocar(byte serviceId, byte methodId, Object parametros) throws IOException {
         lock.lock();
         try {
             if (!conectado || socket.isClosed()) {
                 System.out.println("Reconectando...");
                 conectar();
             }
-
-            // Cria requisição (parametros deve ser serializável pelo seu protocolo atual)
-            Requisicao requisicao = new Requisicao(operacao, parametros);
-
+    
+            // Cria requisição com service_id e method_id para encapsular parâmetros do middleware
+            Requisicao requisicao = new Requisicao(serviceId, methodId, parametros);
+    
             // Envia requisição
             protocoloHandler.enviar(requisicao, output);
-
-            // Recebe resposta (agora sem genéricos; cast no chamador)
+    
+            // Recebe resposta
             Object resp = protocoloHandler.receber(input);
             return (RespostaDTO) resp;
-
+    
         } catch (ClassNotFoundException e) {
             throw new IOException("Erro ao deserializar resposta", e);
         } finally {
             lock.unlock();
         }
     }
-
+    
     public boolean isConectado() {
         lock.lock();
         try {

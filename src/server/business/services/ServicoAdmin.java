@@ -4,24 +4,23 @@ import common.dto.RespostaDTO;
 import common.exceptions.AdminException;
 import common.interfaces.IServicoAdmin;
 import java.util.List;
-
 import server.business.domain.Usuario;
-import server.data.dao.DAOFactory;
-import server.data.dao.IUsuarioDAO;
+import server.data.repository.IUsuarioRepository;
+import server.data.repository.RepositoryFactory;
 
 /**
  * Serviço de negócio para operações administrativas
  */
 public class ServicoAdmin implements IServicoAdmin {
-    private final IUsuarioDAO usuarioDAO;
+    private final IUsuarioRepository usuarioRepository;
     
     public ServicoAdmin() {
-        this.usuarioDAO = DAOFactory.getInstance().getUsuarioDAO();
+        this.usuarioRepository = RepositoryFactory.getInstance().getUsuarioRepository();
     }
     
     @Override
     public RespostaDTO listarClientes() throws AdminException {
-        List<Usuario> usuarios = usuarioDAO.listarTodos();
+        List<Usuario> usuarios = usuarioRepository.listarTodos();
         
         StringBuilder sb = new StringBuilder();
         sb.append("=== CLIENTES REGISTADOS ===\n");
@@ -36,7 +35,7 @@ public class ServicoAdmin implements IServicoAdmin {
     
     @Override
     public RespostaDTO obterEstatisticas() throws AdminException {
-        int totalUsuarios = usuarioDAO.listarTodos().size();
+        int totalUsuarios = usuarioRepository.listarTodos().size();
         
         StringBuilder sb = new StringBuilder();
         sb.append("=== ESTATÍSTICAS DO SISTEMA ===\n");

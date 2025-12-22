@@ -7,18 +7,17 @@ import common.exceptions.EventoException;
 import common.interfaces.IServicoEventos;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
 import server.business.domain.Evento;
 import server.business.validators.EventoValidator;
 import server.data.cache.CacheManager;
-import server.data.dao.DAOFactory;
-import server.data.dao.IEventoDAO;
+import server.data.repository.IEventoRepository;
+import server.data.repository.RepositoryFactory;
 
 /**
  * Serviço de negócio para gestão de eventos
  */
 public class ServicoEventos implements IServicoEventos {
-    private final IEventoDAO eventoDAO;
+    private final IEventoRepository eventoRepository;
     private final EventoValidator validator;
     private final CacheManager cacheManager;
     
@@ -27,10 +26,10 @@ public class ServicoEventos implements IServicoEventos {
     private final Map<Integer, List<Evento>> eventosDiaAtual = new HashMap<>();
     
     public ServicoEventos(int D) {
-        this.eventoDAO = DAOFactory.getInstance().getEventoDAO();
+        this.eventoRepository = RepositoryFactory.getInstance().getEventoRepository();
         this.validator = new EventoValidator();
-        this.cacheManager = new CacheManager(eventoDAO, D);
-        this.diaAtual = eventoDAO.obterUltimoDia() + 1;
+        this.cacheManager = new CacheManager(eventoRepository, D);
+        this.diaAtual = eventoRepository.obterUltimoDia() + 1;
         
         System.out.println("ServicoEventos iniciado no dia: " + diaAtual);
     }
@@ -107,7 +106,7 @@ public RespostaDTO registrarEvento(EventoDTO dto) throws EventoException {
             
             try {
                 // 1. Persistir
-                eventoDAO.salvarEventosDia(diaAtual, eventosDiaAtual);
+                eventoRepository.salvarEventosDia(diaAtual, eventosDiaAtual);
                 
                 // 2. Limpar cache
                 cacheManager.limparDiaAntigo(diaAtual);

@@ -5,13 +5,13 @@ import java.util.Map;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import server.business.domain.Agregacao;
-import server.data.dao.IEventoDAO;
+import server.data.repository.IEventoRepository;
 
 /**
  * Gerenciador de cache para agregações
  */
 public class CacheManager {
-    private final IEventoDAO eventoDAO;
+    private final IEventoRepository eventoRepository;
     private final int D; // Número de dias a considerar
 
     // Cache: produtoID -> dia -> Agregacao
@@ -19,14 +19,14 @@ public class CacheManager {
 
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
-    public CacheManager(IEventoDAO eventoDAO, int D) {
-        this.eventoDAO = eventoDAO;
+    public CacheManager(IEventoRepository eventoRepository, int D) {
+        this.eventoRepository = eventoRepository;
         this.D = D;
     }
 
     /**
      * Obtém entrada da cache para um produto em um dia
-     * Se não existir, busca do DAO e adiciona à cache
+     * Se não existir, busca do Repository e adiciona à cache
      */
     private Agregacao obterEntradaDia(int produtoID, int dia) {
         lock.writeLock().lock();
@@ -34,7 +34,7 @@ public class CacheManager {
             Map<Integer, Agregacao> cacheProduto = cache.computeIfAbsent(produtoID, k -> new HashMap<>());
             Agregacao existente = cacheProduto.get(dia);
             if (existente == null) {
-                Agregacao agregacao = eventoDAO.agregarEventosDia(produtoID, dia);
+                Agregacao agregacao = eventoRepository.agregarEventosDia(produtoID, dia);
                 cacheProduto.put(dia, agregacao);
                 System.out.println("Cache MISS: produto=" + produtoID + " dia=" + dia);
                 return agregacao;
@@ -52,7 +52,7 @@ public class CacheManager {
      */
     private <T> T obterAgregacao(int produtoID, int dias, Function<Agregacao, T> extractor) {
         // Limitar ao número de dias disponíveis
-        int ultimoDia = eventoDAO.obterUltimoDia();
+        int ultimoDia = eventoRepository.obterUltimoDia();
         if (dias > ultimoDia + 1) {
             dias = ultimoDia + 1;
         }

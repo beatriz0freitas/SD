@@ -1,13 +1,11 @@
 package server.business.services;
 
-import common.dto.AgregacaoDTO;
 import common.dto.RespostaDTO;
 import common.exceptions.AgregacaoException;
 import common.interfaces.IServicoAgregacoes;
-import server.business.domain.Agregacao;
 import server.data.cache.CacheManager;
-import server.data.dao.DAOFactory;
-import server.data.dao.IEventoDAO;
+import server.data.repository.IEventoRepository;
+import server.data.repository.RepositoryFactory;
 
 /**
  * Serviço de negócio para agregações
@@ -18,8 +16,8 @@ public class ServicoAgregacoes implements IServicoAgregacoes {
     
     public ServicoAgregacoes(ServicoEventos servicoEventos, int D) {
         this.servicoEventos = servicoEventos;
-        IEventoDAO dao = DAOFactory.getInstance().getEventoDAO();
-        this.cacheManager = new CacheManager(dao, D);
+        IEventoRepository repository = RepositoryFactory.getInstance().getEventoRepository();
+        this.cacheManager = new CacheManager(repository, D);
     }
     
     @Override

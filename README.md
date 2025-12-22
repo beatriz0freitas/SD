@@ -23,7 +23,7 @@ src/
 │   │   └── validators/  # Validadores
 |   |
 │   ├── data/            # Camada de dados
-│   │   ├── dao/         # Data Access Objects
+│   │   ├── repository/         # Data Access Objects
 │   │   └── cache/       # Sistema de cache
 |   |
 │   └── presentation/    # Camada de apresentação
@@ -39,12 +39,12 @@ src/
 
 ### Padrões Implementados
 
-1. **DAO Pattern**: Abstração de persistência
+1. **Repository Pattern**: Abstração de persistência
 2. **Stub Pattern**: Representação remota (Stubs)
 3. **Skeleton Pattern**: Servidor de objetos remotos
 4. **Service Layer**: Lógica de negócio isolada
 5. **DTO Pattern**: Transferência de dados
-6. **Factory Pattern**: Criação de DAOs e Stubs
+6. **Factory Pattern**: Criação de Repositorys e Stubs
 
 ### Fluxo de Comunicação
 
@@ -64,7 +64,7 @@ Client Middleware  →→→  Server Handler
                          ↓
                     Service Layer
                          ↓
-                    DAO Layer
+                    Repository Layer
                          ↓
                     Persistência
 ```
@@ -152,7 +152,7 @@ Vantagens:
 -Separação clara de responsabilidades
 -Stubs representam serviços remotos
 -Skeletons delegam para Services
--DAOs isolam persistência
+-Repositorys isolam persistência
 -Services contêm apenas lógica de negócio
 -Fácil testar cada camada isoladamente
 -Fácil adicionar novos serviços
@@ -161,10 +161,34 @@ Vantagens:
 
 ---
 
-**Nota**: O sistema segue a arquitetura de sistemas distribuídos com Stubs/Skeletons, como a Java RMI mas com implementação do protocolo
+**Nota**: O sistema segue a arquitetura de sistemas distribuídos com Stubs/Skeletons, como a Java RMI mas com implementação do
+protocolo
+
+Uso de DTOs
+Os DTOs são usados para desacoplar cliente e servidor, permitindo que cada lado evolua independentemente. Enviam apenas dados necessários pela rede (não estruturas internas completas), reduzindo o payload e protegendo informação sensível. Facilitam validação centralizada, tornam a API clara e autodocumentada, e garantem que mudanças no servidor não quebrem o cliente.
 
 //TODO guardar a stack tree nas excecoes
 //TODO fazer o nosso proprio threadpoll (nao acho necessario )
 //TODO Pool de conexões reutilizáveis (cada midleware do cliente gera uma nova conexcao)
-//TODO Logging estruturado 
+//TODO Logging estruturado
 //TODO Config do server e cliente mais centralizada
+
+//TODO ajustar interface (tem muitas responsabilidades)
+Alta Prioridade:
+
+Separar input/output em classes dedicadas
+Eliminar repetição de código (DRY)
+Adicionar logging
+Padronizar idioma (inglês ou português, não misturar)
+
+Média Prioridade:
+
+Criar constantes para magic numbers/strings
+Melhorar tratamento de exceções (específicas)
+Implementar AutoCloseable
+
+Baixa Prioridade:
+
+Extrair MenuRenderer
+Criar UserSession
+Tornar testável com injeção de dependências

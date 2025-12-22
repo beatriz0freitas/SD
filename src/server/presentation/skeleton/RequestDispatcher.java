@@ -2,38 +2,36 @@ package server.presentation.skeleton;
 
 import common.dto.RespostaDTO;
 import java.util.Map;
+import static middleware.proto.Protocolos.*;
 import middleware.proto.Requisicao;
 
-/**
- * Dispatcher que roteia requisições para os skeletons apropriados
- */
 public class RequestDispatcher {
-    private final Map<String, ISkeleton> porPrefixo;
-
+    private final Map<Byte, ISkeleton> skeletonsPorServico;
+    
     public RequestDispatcher(
             ServicoAutenticacaoSkeleton skeletonAuth,
             ServicoEventosSkeleton skeletonEventos,
             ServicoAgregacoesSkeleton skeletonAgregacoes,
             ServicoAdminSkeleton skeletonAdmin) {
-
-        // registro por prefixo
-        this.porPrefixo = Map.of(
-            "AUTH:", skeletonAuth,
-            "EVENTO:", skeletonEventos,
-            "AGREGACAO:", skeletonAgregacoes,
-            "ADMIN:", skeletonAdmin
+        
+        this.skeletonsPorServico = Map.of(
+            SERVICO_AUTENTICACAO, skeletonAuth,
+            SERVICO_EVENTOS, skeletonEventos,
+            SERVICO_AGREGACOES, skeletonAgregacoes,
+            SERVICO_ADMIN, skeletonAdmin
         );
     }
-
+    
     public RespostaDTO despachar(Requisicao requisicao) {
-        String operacao = requisicao.getOperacao();
-        Object parametros = requisicao.getParametros();
-
-        for (Map.Entry<String, ISkeleton> e : porPrefixo.entrySet()) {
-            if (operacao.startsWith(e.getKey())) {
-                return e.getValue().processarRequisicao(operacao, parametros);
-            }
+        ISkeleton skeleton = skeletonsPorServico.get(requisicao.getServiceId());
+        
+        if (skeleton == null) {
+            return RespostaDTO.erro("Serviço desconhecido: " + requisicao.getServiceId());
         }
-        return RespostaDTO.erro("Operação desconhecida: " + operacao);
+        
+        return skeleton.processarRequisicao(
+            requisicao.getMethodId(), 
+            requisicao.getParametros()
+        );
     }
 }

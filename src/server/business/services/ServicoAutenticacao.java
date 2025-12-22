@@ -9,27 +9,27 @@ import middleware.security.PasswordHasher;
 import server.business.domain.Usuario;
 import server.business.validators.UsuarioValidator;
 import server.config.ServerConfig;
-import server.data.dao.DAOFactory;
-import server.data.dao.IUsuarioDAO;
+import server.data.repository.IUsuarioRepository;
+import server.data.repository.RepositoryFactory;
 
 /**
  * Serviço de negócio para autenticação
  */
 public class ServicoAutenticacao implements IServicoAutenticacao {
-    private final IUsuarioDAO usuarioDAO;
+    private final IUsuarioRepository usuarioRepository;
     private final UsuarioValidator validator;
     private final PasswordHasher hasher;
     private final String ADMIN_PASSWORD = ServerConfig.getAdminPassword();
 
     public ServicoAutenticacao() {
-        this.usuarioDAO = DAOFactory.getInstance().getUsuarioDAO();
+        this.usuarioRepository = RepositoryFactory.getInstance().getUsuarioRepository();
         this.validator = new UsuarioValidator();
         this.hasher = new PasswordHasher();
     }
 
     // Para testes - permite injetar dependências
-    public ServicoAutenticacao(IUsuarioDAO dao, UsuarioValidator validator, PasswordHasher hasher) {
-        this.usuarioDAO = dao;
+    public ServicoAutenticacao(IUsuarioRepository repository, UsuarioValidator validator, PasswordHasher hasher) {
+        this.usuarioRepository = repository;
         this.validator = validator;
         this.hasher = hasher;
     }
@@ -41,7 +41,7 @@ public class ServicoAutenticacao implements IServicoAutenticacao {
             validator.validarRegistro(dto);
             
             // 2. Verificar se já existe
-            if (usuarioDAO.existe(dto.getUsername())) {
+            if (usuarioRepository.existe(dto.getUsername())) {
                 throw new AutenticacaoException("Username já existe");
             }
             
@@ -50,7 +50,7 @@ public class ServicoAutenticacao implements IServicoAutenticacao {
             Usuario usuario = new Usuario(dto.getUsername(), hash);
             
             // 4. Persistir
-            usuarioDAO.salvar(usuario);
+            usuarioRepository.salvar(usuario);
             System.out.println("Novo utilizador registado: " + dto.getUsername());
             
             return RespostaDTO.sucesso("Utilizador registado com sucesso");
@@ -68,7 +68,7 @@ public class ServicoAutenticacao implements IServicoAutenticacao {
             validator.validarAutenticacao(dto);
             
             // 2. Buscar usuário
-            Usuario usuario = usuarioDAO.buscar(dto.getUsername());
+            Usuario usuario = usuarioRepository.buscar(dto.getUsername());
             if (usuario == null) {
                 throw new AutenticacaoException("Credenciais inválidas");
             }

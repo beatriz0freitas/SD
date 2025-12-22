@@ -47,16 +47,19 @@ public class InterfaceUtilizador {
         try {
             mostrarHeader();
             
-            // Menu de autenticação
-            while (!autenticado && executando) {
-                mostrarMenuAutenticacao();
-                processarMenuAutenticacao();
-            }
-            
-            // Menu principal
-            while (autenticado && executando) {
-                mostrarMenuPrincipal();
-                processarMenuPrincipal();
+            // Loop principal da aplicação
+            while (executando) {
+                // Menu de autenticação
+                while (!autenticado && executando) {
+                    mostrarMenuAutenticacao();
+                    processarMenuAutenticacao();
+                }
+                
+                // Menu principal
+                while (autenticado && executando) {
+                    mostrarMenuPrincipal();
+                    processarMenuPrincipal();
+                }
             }
             
         } catch (Exception e) {
@@ -111,15 +114,17 @@ public class InterfaceUtilizador {
             System.out.println("1. Listar clientes registados");
             System.out.println("2. Listar eventos do dia");
             System.out.println("3. Avançar dia");
+            System.out.println("4. Logout (voltar ao menu de autenticação)");
         } else {
             System.out.println("1. Registar evento de venda");
             System.out.println("2. Quantidade de Vendas");
             System.out.println("3. Volume de Vendas");
             System.out.println("4. Preço Médio");
             System.out.println("5. Preço Máximo");
+            System.out.println("6. Logout (voltar ao menu de autenticação)");
         }
         
-        System.out.println("0. Logout e Sair");
+        System.out.println("0. Sair da aplicação");
         System.out.print("Escolha uma opção: ");
     }
     
@@ -191,8 +196,11 @@ public class InterfaceUtilizador {
             case 3:
                 novoDia();
                 break;
-            case 0:
+            case 4:
                 logout();
+                break;
+            case 0:
+                sair();
                 break;
             default:
                 System.out.println("Opção inválida!");
@@ -216,8 +224,11 @@ public class InterfaceUtilizador {
             case 5:
                 precoMaximo();
                 break;
-            case 0:
+            case 6:
                 logout();
+                break;
+            case 0:
+                sair();
                 break;
             default:
                 System.out.println("Opção inválida!");
@@ -356,15 +367,21 @@ public class InterfaceUtilizador {
         mostrarResposta(resposta);
     }
     
+    /**
+     * Logout: volta ao menu de autenticação (permite trocar de utilizador)
+     */
     private void logout() {
         autenticado = false;
         isAdmin = false;
         username = null;
-        System.out.println("\nSessão terminada.");
+        System.out.println("\n✓ Logout efetuado. A voltar ao menu de autenticação...");
     }
     
+    /**
+     * Sair: encerra completamente a aplicação
+     */
     private void sair() {
-        System.out.println("\nA sair...");
+        System.out.println("\nA encerrar aplicação...");
         executando = false;
     }
     
