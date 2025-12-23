@@ -72,9 +72,18 @@ public class ClienteMiddleware {
     }
 
     public RespostaDTO invocar(byte serviceId, byte methodId, Object parametros) throws IOException {
-        if (!conectado || socket.isClosed()) {
-            desconectar();
-            conectar(); 
+        
+        // Verificar e reconectar se necessário
+        if (!conectado || socket == null || socket.isClosed()) {
+            writeLock.lock();
+            try {
+                if (!conectado || socket == null || socket.isClosed()) {
+                    desconectar();
+                    conectar();
+                }
+            } finally {
+                writeLock.unlock();
+            }
         }
 
         try {

@@ -33,7 +33,7 @@ public class Server {
         this.porta = porta;
         this.D = D;
         this.S = S;
-        this.threadPool = Executors.newCachedThreadPool(); // em vez de se criar uma thread por cliente 
+        this.threadPool = Executors.newFixedThreadPool(100); // Pool de threads fixa para ter controlo
         this.ativo = false;
         
         inicializarServicos();

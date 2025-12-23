@@ -167,6 +167,8 @@ protocolo
 Uso de DTOs
 Os DTOs são usados para desacoplar cliente e servidor, permitindo que cada lado evolua independentemente. Enviam apenas dados necessários pela rede (não estruturas internas completas), reduzindo o payload e protegendo informação sensível. Facilitam validação centralizada, tornam a API clara e autodocumentada, e garantem que mudanças no servidor não quebrem o cliente.
 
+//TODO melhorar tratamento de erros
+
 //TODO guardar a stack tree nas excecoes
 //TODO fazer o nosso proprio threadpoll (nao acho necessario )
 //TODO Pool de conexões reutilizáveis (cada midleware do cliente gera uma nova conexcao)
