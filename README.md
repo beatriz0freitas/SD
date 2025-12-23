@@ -19,11 +19,11 @@ src/
 ├── server/              # Lado do servidor
 │   ├── business/        # Camada de negócio
 │   │   ├── domain/      # Entidades de domínio
-│   │   ├── services/    # Serviços de negócio
-│   │   └── validators/  # Validadores
+│   │   └── services/    # Serviços de negócio
+│   │   
 |   |
 │   ├── data/            # Camada de dados
-│   │   ├── repository/         # Data Access Objects
+│   │   ├── repository/  # Data Access Objects
 │   │   └── cache/       # Sistema de cache
 |   |
 │   └── presentation/    # Camada de apresentação
@@ -31,8 +31,8 @@ src/
 │       └── handlers/    # Handlers de requisições
 │
 └── middleware/          # Middleware compartilhado
-    ├── protocol/        # Protocolo de comunicação
-    └── security/        # Segurança (hash de senhas)
+    └── proto/           # Protocolo de comunicação
+    
 ```
 
 ## Arquitetura
@@ -173,24 +173,7 @@ Os DTOs são usados para desacoplar cliente e servidor, permitindo que cada lado
 //TODO fazer o nosso proprio threadpoll (nao acho necessario )
 //TODO Pool de conexões reutilizáveis (cada midleware do cliente gera uma nova conexcao)
 //TODO Logging estruturado
+
 //TODO Config do server e cliente mais centralizada
-
 //TODO ajustar interface (tem muitas responsabilidades)
-Alta Prioridade:
 
-Separar input/output em classes dedicadas
-Eliminar repetição de código (DRY)
-Adicionar logging
-Padronizar idioma (inglês ou português, não misturar)
-
-Média Prioridade:
-
-Criar constantes para magic numbers/strings
-Melhorar tratamento de exceções (específicas)
-Implementar AutoCloseable
-
-Baixa Prioridade:
-
-Extrair MenuRenderer
-Criar UserSession
-Tornar testável com injeção de dependências

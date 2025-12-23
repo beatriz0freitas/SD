@@ -6,6 +6,7 @@ import java.net.Socket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import server.config.ServerConfig;
 import server.presentation.handlers.ClientHandler;
 import server.presentation.skeleton.RequestDispatcher;
 
@@ -86,8 +87,9 @@ public class Server {
     }
     
     public static void main(String[] args) {
-        int porta = 5001;
-        int D = 30;
+        int porta = ServerConfig.DEFAULT_PORT;
+        int D = ServerConfig.DEFAULT_D;
+
         
         if (args.length > 0) {
             porta = parseIntOuPadrao(args[0], porta, "Porta");
