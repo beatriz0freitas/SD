@@ -3,393 +3,157 @@ package client;
 import client.stub.*;
 import common.dto.*;
 import common.interfaces.*;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * Classe de teste que simula múltiplos clientes concorrentes
- * Usa a arquitetura real: Middleware + Stubs + Interfaces
- */
 public class ClienteTeste {
-    private static final String HOST = "localhost";
-    private static final int PORTA = 5001;
-    private static final Random random = new Random();
-    private static final AtomicInteger contadorEventos = new AtomicInteger(0);
-    private static final AtomicInteger contadorConsultas = new AtomicInteger(0);
+    private static final Random rand = new Random();
+    private static final AtomicInteger eventos = new AtomicInteger(0);
+    private static final AtomicInteger consultas = new AtomicInteger(0);
     
     public static void main(String[] args) {
-        int numClientes = 10;
-        String host = HOST;
-        int porta = PORTA;
+        int numClientes = args.length > 0 ? Integer.parseInt(args[0]) : 10;
+        String host = args.length > 1 ? args[1] : "localhost";
+        int porta = args.length > 2 ? Integer.parseInt(args[2]) : 5001;
         
-        // Processar argumentos: [numClientes] [host] [porta]
-        if (args.length > 0) {
-            try {
-                numClientes = Integer.parseInt(args[0]);
-            } catch (NumberFormatException e) {
-                System.err.println("Número de clientes inválido, usando padrão: " + numClientes);
-            }
-        }
-        if (args.length > 1) {
-            host = args[1];
-        }
-        if (args.length > 2) {
-            try {
-                porta = Integer.parseInt(args[2]);
-            } catch (NumberFormatException e) {
-                System.err.println("Porta inválida, usando padrão: " + porta);
-            }
-        }
-        
-        System.out.println("========================================");
-        System.out.println("  TESTE DE CLIENTES CONCORRENTES");
-        System.out.println("========================================");
-        System.out.println("Número de clientes: " + numClientes);
+        System.out.println("=== TESTE CONCORRENTE ===");
+        System.out.println("Clientes: " + numClientes);
         System.out.println("Servidor: " + host + ":" + porta);
-        System.out.println("========================================\n");
+        System.out.println("========================\n");
         
-        ExecutorService executor = Executors.newFixedThreadPool(numClientes);
-        List<ClienteSimulado> clientes = new ArrayList<>();
+        ExecutorService pool = Executors.newFixedThreadPool(numClientes);
         
-        // Criar e executar clientes
         for (int i = 1; i <= numClientes; i++) {
-            ClienteSimulado cliente = new ClienteSimulado(i, host, porta);
-            clientes.add(cliente);
-            executor.execute(cliente);
+            final int id = i;
+            pool.execute(() -> executarCliente(id, host, porta));
         }
         
-        // Aguardar conclusão
-        executor.shutdown();
+        pool.shutdown();
         try {
-            if (!executor.awaitTermination(5, TimeUnit.MINUTES)) {
-                System.err.println("Timeout - forçando encerramento...");
-                executor.shutdownNow();
-            }
+            pool.awaitTermination(5, TimeUnit.MINUTES);
         } catch (InterruptedException e) {
-            executor.shutdownNow();
-            Thread.currentThread().interrupt();
+            pool.shutdownNow();
         }
         
-        // Estatísticas finais
-        System.out.println("\n========================================");
-        System.out.println("  ESTATÍSTICAS FINAIS");
-        System.out.println("========================================");
-        
-        int sucessos = 0;
-        int falhas = 0;
-        int totalOperacoes = 0;
-        long tempoTotal = 0;
-        
-        for (ClienteSimulado cliente : clientes) {
-            if (cliente.isSucesso()) {
-                sucessos++;
-            } else {
-                falhas++;
-            }
-            totalOperacoes += cliente.getNumOperacoes();
-            tempoTotal += cliente.getTempoExecucao();
-        }
-        
-        System.out.println("Clientes bem-sucedidos: " + sucessos);
-        System.out.println("Clientes com falhas: " + falhas);
-        System.out.println("Total de operações: " + totalOperacoes);
-        System.out.println("  - Eventos registados: " + contadorEventos.get());
-        System.out.println("  - Consultas realizadas: " + contadorConsultas.get());
-        if (sucessos > 0) {
-            System.out.printf("Tempo médio por cliente: %.2f ms%n", (double) tempoTotal / sucessos);
-        }
-        System.out.println("========================================");
+        System.out.println("\n=== RESULTADO ===");
+        System.out.println("Eventos: " + eventos.get());
+        System.out.println("Consultas: " + consultas.get());
     }
     
-    /**
-     * Classe interna que simula um cliente individual
-     * Usa a arquitetura real do sistema
-     */
-    static class ClienteSimulado implements Runnable {
-        private final int id;
-        private final String host;
-        private final int porta;
-        private boolean sucesso = false;
-        private int numOperacoes = 0;
-        private long tempoExecucao = 0;
-        
-        // Componentes do cliente real
-        private ClienteMiddleware middleware;
-        private StubFactory stubFactory;
-        private IServicoAutenticacao servicoAuth;
-        private IServicoEventos servicoEventos;
-        private IServicoAgregacoes servicoAgregacoes;
-        
-        public ClienteSimulado(int id, String host, int porta) {
-            this.id = id;
-            this.host = host;
-            this.porta = porta;
-        }
-        
-        @Override
-        public void run() {
-            long inicio = System.currentTimeMillis();
-            System.out.println("[Cliente " + id + "] Iniciando...");
+    private static void executarCliente(int id, String host, int porta) {
+        ClienteMiddleware mid = null;
+        try {
+            System.out.println("[" + id + "] Iniciando...");
+            
+            mid = new ClienteMiddleware(host, porta);
+            mid.conectar();
+            
+            StubFactory stubs = new StubFactory(mid);
+            IServicoAutenticacao auth = stubs.criarStubAutenticacao();
+            IServicoEventos evts = stubs.criarStubEventos();
+            IServicoAgregacoes agreg = stubs.criarStubAgregacoes();
+            
+            // Autenticar
+            String user = "user" + id;
+            UsuarioDTO usuario = new UsuarioDTO(user, "pass" + id);
             
             try {
-                // 1. Criar middleware e conectar
-                middleware = new ClienteMiddleware(host, porta);
-                middleware.conectar();
-                
-                // 2. Criar factory de stubs
-                stubFactory = new StubFactory(middleware);
-                servicoAuth = stubFactory.criarStubAutenticacao();
-                servicoEventos = stubFactory.criarStubEventos();
-                servicoAgregacoes = stubFactory.criarStubAgregacoes();
-                
-                // 3. Autenticar
-                if (!autenticar()) {
-                    System.err.println("[Cliente " + id + "] Falha na autenticação");
-                    return;
-                }
-                
-                // 4. Simular diferentes tipos de clientes
-                int tipo = id % 3;
-                
-                switch (tipo) {
-                    case 0:
-                        simularClienteVendedor();
-                        break;
-                    case 1:
-                        simularClienteConsultor();
-                        break;
-                    case 2:
-                        simularClienteMisto();
-                        break;
-                }
-                
-                sucesso = true;
-                tempoExecucao = System.currentTimeMillis() - inicio;
-                System.out.println("[Cliente " + id + "] Concluído com sucesso (" + 
-                    numOperacoes + " operações em " + tempoExecucao + " ms)");
-                
-            } catch (Exception e) {
-                System.err.println("[Cliente " + id + "] ERRO: " + e);
-                e.printStackTrace();
-                sucesso = false;
-            } finally {
-                // Sempre desconectar
-                if (middleware != null) {
-                    middleware.desconectar();
-                }
-            }
-        }
-        
-        /**
-         * Autentica o cliente
-         */
-        private boolean autenticar() {
-            try {
-                String username = "user" + id;
-                String password = "pass" + id;
-                
-                // Tentar registar primeiro
-                UsuarioDTO usuario = new UsuarioDTO(username, password);
-                
-                try {
-                    RespostaDTO respostaReg = servicoAuth.registrar(usuario);
-                    if (respostaReg.isSucesso()) {
-                        System.out.println("[Cliente " + id + "] Registado: " + username);
-                    }
-                } catch (Exception e) {
-                    // Já existe, tudo bem
-                }
-                
-                // Autenticar
-                RespostaDTO respostaAuth = servicoAuth.autenticar(usuario);
-                if (respostaAuth.isSucesso()) {
-                    System.out.println("[Cliente " + id + "] Autenticado: " + username);
-                    numOperacoes++;
-                    return true;
-                }
-                
-                return false;
-                
-            } catch (Exception e) {
-                System.err.println("[Cliente " + id + "] Erro na autenticação: " + e.getMessage());
-                return false;
-            }
-        }
-        
-        /**
-         * Cliente que apenas registra eventos
-         */
-        private void simularClienteVendedor() throws Exception {
-            System.out.println("[Cliente " + id + "] Modo: VENDEDOR");
+                auth.registrar(usuario);
+            } catch (Exception e) {}
             
-            int numVendas = 5 + random.nextInt(6); // 5-10 vendas
-            
-            for (int i = 0; i < numVendas; i++) {
-                int produtoID = random.nextInt(10) + 1;
-                int quantidade = random.nextInt(50) + 1;
-                double preco = 10.0 + random.nextDouble() * 90.0;
-                
-                EventoDTO evento = new EventoDTO(produtoID, quantidade, preco);
-                RespostaDTO resposta = servicoEventos.registrarEvento(evento);
-                
-                if (resposta.isSucesso()) {
-                    System.out.printf("[Cliente %d] ✓ Evento registado: Produto=%d, Qtd=%d, Preço=%.2f€%n",
-                        id, produtoID, quantidade, preco);
-                    contadorEventos.incrementAndGet();
-                } else {
-                    System.err.printf("[Cliente %d] ✗ Falha: %s%n", id, resposta.getMensagem());
-                }
-                
-                numOperacoes++;
-                
-                // Simular tempo entre vendas
-                try {
-                    Thread.sleep(random.nextInt(500) + 100);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    return;
-                }
-            }
-        }
-        
-        /**
-         * Cliente que apenas consulta dados
-         */
-        private void simularClienteConsultor() throws Exception {
-            System.out.println("[Cliente " + id + "] Modo: CONSULTOR");
-            
-            int numConsultas = 5 + random.nextInt(6); // 5-10 consultas
-            
-            for (int i = 0; i < numConsultas; i++) {
-                int operacao = random.nextInt(5);
-                RespostaDTO resposta = null;
-                String descricao = "";
-                
-                try {
-                    switch (operacao) {
-                        case 0:
-                            resposta = servicoEventos.listarEventosDiaAtual();
-                            descricao = "Listar eventos do dia";
-                            break;
-                        case 1:
-                            int prodID1 = random.nextInt(10) + 1;
-                            int dias1 = random.nextInt(10) + 1;
-                            resposta = servicoAgregacoes.obterQuantidadeVendas(prodID1, dias1);
-                            descricao = String.format("Quantidade vendas (Produto %d, %d dias)", prodID1, dias1);
-                            break;
-                        case 2:
-                            int prodID2 = random.nextInt(10) + 1;
-                            int dias2 = random.nextInt(10) + 1;
-                            resposta = servicoAgregacoes.obterVolumeVendas(prodID2, dias2);
-                            descricao = String.format("Volume vendas (Produto %d, %d dias)", prodID2, dias2);
-                            break;
-                        case 3:
-                            int prodID3 = random.nextInt(10) + 1;
-                            int dias3 = random.nextInt(10) + 1;
-                            resposta = servicoAgregacoes.obterPrecoMedio(prodID3, dias3);
-                            descricao = String.format("Preço médio (Produto %d, %d dias)", prodID3, dias3);
-                            break;
-                        case 4:
-                            int prodID4 = random.nextInt(10) + 1;
-                            int dias4 = random.nextInt(10) + 1;
-                            resposta = servicoAgregacoes.obterPrecoMaximo(prodID4, dias4);
-                            descricao = String.format("Preço máximo (Produto %d, %d dias)", prodID4, dias4);
-                            break;
-                    }
-                    
-                    if (resposta != null && resposta.isSucesso()) {
-                        System.out.println("[Cliente " + id + "] ✓ " + descricao);
-                        contadorConsultas.incrementAndGet();
-                    } else {
-                        System.err.println("[Cliente " + id + "] ✗ Falha em " + descricao);
-                    }
-                    
-                } catch (Exception e) {
-                    System.err.println("[Cliente " + id + "] ✗ Erro em " + descricao + ": " + e.getMessage());
-                }
-                
-                numOperacoes++;
-                try {
-                    Thread.sleep(random.nextInt(1000) + 300);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    return;
-                }
-            }
-        }
-        
-        /**
-         * Cliente que faz um mix de operações
-         */
-        private void simularClienteMisto() throws Exception {
-            System.out.println("[Cliente " + id + "] Modo: MISTO");
-            
-            // Registrar alguns eventos
-            int numEventos = 2 + random.nextInt(4); // 2-5 eventos
-            for (int i = 0; i < numEventos; i++) {
-                int produtoID = random.nextInt(10) + 1;
-                int quantidade = random.nextInt(30) + 1;
-                double preco = 15.0 + random.nextDouble() * 85.0;
-                
-                EventoDTO evento = new EventoDTO(produtoID, quantidade, preco);
-                RespostaDTO resposta = servicoEventos.registrarEvento(evento);
-                
-                if (resposta.isSucesso()) {
-                    System.out.printf("[Cliente %d] ✓ Evento: Produto=%d%n", id, produtoID);
-                    contadorEventos.incrementAndGet();
-                }
-                
-                numOperacoes++;
-                try {
-                    Thread.sleep(random.nextInt(300) + 100);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    return;
-                }
+            RespostaDTO login = auth.autenticar(usuario);
+            if (!login.isSucesso()) {
+                System.err.println("[" + id + "] Login falhou");
+                return;
             }
             
-            // Fazer algumas consultas
-            int numConsultas = 2 + random.nextInt(4); // 2-5 consultas
-            for (int i = 0; i < numConsultas; i++) {
-                int produtoID = random.nextInt(10) + 1;
-                int dias = random.nextInt(5) + 1;
-                
-                try {
-                    RespostaDTO resposta = servicoAgregacoes.obterQuantidadeVendas(produtoID, dias);
-                    if (resposta.isSucesso()) {
-                        System.out.printf("[Cliente %d] ✓ Consulta: Produto=%d (%d dias)%n", 
-                            id, produtoID, dias);
-                        contadorConsultas.incrementAndGet();
-                    }
-                } catch (Exception e) {
-                    System.err.println("[Cliente " + id + "] ✗ Erro na consulta");
-                }
-                
-                numOperacoes++;
-                try {
-                    Thread.sleep(random.nextInt(500) + 200);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    return;
-                }
+            System.out.println("[" + id + "] Autenticado");
+            
+            // Simular operações
+            int tipo = id % 3;
+            if (tipo == 0) {
+                vendedor(id, evts);
+            } else if (tipo == 1) {
+                consultor(id, evts, agreg);
+            } else {
+                misto(id, evts, agreg);
             }
+            
+            System.out.println("[" + id + "] Concluído");
+            
+        } catch (Exception e) {
+            System.err.println("[" + id + "] ERRO: " + e.getMessage());
+        } finally {
+            if (mid != null) mid.desconectar();
+        }
+    }
+    
+    private static void vendedor(int id, IServicoEventos evts) throws Exception {
+        for (int i = 0; i < 5; i++) {
+            EventoDTO evt = new EventoDTO(
+                rand.nextInt(10) + 1,
+                rand.nextInt(50) + 1,
+                10 + rand.nextDouble() * 90
+            );
+            
+            if (evts.registrarEvento(evt).isSucesso()) {
+                eventos.incrementAndGet();
+            }
+            
+            Thread.sleep(rand.nextInt(300));
+        }
+    }
+    
+    private static void consultor(int id, IServicoEventos evts, IServicoAgregacoes agreg) throws Exception {
+        for (int i = 0; i < 5; i++) {
+            int op = rand.nextInt(3);
+            int prod = rand.nextInt(10) + 1;
+            int dias = rand.nextInt(7) + 1;
+            
+            RespostaDTO resp = null;
+            if (op == 0) {
+                resp = evts.listarEventosDiaAtual();
+            } else if (op == 1) {
+                resp = agreg.obterQuantidadeVendas(prod, dias);
+            } else {
+                resp = agreg.obterVolumeVendas(prod, dias);
+            }
+            
+            if (resp != null && resp.isSucesso()) {
+                consultas.incrementAndGet();
+            }
+            
+            Thread.sleep(rand.nextInt(500));
+        }
+    }
+    
+    private static void misto(int id, IServicoEventos evts, IServicoAgregacoes agreg) throws Exception {
+        // 3 eventos
+        for (int i = 0; i < 3; i++) {
+            EventoDTO evt = new EventoDTO(
+                rand.nextInt(10) + 1,
+                rand.nextInt(30) + 1,
+                15 + rand.nextDouble() * 85
+            );
+            if (evts.registrarEvento(evt).isSucesso()) {
+                eventos.incrementAndGet();
+            }
+            Thread.sleep(rand.nextInt(200));
         }
         
-        public boolean isSucesso() {
-            return sucesso;
-        }
-        
-        public int getNumOperacoes() {
-            return numOperacoes;
-        }
-        
-        public long getTempoExecucao() {
-            return tempoExecucao;
+        // 3 consultas
+        for (int i = 0; i < 3; i++) {
+            RespostaDTO resp = agreg.obterQuantidadeVendas(
+                rand.nextInt(10) + 1,
+                rand.nextInt(5) + 1
+            );
+            if (resp.isSucesso()) {
+                consultas.incrementAndGet();
+            }
+            Thread.sleep(rand.nextInt(300));
         }
     }
 }

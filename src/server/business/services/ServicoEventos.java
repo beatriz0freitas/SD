@@ -37,13 +37,13 @@ public class ServicoEventos implements IServicoEventos {
     @Override
 public RespostaDTO registrarEvento(EventoDTO dto) throws EventoException {
     try {
-        // 1. Validar
+        // Validar
         validator.validar(dto);
         
-        // 2. Criar entidade
+        // Criar entidade
         Evento evento = new Evento(dto.getProdutoID(), dto.getQuantidade(), dto.getPreco());
         
-        // 3. Adicionar ao dia atual
+        // Adicionar ao dia atual
         lock.writeLock().lock();
         try {
             eventosDiaAtual

@@ -12,59 +12,42 @@ import server.presentation.skeleton.RequestDispatcher;
 public class ClientHandler implements Runnable {
     private final Socket socket;
     private final RequestDispatcher dispatcher;
-    private final ProtocoloHandler protocoloHandler;
-    
+    private final ProtocoloHandler proto;
+
     public ClientHandler(Socket socket, RequestDispatcher dispatcher) {
         this.socket = socket;
         this.dispatcher = dispatcher;
-        this.protocoloHandler = new ProtocoloHandler();
+        this.proto = new ProtocoloHandler();
     }
-    
+
     @Override
     public void run() {
-        System.out.println("Nova conexão: " + socket.getInetAddress());
+        System.out.println("Cliente conectado: " + socket.getInetAddress());
         
         try (DataInputStream in = new DataInputStream(socket.getInputStream());
              DataOutputStream out = new DataOutputStream(socket.getOutputStream())) {
             
-                while (!socket.isClosed()) {
-                    try {
-                        // 1. Receber requisição
-                        Requisicao requisicao = (Requisicao) protocoloHandler.receber(in);
-                
-                        // Logging atualizado
-                        System.out.println("Processando serviço " + requisicao.getServiceId() 
-                                           + ", método " + requisicao.getMethodId());
-                
-                        // 2. Processar requisição
-                        RespostaDTO resposta = dispatcher.despachar(requisicao);
-                
-                        // 3. Enviar resposta
-                        protocoloHandler.enviar(resposta, out);
-                
-                    } catch (EOFException e) {
-                        System.out.println("Cliente desconectou: " + socket.getInetAddress());
-                        break;
-                    } catch (Exception e) {
-                        System.err.println("Erro ao processar requisição: " + e.getMessage());
-                        e.printStackTrace();
-                        try {
-                            RespostaDTO erro = RespostaDTO.erro("Erro no servidor: " + e.getMessage());
-                            protocoloHandler.enviar(erro, out);
-                        } catch (IOException ignored) {}
-                    }
-                }
-                
-            
-        } catch (IOException e) {
-            System.err.println("Erro na conexão: " + e.getMessage());
-            
-        } finally {
-            try {
-                socket.close();
-            } catch (IOException e) {
-                System.err.println("Erro ao fechar socket: " + e.getMessage());
+            while (true) {
+                Requisicao req = (Requisicao) proto.receber(in);
+                RespostaDTO resp = dispatcher.despachar(req);
+                TaggedResponse tagged = new TaggedResponse(req.getTag(), resp);
+                proto.enviar(tagged, out);
             }
+            
+        } catch (EOFException e) {
+            System.out.println("Cliente desconectado: " + socket.getInetAddress());
+        } catch (Exception e) {
+            System.err.println("Erro: " + e.getMessage());
+        } finally {
+            fecharSocket();
+        }
+    }
+
+    private void fecharSocket() {
+        try {
+            socket.close();
+        } catch (IOException e) {
+            
         }
     }
 }
