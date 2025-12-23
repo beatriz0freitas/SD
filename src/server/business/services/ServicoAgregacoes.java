@@ -9,6 +9,7 @@ import server.data.repository.RepositoryFactory;
 
 /**
  * Serviço de negócio para agregações
+ * Usa ServicoEventos (classe concreta) para acessar getDiaAtual()
  */
 public class ServicoAgregacoes implements IServicoAgregacoes {
     private final CacheManager cacheManager;

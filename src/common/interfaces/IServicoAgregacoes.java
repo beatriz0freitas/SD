@@ -1,6 +1,5 @@
 package common.interfaces;
 
-import common.dto.AgregacaoDTO;
 import common.dto.RespostaDTO;
 import common.exceptions.AgregacaoException;
 

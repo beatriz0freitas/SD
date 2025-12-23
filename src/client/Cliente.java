@@ -25,13 +25,13 @@ public class Cliente {
             }
         }
         
-        // 1. Criar middleware
+        // Criar middleware
         ClienteMiddleware middleware = new ClienteMiddleware(host, porta);
         
-        // 2. Criar factory de proxies
+        // Criar factory de proxies
         StubFactory stubFactory = new StubFactory(middleware);
         
-        // 3. Criar UI e iniciar
+        // Criar UI e iniciar
         InterfaceUtilizador ui = new InterfaceUtilizador(middleware, stubFactory);
         
         try {

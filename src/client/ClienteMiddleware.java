@@ -42,7 +42,7 @@ public class ClienteMiddleware {
             socket = new Socket(host, porta);
             DataInputStream input = new DataInputStream(socket.getInputStream());
             output = new DataOutputStream(socket.getOutputStream());
-            
+             
             demultiplexer = new Demultiplexer(input);
             demuxThread = new Thread(demultiplexer);
             demuxThread.start();

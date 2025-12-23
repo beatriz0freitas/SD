@@ -3,7 +3,7 @@ package server.business.services;
 import common.dto.RespostaDTO;
 import common.dto.UsuarioDTO;
 import common.exceptions.AutenticacaoException;
-import common.exceptions.DadosInvalidosException; // Adicionar este import
+import common.exceptions.DadosInvalidosException; 
 import common.interfaces.IServicoAutenticacao;
 import middleware.security.PasswordHasher;
 import server.business.domain.Usuario;

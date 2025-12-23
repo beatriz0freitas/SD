@@ -4,8 +4,6 @@ import common.dto.EventoDTO;
 import common.dto.RespostaDTO;
 import common.exceptions.EventoException;
 
-import java.util.List;
-
 /**
  * Interface remota para gestão de eventos de vendas
  */
@@ -32,4 +30,6 @@ public interface IServicoEventos {
      * @throws EventoException se não autorizado
      */
     RespostaDTO novoDia() throws EventoException;
+
+    
 }

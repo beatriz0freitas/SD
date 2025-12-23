@@ -6,7 +6,7 @@ import static middleware.proto.Protocolos.*;
 import server.business.services.ServicoAgregacoes;
 
 public class ServicoAgregacoesSkeleton implements ISkeleton {
-    private final ServicoAgregacoes servico;
+    private final ServicoAgregacoes servico; 
 
     public ServicoAgregacoesSkeleton(ServicoAgregacoes servico) {
         this.servico = servico;

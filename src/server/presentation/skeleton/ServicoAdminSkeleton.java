@@ -5,7 +5,7 @@ import static middleware.proto.Protocolos.*;
 import server.business.services.ServicoAdmin;
 
 public class ServicoAdminSkeleton implements ISkeleton {
-    private final ServicoAdmin servico;
+    private final ServicoAdmin servico; 
 
     public ServicoAdminSkeleton(ServicoAdmin servico) {
         this.servico = servico;

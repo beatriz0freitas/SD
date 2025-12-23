@@ -11,7 +11,7 @@ public class Requisicao implements Serializable {
     private byte serviceId;   // ID do serviço
     private byte methodId;    // ID do método
     private Object parametros;
-    private long tag;         // ← NOVO: ID único da requisição
+    private long tag;        
 
     public Requisicao() {}
 
