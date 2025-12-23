@@ -10,82 +10,55 @@ import middleware.proto.ProtocoloHandler;
 import middleware.proto.TaggedResponse;
 
 /**
- * Demultiplexer 
- * Recebe respostas e acorda a thread certa
+ * Recebe respostas do servidor e acorda a thread que fez o pedido
  */
 public class Demultiplexer implements Runnable {
-    private final DataInputStream input;
-    private final ProtocoloHandler proto = new ProtocoloHandler();
+    private final DataInputStream entrada;
+    private final ProtocoloHandler protocolo;
+    private final ReentrantLock lock;
+    private final Map<Long, Object> respostas;
+    private final Map<Long, Condition> threadsEspera;
     
-    private final ReentrantLock lock = new ReentrantLock();
-    private final Map<Long, Object> respostas = new HashMap<>();
-    private final Map<Long, Condition> threads = new HashMap<>();
+    private volatile boolean ativo;
+    private volatile Exception erro;
     
-    private volatile boolean ativo = true;
-    private volatile Exception erro = null;  
-    
-    public Demultiplexer(DataInputStream input) {
-        this.input = input;
+    public Demultiplexer(DataInputStream entrada) {
+        this.entrada = entrada;
+        this.protocolo = new ProtocoloHandler();
+        this.lock = new ReentrantLock();
+        this.respostas = new HashMap<>();
+        this.threadsEspera = new HashMap<>();
+        this.ativo = true;
+        this.erro = null;
     }
     
     @Override
     public void run() {
         try {
             while (ativo) {
-                // Recebe resposta
-                Object obj = proto.receber(input);
-                TaggedResponse resp = (TaggedResponse) obj;
-                long tag = resp.getTag();
-                
-                // Guarda resposta e acorda thread
-                lock.lock();
-                try {
-                    respostas.put(tag, resp.getResposta());
-                    Condition c = threads.get(tag);
-                    if (c != null) c.signal(); // Acorda a thread certa
-                } finally {
-                    lock.unlock();
-                }
+                TaggedResponse resp = (TaggedResponse) protocolo.receber(entrada);
+                entregarResposta(resp.getTag(), resp.getResposta());
             }
         } catch (IOException | ClassNotFoundException e) {
-            lock.lock();
-            try {
-                erro = new IOException("Conexão perdida: " + e.getMessage(), e);
-                // Acordar todas as threads que estão à espera
-                for (Condition c : threads.values()) {
-                    c.signalAll();
-                }
-            } finally {
-                lock.unlock();
-            }
+            tratarErroConexao(e);
         }
     }
     
-    /**
-     * Thread regista-se e aguarda resposta
-     */
     public Object aguardar(long tag) throws Exception {
         lock.lock();
         try {
-            if (erro != null) {
-                throw erro;
-            }
+            verificarErro();
             
-            // Criar condition para esta thread
-            Condition c = lock.newCondition();
-            threads.put(tag, c);
+            Condition condicao = lock.newCondition();
+            threadsEspera.put(tag, condicao);
             
-            // Aguardar até resposta chegar
             while (!respostas.containsKey(tag) && erro == null) {
-                c.await(); 
+                condicao.await();
             }
             
-            if (erro != null) {
-                threads.remove(tag);
-                throw erro;
-            }
+            verificarErro();
             
-            threads.remove(tag);
+            threadsEspera.remove(tag);
             return respostas.remove(tag);
             
         } finally {
@@ -95,13 +68,46 @@ public class Demultiplexer implements Runnable {
     
     public void parar() {
         ativo = false;
+        acordarTodasThreads();
+    }
+    
+    private void entregarResposta(long tag, Object resposta) {
         lock.lock();
         try {
-            for (Condition c : threads.values()) {
-                c.signalAll();
+            respostas.put(tag, resposta);
+            Condition condicao = threadsEspera.get(tag);
+            if (condicao != null) {
+                condicao.signal();
             }
         } finally {
             lock.unlock();
+        }
+    }
+    
+    private void tratarErroConexao(Exception e) {
+        lock.lock();
+        try {
+            erro = new IOException("Conexão perdida: " + e.getMessage(), e);
+            acordarTodasThreads();
+        } finally {
+            lock.unlock();
+        }
+    }
+    
+    private void acordarTodasThreads() {
+        lock.lock();
+        try {
+            for (Condition condicao : threadsEspera.values()) {
+                condicao.signalAll();
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+    
+    private void verificarErro() throws Exception {
+        if (erro != null) {
+            throw erro;
         }
     }
 }

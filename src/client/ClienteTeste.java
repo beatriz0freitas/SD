@@ -4,156 +4,256 @@ import client.stub.*;
 import common.dto.*;
 import common.interfaces.*;
 import java.util.Random;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ClienteTeste {
-    private static final Random rand = new Random();
-    private static final AtomicInteger eventos = new AtomicInteger(0);
-    private static final AtomicInteger consultas = new AtomicInteger(0);
+    // Configuração do teste
+    private static final int NUM_CLIENTES_DEFAULT = 10;
+    private static final int THREADS_POR_CLIENTE = 5;
+    private static final int OPERACOES_POR_THREAD = 5;
+    private static final int TIMEOUT_MINUTOS = 10;
     
+    // Configuração do servidor
+    private static final String HOST_DEFAULT = "localhost";
+    private static final int PORTA_DEFAULT = 5001;
+    
+    // Configuração de operações
+    private static final int NUM_PRODUTOS = 10;
+    private static final int MAX_QUANTIDADE = 30;
+    private static final int MAX_DIAS = 7;
+    private static final double PRECO_MIN = 10.0;
+    private static final double PRECO_MAX = 100.0;
+    private static final int DELAY_MAX_MS = 200;
+    
+    // Contadores
+    private static final AtomicInteger eventosRegistados = new AtomicInteger(0);
+    private static final AtomicInteger consultasRealizadas = new AtomicInteger(0);
+    private static final AtomicInteger respostasRecebidas = new AtomicInteger(0);
+    
+    private static final Random random = new Random();
+
     public static void main(String[] args) {
-        int numClientes = args.length > 0 ? Integer.parseInt(args[0]) : 10;
-        String host = args.length > 1 ? args[1] : "localhost";
-        int porta = args.length > 2 ? Integer.parseInt(args[2]) : 5001;
+        ConfigTeste config = parseArgs(args);
         
-        System.out.println("=== TESTE CONCORRENTE ===");
-        System.out.println("Clientes: " + numClientes);
-        System.out.println("Servidor: " + host + ":" + porta);
-        System.out.println("========================\n");
+        mostrarHeader(config);
         
-        ExecutorService pool = Executors.newFixedThreadPool(numClientes);
-        
-        for (int i = 1; i <= numClientes; i++) {
-            final int id = i;
-            pool.execute(() -> executarCliente(id, host, porta));
+        ExecutorService pool = Executors.newFixedThreadPool(config.numClientes);
+
+        for (int i = 1; i <= config.numClientes; i++) {
+            final int clienteId = i;
+            pool.execute(() -> executarCliente(clienteId, config));
         }
-        
+
         pool.shutdown();
-        try {
-            pool.awaitTermination(5, TimeUnit.MINUTES);
-        } catch (InterruptedException e) {
-            pool.shutdownNow();
-        }
+        aguardarTerminacao(pool);
         
-        System.out.println("\n=== RESULTADO ===");
-        System.out.println("Eventos: " + eventos.get());
-        System.out.println("Consultas: " + consultas.get());
+        mostrarResultados();
     }
     
-    private static void executarCliente(int id, String host, int porta) {
-        ClienteMiddleware mid = null;
+    private static ConfigTeste parseArgs(String[] args) {
+        int numClientes = args.length > 0 ? Integer.parseInt(args[0]) : NUM_CLIENTES_DEFAULT;
+        String host = args.length > 1 ? args[1] : HOST_DEFAULT;
+        int porta = args.length > 2 ? Integer.parseInt(args[2]) : PORTA_DEFAULT;
+        return new ConfigTeste(numClientes, host, porta);
+    }
+    
+    private static void mostrarHeader(ConfigTeste config) {
+        System.out.println("=== TESTE CONCORRENTE ===");
+        System.out.println("Clientes: " + config.numClientes);
+        System.out.println("Threads por cliente: " + THREADS_POR_CLIENTE);
+        System.out.println("Operações por thread: " + OPERACOES_POR_THREAD);
+        System.out.println("Servidor: " + config.host + ":" + config.porta);
+        System.out.println("=========================\n");
+    }
+    
+    private static void aguardarTerminacao(ExecutorService pool) {
         try {
-            System.out.println("[" + id + "] Iniciando...");
-            
-            mid = new ClienteMiddleware(host, porta);
-            mid.conectar();
-            
-            StubFactory stubs = new StubFactory(mid);
-            IServicoAutenticacao auth = stubs.criarStubAutenticacao();
-            IServicoEventos evts = stubs.criarStubEventos();
-            IServicoAgregacoes agreg = stubs.criarStubAgregacoes();
-            
-            // Autenticar
-            String user = "user" + id;
-            UsuarioDTO usuario = new UsuarioDTO(user, "pass" + id);
-            
-            try {
-                auth.registrar(usuario);
-            } catch (Exception e) {}
-            
-            RespostaDTO login = auth.autenticar(usuario);
-            if (!login.isSucesso()) {
-                System.err.println("[" + id + "] Login falhou");
+            if (!pool.awaitTermination(TIMEOUT_MINUTOS, TimeUnit.MINUTES)) {
+                System.err.println("Timeout atingido! Forçando shutdown...");
+                pool.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            System.err.println("Interrompido! Forçando shutdown...");
+            pool.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
+    
+    private static void mostrarResultados() {
+        System.out.println("\n=== RESULTADO FINAL ===");
+        System.out.println("Eventos registados: " + eventosRegistados.get());
+        System.out.println("Consultas realizadas: " + consultasRealizadas.get());
+        System.out.println("Total de respostas: " + respostasRecebidas.get());
+    }
+
+    private static void executarCliente(int clienteId, ConfigTeste config) {
+        ClienteMiddleware middleware = null;
+        try {
+            log(clienteId, "Iniciando...");
+
+            middleware = new ClienteMiddleware(config.host, config.porta);
+            middleware.conectar();
+
+            StubFactory stubs = new StubFactory(middleware);
+            IServicoAutenticacao servicoAuth = stubs.criarStubAutenticacao();
+            IServicoEventos servicoEventos = stubs.criarStubEventos();
+            IServicoAgregacoes servicoAgregacoes = stubs.criarStubAgregacoes();
+
+            if (!autenticarCliente(clienteId, servicoAuth)) {
                 return;
             }
-            
-            System.out.println("[" + id + "] Autenticado");
-            
-            // Simular operações
-            int tipo = id % 3;
-            if (tipo == 0) {
-                vendedor(id, evts);
-            } else if (tipo == 1) {
-                consultor(id, evts, agreg);
-            } else {
-                misto(id, evts, agreg);
-            }
-            
-            System.out.println("[" + id + "] Concluído");
-            
+
+            executarOperacoesConcorrentes(clienteId, servicoEventos, servicoAgregacoes);
+
+            log(clienteId, "Concluído");
+
         } catch (Exception e) {
-            System.err.println("[" + id + "] ERRO: " + e.getMessage());
+            logErro(clienteId, "Erro na execução: " + e.getMessage());
         } finally {
-            if (mid != null) mid.desconectar();
+            if (middleware != null) {
+                middleware.desconectar();
+            }
         }
     }
     
-    private static void vendedor(int id, IServicoEventos evts) throws Exception {
-        for (int i = 0; i < 5; i++) {
-            EventoDTO evt = new EventoDTO(
-                rand.nextInt(10) + 1,
-                rand.nextInt(50) + 1,
-                10 + rand.nextDouble() * 90
-            );
-            
-            if (evts.registrarEvento(evt).isSucesso()) {
-                eventos.incrementAndGet();
+    private static boolean autenticarCliente(int clienteId, IServicoAutenticacao servicoAuth) throws Exception {
+        String username = "user" + clienteId;
+        String password = "pass" + clienteId;
+        UsuarioDTO usuario = new UsuarioDTO(username, password);
+
+        // Tentar registar (ignora se já existe)
+        try {
+            servicoAuth.registrar(usuario);
+        } catch (Exception e) {
+            // Usuario já existe, continuar
+        }
+
+        RespostaDTO login = servicoAuth.autenticar(usuario);
+        if (!login.isSucesso()) {
+            logErro(clienteId, "Falha na autenticação");
+            return false;
+        }
+
+        log(clienteId, "Autenticado como " + username);
+        return true;
+    }
+    
+    private static void executarOperacoesConcorrentes(int clienteId, 
+                                                      IServicoEventos servicoEventos,
+                                                      IServicoAgregacoes servicoAgregacoes) throws InterruptedException {
+        ExecutorService threadPool = Executors.newFixedThreadPool(THREADS_POR_CLIENTE);
+        
+        for (int t = 0; t < THREADS_POR_CLIENTE; t++) {
+            final int threadId = t;
+            threadPool.execute(() -> {
+                executarThread(clienteId, threadId, servicoEventos, servicoAgregacoes);
+            });
+        }
+
+        threadPool.shutdown();
+        threadPool.awaitTermination(TIMEOUT_MINUTOS, TimeUnit.MINUTES);
+    }
+    
+    private static void executarThread(int clienteId, int threadId,
+                                       IServicoEventos servicoEventos,
+                                       IServicoAgregacoes servicoAgregacoes) {
+        try {
+            for (int i = 0; i < OPERACOES_POR_THREAD; i++) {
+                executarOperacaoAleatoria(clienteId, threadId, servicoEventos, servicoAgregacoes);
+                Thread.sleep(random.nextInt(DELAY_MAX_MS));
             }
-            
-            Thread.sleep(rand.nextInt(300));
+        } catch (InterruptedException e) {
+            logErro(clienteId, threadId, "Thread interrompida");
+            Thread.currentThread().interrupt();
+        } catch (Exception e) {
+            logErro(clienteId, threadId, "Erro: " + e.getMessage());
         }
     }
     
-    private static void consultor(int id, IServicoEventos evts, IServicoAgregacoes agreg) throws Exception {
-        for (int i = 0; i < 5; i++) {
-            int op = rand.nextInt(3);
-            int prod = rand.nextInt(10) + 1;
-            int dias = rand.nextInt(7) + 1;
-            
-            RespostaDTO resp = null;
-            if (op == 0) {
-                resp = evts.listarEventosDiaAtual();
-            } else if (op == 1) {
-                resp = agreg.obterQuantidadeVendas(prod, dias);
-            } else {
-                resp = agreg.obterVolumeVendas(prod, dias);
-            }
-            
-            if (resp != null && resp.isSucesso()) {
-                consultas.incrementAndGet();
-            }
-            
-            Thread.sleep(rand.nextInt(500));
-        }
-    }
-    
-    private static void misto(int id, IServicoEventos evts, IServicoAgregacoes agreg) throws Exception {
-        // 3 eventos
-        for (int i = 0; i < 3; i++) {
-            EventoDTO evt = new EventoDTO(
-                rand.nextInt(10) + 1,
-                rand.nextInt(30) + 1,
-                15 + rand.nextDouble() * 85
-            );
-            if (evts.registrarEvento(evt).isSucesso()) {
-                eventos.incrementAndGet();
-            }
-            Thread.sleep(rand.nextInt(200));
+    private static void executarOperacaoAleatoria(int clienteId, int threadId,
+                                                  IServicoEventos servicoEventos,
+                                                  IServicoAgregacoes servicoAgregacoes) throws Exception {
+        int operacao = random.nextInt(3);
+        RespostaDTO resposta;
+        
+        switch (operacao) {
+            case 0:
+                resposta = registarEvento(servicoEventos);
+                if (resposta.isSucesso()) {
+                    eventosRegistados.incrementAndGet();
+                }
+                break;
+            case 1:
+                resposta = consultarQuantidade(servicoAgregacoes);
+                if (resposta.isSucesso()) {
+                    consultasRealizadas.incrementAndGet();
+                }
+                break;
+            case 2:
+                resposta = consultarVolume(servicoAgregacoes);
+                if (resposta.isSucesso()) {
+                    consultasRealizadas.incrementAndGet();
+                }
+                break;
+            default:
+                throw new IllegalStateException("Operação inválida: " + operacao);
         }
         
-        // 3 consultas
-        for (int i = 0; i < 3; i++) {
-            RespostaDTO resp = agreg.obterQuantidadeVendas(
-                rand.nextInt(10) + 1,
-                rand.nextInt(5) + 1
-            );
-            if (resp.isSucesso()) {
-                consultas.incrementAndGet();
-            }
-            Thread.sleep(rand.nextInt(300));
+        respostasRecebidas.incrementAndGet();
+        log(clienteId, threadId, "Resposta: " + resposta.getMensagem());
+    }
+    
+    private static RespostaDTO registarEvento(IServicoEventos servicoEventos) throws Exception {
+        int produtoId = random.nextInt(NUM_PRODUTOS) + 1;
+        int quantidade = random.nextInt(MAX_QUANTIDADE) + 1;
+        double preco = PRECO_MIN + random.nextDouble() * (PRECO_MAX - PRECO_MIN);
+        
+        EventoDTO evento = new EventoDTO(produtoId, quantidade, preco);
+        return servicoEventos.registrarEvento(evento);
+    }
+    
+    private static RespostaDTO consultarQuantidade(IServicoAgregacoes servicoAgregacoes) throws Exception {
+        int produtoId = random.nextInt(NUM_PRODUTOS) + 1;
+        int dias = random.nextInt(MAX_DIAS) + 1;
+        return servicoAgregacoes.obterQuantidadeVendas(produtoId, dias);
+    }
+    
+    private static RespostaDTO consultarVolume(IServicoAgregacoes servicoAgregacoes) throws Exception {
+        int produtoId = random.nextInt(NUM_PRODUTOS) + 1;
+        int dias = random.nextInt(MAX_DIAS) + 1;
+        return servicoAgregacoes.obterVolumeVendas(produtoId, dias);
+    }
+    
+    // Métodos de logging
+    
+    private static void log(int clienteId, String mensagem) {
+        System.out.printf("[Cliente %d] %s%n", clienteId, mensagem);
+    }
+    
+    private static void log(int clienteId, int threadId, String mensagem) {
+        System.out.printf("[Cliente %d | Thread %d] %s%n", clienteId, threadId, mensagem);
+    }
+    
+    private static void logErro(int clienteId, String mensagem) {
+        System.err.printf("[Cliente %d] ERRO: %s%n", clienteId, mensagem);
+    }
+    
+    private static void logErro(int clienteId, int threadId, String mensagem) {
+        System.err.printf("[Cliente %d | Thread %d] ERRO: %s%n", clienteId, threadId, mensagem);
+    }
+    
+    // Classe auxiliar para configuração
+    
+    private static class ConfigTeste {
+        final int numClientes;
+        final String host;
+        final int porta;
+        
+        ConfigTeste(int numClientes, String host, int porta) {
+            this.numClientes = numClientes;
+            this.host = host;
+            this.porta = porta;
         }
     }
 }

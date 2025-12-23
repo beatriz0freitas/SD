@@ -2,13 +2,11 @@ package server.business.services;
 
 import common.dto.EventoDTO;
 import common.dto.RespostaDTO;
-import common.exceptions.DadosInvalidosException;
 import common.exceptions.EventoException;
 import common.interfaces.IServicoEventos;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import server.business.domain.Evento;
-import server.business.validators.EventoValidator;
 import server.data.cache.CacheManager;
 import server.data.repository.IEventoRepository;
 import server.data.repository.RepositoryFactory;
@@ -18,7 +16,6 @@ import server.data.repository.RepositoryFactory;
  */
 public class ServicoEventos implements IServicoEventos {
     private final IEventoRepository eventoRepository;
-    private final EventoValidator validator;
     private final CacheManager cacheManager;
     
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
@@ -27,7 +24,6 @@ public class ServicoEventos implements IServicoEventos {
     
     public ServicoEventos(int D) {
         this.eventoRepository = RepositoryFactory.getInstance().getEventoRepository();
-        this.validator = new EventoValidator();
         this.cacheManager = new CacheManager(eventoRepository, D);
         this.diaAtual = eventoRepository.obterUltimoDia() + 1;
         
@@ -35,11 +31,7 @@ public class ServicoEventos implements IServicoEventos {
     }
     
     @Override
-public RespostaDTO registrarEvento(EventoDTO dto) throws EventoException {
-    try {
-        // Validar
-        validator.validar(dto);
-        
+    public RespostaDTO registrarEvento(EventoDTO dto) throws EventoException {
         // Criar entidade
         Evento evento = new Evento(dto.getProdutoID(), dto.getQuantidade(), dto.getPreco());
         
@@ -54,12 +46,7 @@ public RespostaDTO registrarEvento(EventoDTO dto) throws EventoException {
         }
         
         return RespostaDTO.sucesso("Evento registado com sucesso");
-        
-    } catch (DadosInvalidosException e) {
-        // Converter exceção de validação em exceção de evento
-        throw new EventoException(e.getMessage());
     }
-}
     
     @Override
     public RespostaDTO listarEventosDiaAtual() throws EventoException {

@@ -8,114 +8,119 @@ import java.util.concurrent.locks.ReentrantLock;
 import middleware.proto.ProtocoloHandler;
 import middleware.proto.Requisicao;
 
-/**
- * Middleware do lado do cliente
- * Gerencia comunicação com servidor
- */
 public class ClienteMiddleware {
     private final String host;
     private final int porta;
-    private final ProtocoloHandler protocoloHandler;
-    private final ReentrantLock writeLock;
-    private final AtomicLong requestCounter;
+    private final ProtocoloHandler protocolo;
+    private final ReentrantLock lockEscrita;
+    private final AtomicLong contadorPedidos;
     
     private Socket socket;
-    private DataOutputStream output;
-    private Demultiplexer demultiplexer;
-    private Thread demuxThread;
-    private boolean conectado;
-
+    private DataOutputStream saida;
+    private Demultiplexer demux;
+    private Thread threadDemux;
+    private volatile boolean conectado;
+    
     public ClienteMiddleware(String host, int porta) {
         this.host = host;
         this.porta = porta;
-        this.protocoloHandler = new ProtocoloHandler();
-        this.writeLock = new ReentrantLock(true);
-        this.requestCounter = new AtomicLong(0);
+        this.protocolo = new ProtocoloHandler();
+        this.lockEscrita = new ReentrantLock();
+        this.contadorPedidos = new AtomicLong(0);
         this.conectado = false;
     }
-
+    
     public void conectar() throws IOException {
-        writeLock.lock();
+        lockEscrita.lock();
         try {
             if (conectado) return;
-
+            
             socket = new Socket(host, porta);
-            DataInputStream input = new DataInputStream(socket.getInputStream());
-            output = new DataOutputStream(socket.getOutputStream());
-             
-            demultiplexer = new Demultiplexer(input);
-            demuxThread = new Thread(demultiplexer);
-            demuxThread.start();
+            DataInputStream entrada = new DataInputStream(socket.getInputStream());
+            saida = new DataOutputStream(socket.getOutputStream());
+            
+            demux = new Demultiplexer(entrada);
+            threadDemux = new Thread(demux);
+            threadDemux.start();
             
             conectado = true;
             System.out.println("Conectado ao servidor " + host + ":" + porta);
         } finally {
-            writeLock.unlock();
+            lockEscrita.unlock();
         }
     }
-
+    
     public void desconectar() {
-        writeLock.lock();
+        lockEscrita.lock();
         try {
             conectado = false;
             
-            if (demultiplexer != null) {
-                demultiplexer.parar();
+            if (demux != null) {
+                demux.parar();
             }
             
-            fecharRecursos();
-            
+            fecharSocket();
             System.out.println("Desconectado do servidor");
         } finally {
-            writeLock.unlock();
+            lockEscrita.unlock();
         }
     }
-
+    
     public RespostaDTO invocar(byte serviceId, byte methodId, Object parametros) throws IOException {
+        garantirConexao();
         
-        // Verificar e reconectar se necessário
-        if (!conectado || socket == null || socket.isClosed()) {
-            writeLock.lock();
-            try {
-                if (!conectado || socket == null || socket.isClosed()) {
-                    desconectar();
-                    conectar();
-                }
-            } finally {
-                writeLock.unlock();
-            }
-        }
-
         try {
-            long tag = requestCounter.incrementAndGet();
-            Requisicao req = new Requisicao(serviceId, methodId, parametros, tag);
-
-            writeLock.lock();
-            try {
-                protocoloHandler.enviar(req, output);
-            } finally {
-                writeLock.unlock();
-            }
-
-            Object resp = demultiplexer.aguardar(tag);
-            return (RespostaDTO) resp;
-
+            long tag = contadorPedidos.incrementAndGet();
+            Requisicao pedido = new Requisicao(serviceId, methodId, parametros, tag);
+            
+            enviarPedido(pedido);
+            
+            Object resposta = demux.aguardar(tag);
+            return (RespostaDTO) resposta;
+            
         } catch (Exception e) {
             throw new IOException("Erro ao invocar: " + e.getMessage(), e);
         }
     }
-
+    
     public boolean isConectado() {
         return conectado && socket != null && !socket.isClosed();
     }
-
-    private void fecharRecursos() {
+    
+    private void garantirConexao() throws IOException {
+        if (!isConectado()) {
+            lockEscrita.lock();
+            try {
+                if (!isConectado()) {
+                    desconectar();
+                    conectar();
+                }
+            } finally {
+                lockEscrita.unlock();
+            }
+        }
+    }
+    
+    private void enviarPedido(Requisicao pedido) throws IOException {
+        lockEscrita.lock();
+        try {
+            protocolo.enviar(pedido, saida);
+        } finally {
+            lockEscrita.unlock();
+        }
+    }
+    
+    private void fecharSocket() {
         if (socket != null) {
-            try { socket.close(); } catch (IOException ignored) {}
+            try {
+                socket.close();
+            } catch (IOException e) {
+                // Ignora
+            }
             socket = null;
         }
-        output = null;
-        demultiplexer = null;
-        demuxThread = null;
+        saida = null;
+        demux = null;
+        threadDemux = null;
     }
 }
