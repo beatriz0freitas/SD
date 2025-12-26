@@ -4,7 +4,7 @@ import client.ClienteMiddleware;
 import common.dto.RespostaDTO;
 import common.exceptions.AdminException;
 import common.interfaces.IServicoAdmin;
-import middleware.proto.Protocolos;
+import middleware.Protocolos;
 
 public class ServicoAdminStub implements IServicoAdmin {
     private final ClienteMiddleware middleware;

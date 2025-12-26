@@ -1,4 +1,4 @@
-package middleware.proto;
+package middleware;
 
 public final class Protocolos {
     private Protocolos() {}

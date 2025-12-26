@@ -5,7 +5,7 @@ import common.dto.AgregacaoRequestDTO;
 import common.dto.RespostaDTO;
 import common.exceptions.AgregacaoException;
 import common.interfaces.IServicoAgregacoes;
-import middleware.proto.Protocolos;
+import middleware.Protocolos;
 
 public class ServicoAgregacoesStub implements IServicoAgregacoes {
     private final ClienteMiddleware middleware;

@@ -5,7 +5,7 @@ import common.dto.EventoDTO;
 import common.dto.RespostaDTO;
 import common.exceptions.EventoException;
 import common.interfaces.IServicoEventos;
-import middleware.proto.Protocolos;
+import middleware.Protocolos;
 
 public class ServicoEventosStub implements IServicoEventos {
     private final ClienteMiddleware middleware;

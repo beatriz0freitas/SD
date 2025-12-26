@@ -1,8 +1,9 @@
 package server.presentation.skeleton;
 
+import static middleware.Protocolos.*;
+
 import common.dto.RespostaDTO;
 import common.dto.UsuarioDTO;
-import static middleware.proto.Protocolos.*;
 import server.business.services.ServicoAutenticacao;
 
 public class ServicoAutenticacaoSkeleton implements ISkeleton {

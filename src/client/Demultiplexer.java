@@ -6,8 +6,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
-import middleware.proto.ProtocoloHandler;
-import middleware.proto.TaggedResponse;
+
+import middleware.ProtocoloHandler;
+import middleware.TaggedResponse;
 
 /**
  * Recebe respostas do servidor e acorda a thread que fez o pedido

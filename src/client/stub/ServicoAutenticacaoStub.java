@@ -5,7 +5,7 @@ import common.dto.RespostaDTO;
 import common.dto.UsuarioDTO;
 import common.exceptions.AutenticacaoException;
 import common.interfaces.IServicoAutenticacao;
-import middleware.proto.Protocolos;
+import middleware.Protocolos;
 
 public class ServicoAutenticacaoStub implements IServicoAutenticacao {
     private final ClienteMiddleware middleware;

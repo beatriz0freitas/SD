@@ -1,4 +1,4 @@
-package middleware.proto;
+package middleware;
 
 import java.io.Serializable;
 

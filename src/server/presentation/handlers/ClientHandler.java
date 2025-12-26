@@ -7,7 +7,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import middleware.proto.*;
+
+import middleware.ProtocoloHandler;
+import middleware.Requisicao;
+import middleware.TaggedResponse;
+import middleware.Protocolos;
 import server.presentation.skeleton.RequestDispatcher;
 
 /**

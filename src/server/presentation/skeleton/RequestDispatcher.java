@@ -2,8 +2,8 @@ package server.presentation.skeleton;
 
 import common.dto.RespostaDTO;
 import java.util.Map;
-import static middleware.proto.Protocolos.*;
-import middleware.proto.Requisicao;
+import static middleware.Protocolos.*;
+import middleware.Requisicao;
 import server.business.services.*;
 
 /**

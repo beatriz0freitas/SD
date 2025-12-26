@@ -1,12 +1,13 @@
 package client;
 
 import common.dto.RespostaDTO;
+import middleware.ProtocoloHandler;
+import middleware.Requisicao;
+
 import java.io.*;
 import java.net.Socket;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
-import middleware.proto.ProtocoloHandler;
-import middleware.proto.Requisicao;
 
 public class ClienteMiddleware {
     private final String host;
