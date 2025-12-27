@@ -24,12 +24,12 @@ public class RequestDispatcher {
         IEventoRepository eventoRepository = RepositoryFactory.getInstance().getEventoRepository();
         
         // Criar cache manager
-        CacheManager cacheManager = new CacheManager(eventoRepository, D, S);
-        
+        CacheManager cacheManager = new CacheManager(eventoRepository, S);
+
         // Criar serviços (injeção de dependências via construtor)
         ServicoAutenticacao servicoAuth = new ServicoAutenticacao();
         ServicoEventos servicoEventos = new ServicoEventos(eventoRepository, cacheManager, D);
-        ServicoAgregacoes servicoAgregacoes = new ServicoAgregacoes(cacheManager, servicoEventos, D);
+ServicoAgregacoes servicoAgregacoes = new ServicoAgregacoes(cacheManager, servicoEventos, eventoRepository, D);
         ServicoAdmin servicoAdmin = new ServicoAdmin();
         
         // Criar skeletons e mapear

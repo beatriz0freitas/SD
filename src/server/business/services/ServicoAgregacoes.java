@@ -3,20 +3,25 @@ package server.business.services;
 import common.dto.RespostaDTO;
 import common.exceptions.AgregacaoException;
 import common.interfaces.IServicoAgregacoes;
+import server.business.domain.Agregacao;
 import server.data.cache.CacheManager;
+import server.data.repository.IEventoRepository;
 
 /**
  * Serviço de agregações de vendas
- * Delega cálculos para o CacheManager (lazy, on-demand)
+ * Responsabilidade: Lógica de negócio para cálculo de agregações
  */
 public class ServicoAgregacoes implements IServicoAgregacoes {
     private final CacheManager cacheManager;
     private final ServicoEventos servicoEventos;
+    private final IEventoRepository eventoRepository;
     private final int D; // Janela máxima de dias
     
-    public ServicoAgregacoes(CacheManager cacheManager, ServicoEventos servicoEventos, int D) {
+    public ServicoAgregacoes(CacheManager cacheManager, ServicoEventos servicoEventos, 
+                             IEventoRepository eventoRepository, int D) {
         this.cacheManager = cacheManager;
         this.servicoEventos = servicoEventos;
+        this.eventoRepository = eventoRepository;
         this.D = D;
     }
     
@@ -24,7 +29,9 @@ public class ServicoAgregacoes implements IServicoAgregacoes {
     public RespostaDTO obterQuantidadeVendas(int produtoID, int dias) throws AgregacaoException {
         validarParametros(produtoID, dias);
         
-        int quantidade = cacheManager.obterQuantidade(produtoID, dias);
+        Agregacao agregacao = calcularAgregacao(produtoID, dias);
+        int quantidade = agregacao.getQuantidadeVendas();
+        
         String mensagem = String.format(
             "Quantidade de Vendas nos últimos %d dias: %d", 
             dias, quantidade
@@ -37,7 +44,9 @@ public class ServicoAgregacoes implements IServicoAgregacoes {
     public RespostaDTO obterVolumeVendas(int produtoID, int dias) throws AgregacaoException {
         validarParametros(produtoID, dias);
         
-        double volume = cacheManager.obterVolume(produtoID, dias);
+        Agregacao agregacao = calcularAgregacao(produtoID, dias);
+        double volume = agregacao.getVolumeVendas();
+        
         String mensagem = String.format(
             "Volume de Vendas nos últimos %d dias: %.2f€", 
             dias, volume
@@ -50,7 +59,9 @@ public class ServicoAgregacoes implements IServicoAgregacoes {
     public RespostaDTO obterPrecoMedio(int produtoID, int dias) throws AgregacaoException {
         validarParametros(produtoID, dias);
         
-        double medio = cacheManager.obterPrecoMedio(produtoID, dias);
+        Agregacao agregacao = calcularAgregacao(produtoID, dias);
+        double medio = agregacao.getPrecoMedio();
+        
         String mensagem = String.format(
             "Preço Médio nos últimos %d dias: %.2f€", 
             dias, medio
@@ -63,13 +74,46 @@ public class ServicoAgregacoes implements IServicoAgregacoes {
     public RespostaDTO obterPrecoMaximo(int produtoID, int dias) throws AgregacaoException {
         validarParametros(produtoID, dias);
         
-        double maximo = cacheManager.obterPrecoMaximo(produtoID, dias);
+        Agregacao agregacao = calcularAgregacao(produtoID, dias);
+        double maximo = agregacao.getPrecoMaximo();
+        
         String mensagem = String.format(
             "Preço Máximo nos últimos %d dias: %.2f€", 
             dias, maximo
         );
         
         return RespostaDTO.sucesso(mensagem, maximo);
+    }
+    
+    /**
+     * Calcula agregação acumulada dos últimos N dias
+     * Usa cache quando possível via CacheManager
+     */
+    private Agregacao calcularAgregacao(int produtoID, int dias) {
+        int ultimoDia = eventoRepository.obterUltimoDia();
+        
+        if (ultimoDia < 0) {
+            return new Agregacao();
+        }
+        
+        int diasReais = Math.min(dias, ultimoDia + 1);
+        
+        // Acumular agregações dos últimos N dias
+        Agregacao resultado = new Agregacao();
+        
+        for (int i = 0; i < diasReais; i++) {
+            int dia = ultimoDia - i;
+            if (dia < 0) break;
+            
+            // Obter agregação do dia via cache
+            Agregacao agregacaoDia = cacheManager.obterAgregacaoDia(produtoID, dia);
+            if (agregacaoDia != null) {
+                resultado.acumular(agregacaoDia);
+            }
+        }
+        
+        resultado.updatePrecoMedio();
+        return resultado;
     }
     
     private void validarParametros(int produtoID, int dias) throws AgregacaoException {
