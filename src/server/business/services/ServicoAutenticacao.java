@@ -20,7 +20,7 @@ public class ServicoAutenticacao implements IServicoAutenticacao {
     private final PasswordHasher hasher;
     private final String ADMIN_PASSWORD = ServerConfig.getAdminPassword();
 
-    private static final int MIN_LENGTH = 3;
+    private static final int MIN_LENGTH = ServerConfig.MIN_USERNAME_LENGTH;
 
     public ServicoAutenticacao() {
         this.usuarioRepository = RepositoryFactory.getInstance().getUsuarioRepository();
@@ -63,6 +63,9 @@ public class ServicoAutenticacao implements IServicoAutenticacao {
         return RespostaDTO.sucesso("Login de administrador bem-sucedido", "ADMIN");
     }
 
+
+    // =========== Validações ============
+    
     private void validarCredenciais(UsuarioDTO dto) throws AutenticacaoException {
         if (dto == null) throw new AutenticacaoException("Dados não fornecidos");
         validarCampo(dto.getUsername(), "Username");
@@ -77,6 +80,10 @@ public class ServicoAutenticacao implements IServicoAutenticacao {
         if (!valor.matches("^[a-zA-Z0-9]+$"))
             throw new AutenticacaoException(nomeCampo + " só pode conter letras e números");
     }
+
+
+
+    // =========== Hash de Senha ============
 
     /**
      * Hash interno de senhas

@@ -12,18 +12,20 @@ import server.presentation.skeleton.RequestDispatcher;
 
 public class Server {
     private final int porta;
-    private final int D;
+    private final int D; // Dias de histórico
+    private final int S; // Séries máximas em memória
     private ServerSocket serverSocket;
     private final ExecutorService threadPool;
     private volatile boolean ativo;
     private final RequestDispatcher dispatcher;
     
-    public Server(int porta, int D) {
+    public Server(int porta, int D, int S) {
         this.porta = porta;
         this.D = D;
+        this.S = S;
         this.threadPool = Executors.newCachedThreadPool();
         this.ativo = false;
-        this.dispatcher = RequestDispatcher.criar(D);
+        this.dispatcher = RequestDispatcher.criar(D, S);
     }
     
     public void iniciar() {
@@ -35,7 +37,8 @@ public class Server {
             System.out.println("  SERVIÇO DE GESTÃO DE VENDAS");
             System.out.println("========================================");
             System.out.println("Porta: " + porta);
-            System.out.println("Dias (D): " + D);
+            System.out.println("Dias (D): " + D + " - Janela de histórico");
+            System.out.println("Séries (S): " + S + " - Máximo em memória");
             System.out.println("Aguardando conexões...\n");
             
             while (ativo) {
@@ -89,7 +92,7 @@ public class Server {
     public static void main(String[] args) {
         int porta = ServerConfig.DEFAULT_PORT;
         int D = ServerConfig.DEFAULT_D;
-
+        int S = ServerConfig.DEFAULT_S;
         
         if (args.length > 0) {
             porta = parseIntOuPadrao(args[0], porta, "Porta");
@@ -99,14 +102,29 @@ public class Server {
             D = parseIntOuPadrao(args[1], D, "D");
         }
         
-        Server servidor = new Server(porta, D);
+        if (args.length > 2) {
+            S = parseIntOuPadrao(args[2], S, "S");
+        }
+        
+        // Validar S <= D
+        if (S > D) {
+            System.err.println("AVISO: S (" + S + ") maior que D (" + D + "), ajustando S = D");
+            S = D;
+        }
+        
+        Server servidor = new Server(porta, D, S);
         Runtime.getRuntime().addShutdownHook(new Thread(servidor::parar));
         servidor.iniciar();
     }
     
     private static int parseIntOuPadrao(String valor, int padrao, String nome) {
         try {
-            return Integer.parseInt(valor);
+            int parsed = Integer.parseInt(valor);
+            if (parsed <= 0) {
+                System.err.println(nome + " deve ser positivo, usando padrão: " + padrao);
+                return padrao;
+            }
+            return parsed;
         } catch (NumberFormatException e) {
             System.err.println(nome + " inválido, usando padrão: " + padrao);
             return padrao;

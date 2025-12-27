@@ -1,30 +1,73 @@
 package server.business.domain;
 
 /**
- * Entidade de domínio - Agregação de dados de vendas
+ * Agregação de eventos de vendas
+ * Acumula quantidade, volume, preços máximo e médio
  */
 public class Agregacao {
     private int quantidadeVendas;
     private double volumeVendas;
-    private double precoMedio;
     private double precoMaximo;
+    private double somaPrecos;
+    private int numeroEventos;
+    private double precoMedio;
     
     public Agregacao() {
         this.quantidadeVendas = 0;
         this.volumeVendas = 0.0;
-        this.precoMedio = 0.0;
         this.precoMaximo = 0.0;
+        this.somaPrecos = 0.0;
+        this.numeroEventos = 0;
+        this.precoMedio = 0.0;
     }
     
     /**
-     * Construtor de cópia
+     * Adiciona um evento à agregação
      */
-    public Agregacao(Agregacao outra) {
-        this.quantidadeVendas = outra.quantidadeVendas;
-        this.volumeVendas = outra.volumeVendas;
-        this.precoMedio = outra.precoMedio;
-        this.precoMaximo = outra.precoMaximo;
+    public void update(int quantidade, double preco) {
+        this.quantidadeVendas += quantidade;
+        this.volumeVendas += quantidade * preco;
+        
+        if (preco > this.precoMaximo) {
+            this.precoMaximo = preco;
+        }
+        
+        this.somaPrecos += preco;
+        this.numeroEventos++;
     }
+    
+    /**
+     * Calcula o preço médio
+     * Deve ser chamado depois de todos os updates
+     */
+    public void updatePrecoMedio() {
+        if (numeroEventos > 0) {
+            this.precoMedio = somaPrecos / numeroEventos;
+        } else {
+            this.precoMedio = 0.0;
+        }
+    }
+    
+    /**
+     * Acumula outra agregação nesta
+     */
+    public void acumular(Agregacao outra) {
+        if (outra == null) {
+            return;
+        }
+        
+        this.quantidadeVendas += outra.quantidadeVendas;
+        this.volumeVendas += outra.volumeVendas;
+        
+        if (outra.precoMaximo > this.precoMaximo) {
+            this.precoMaximo = outra.precoMaximo;
+        }
+        
+        this.somaPrecos += outra.somaPrecos;
+        this.numeroEventos += outra.numeroEventos;
+    }
+    
+    // Getters
     
     public int getQuantidadeVendas() {
         return quantidadeVendas;
@@ -34,59 +77,19 @@ public class Agregacao {
         return volumeVendas;
     }
     
-    public double getPrecoMedio() {
-        return precoMedio;
-    }
-    
     public double getPrecoMaximo() {
         return precoMaximo;
     }
     
-    /**
-     * Atualiza agregação com novo evento
-     */
-    public void update(int quantidade, double preco) {
-        this.quantidadeVendas += quantidade;
-        this.volumeVendas += quantidade * preco;
-        updatePrecoMaximo(preco);
-    }
-    
-    /**
-     * Atualiza preço máximo
-     */
-    public void updatePrecoMaximo(double preco) {
-        if (this.precoMaximo < preco) {
-            this.precoMaximo = preco;
-        }
-    }
-    
-    /**
-     * Calcula e atualiza o preço médio
-     * Deve ser chamado após todas as atualizações
-     */
-    public void updatePrecoMedio() {
-        if (quantidadeVendas > 0) {
-            this.precoMedio = volumeVendas / quantidadeVendas;
-        }
-    }
-    
-    /**
-     * Acumula outra agregação nesta
-     */
-    public void acumular(Agregacao outra) {
-        if (outra == null) return;
-        
-        this.quantidadeVendas += outra.quantidadeVendas;
-        this.volumeVendas += outra.volumeVendas;
-        updatePrecoMaximo(outra.precoMaximo);
-        updatePrecoMedio();
+    public double getPrecoMedio() {
+        return precoMedio;
     }
     
     @Override
     public String toString() {
         return String.format(
-            "Agregacao{qtd=%d, volume=%.2f, medio=%.2f, max=%.2f}",
-            quantidadeVendas, volumeVendas, precoMedio, precoMaximo
+            "Agregacao{qtd=%d, volume=%.2f€, max=%.2f€, medio=%.2f€, eventos=%d}",
+            quantidadeVendas, volumeVendas, precoMaximo, precoMedio, numeroEventos
         );
     }
 }

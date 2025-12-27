@@ -1,16 +1,19 @@
 package server.config;
 
+/**
+ * Configurações do servidor
+ */
 public class ServerConfig {
-    // Porta padrão
-    public static final int DEFAULT_PORT = 5001;
-    
-    // Dias padrão
-    public static final int DEFAULT_D = 30;
-    
-    // Password de admin
-    private static final String ADMIN_PASSWORD = System.getenv("ADMIN_PASSWORD");
-    
+    public static final int DEFAULT_PORT = 12345;
+    public static final int DEFAULT_D = 30; // Dias de histórico
+    public static final int DEFAULT_S = 10; // Séries máximas em memória
+
+    public static final int MIN_USERNAME_LENGTH = 3;
+    public static final int MIN_PASSWORD_LENGTH = 3;
+
+    private static final String ADMIN_PASSWORD = "admin123";
+
     public static String getAdminPassword() {
-        return ADMIN_PASSWORD != null ? ADMIN_PASSWORD : "admin123";
+        return ADMIN_PASSWORD;
     }
 }
