@@ -134,6 +134,7 @@ public class ServicoEventos implements IServicoEventos {
                 
                     if (diaForaDaJanela >= 0) {
                         cacheManager.limparAgregacoesDia(diaForaDaJanela);
+                        cacheManager.removerSerieDaMemoria(diaForaDaJanela);
                         System.out.println("Dia " + diaForaDaJanela + " saiu da janela (D=" + D + ")");
                     }
                 }

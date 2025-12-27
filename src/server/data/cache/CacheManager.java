@@ -200,10 +200,9 @@ public class CacheManager {
     public void removerSerieDaMemoria(int dia) {
         writeLock.lock();
         try {
-            if (seriesEmMemoria.remove(dia) != null) {
-                ordemAcesso.remove(Integer.valueOf(dia));
-                System.out.println("Série do dia " + dia + " removida da memória");
-            }
+            seriesEmMemoria.remove(dia);  // Remove mesmo que não exista
+            ordemAcesso.remove(Integer.valueOf(dia));  // Remove da ordem também
+            System.out.println("Série do dia " + dia + " removida da memória");
         } finally {
             writeLock.unlock();
         }
