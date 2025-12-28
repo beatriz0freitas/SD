@@ -171,6 +171,8 @@ OBRIGATÓRIO
 //TODO Falta a parte das notificações
 
 Alta perioridade
+//TODO Meter os clientes a fechar quando o server fecha (acho que é melhor porque se voltarmos a abrir eles nao reconectam)
+//TODO podemos meter o admin a pode eliminar uses etc (apesar de termos o scrpit para elminimar tudo)
 //TODO melhorar tratamento de erros (criar mais exceções e guardar a stack tree )
 //TODO mais concorrencia
 

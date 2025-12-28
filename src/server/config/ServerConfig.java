@@ -4,7 +4,7 @@ package server.config;
  * Configurações do servidor
  */
 public class ServerConfig {
-    public static final int DEFAULT_PORT = 12345;
+    public static final int DEFAULT_PORT = 5001;
     public static final int DEFAULT_D = 30; // Dias de histórico
     public static final int DEFAULT_S = 10; // Séries máximas em memória
 
