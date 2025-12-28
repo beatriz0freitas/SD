@@ -82,13 +82,13 @@ chmod +x build.sh
 
 ```bash
 # Porta padrão (5001), D=30, S=5
-java -cp bin server.Servidor
+java -cp bin server.Server
 
 # Porta customizada
-java -cp bin server.Servidor 8080
+java -cp bin server.Server 8080
 
 # Porta + parâmetros D e S
-java -cp bin server.Servidor 8080 30 5
+java -cp bin server.Server 8080 30 5
 ```
 
 **Parâmetros:**
@@ -167,9 +167,8 @@ protocolo
 Uso de DTOs
 Os DTOs são usados para desacoplar cliente e servidor, permitindo que cada lado evolua independentemente. Enviam apenas dados necessários pela rede (não estruturas internas completas), reduzindo o payload e protegendo informação sensível. Facilitam validação centralizada, tornam a API clara e autodocumentada, e garantem que mudanças no servidor não quebrem o cliente.
 
-
 OBRIGATÓRIO
-//TODO Falta a parte das notificações 
+//TODO Falta a parte das notificações
 
 Alta perioridade
 //TODO melhorar tratamento de erros (criar mais exceções e guardar a stack tree )
