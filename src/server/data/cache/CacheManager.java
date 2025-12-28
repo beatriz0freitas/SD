@@ -9,8 +9,7 @@ import server.data.repository.IEventoRepository;
 
 /**
  * Gerenciador de cache para agregações
- * Mantém no máximo S séries em memória
- * Processa séries incrementalmente quando memória está cheia
+ * Mantém no máximo S séries em memória (LRU)
  */
 public class CacheManager {
     private final IEventoRepository eventoRepository;
@@ -83,14 +82,12 @@ public class CacheManager {
 
     /**
      * Calcula agregação de um produto em um dia
-     * ESTRATÉGIA INTELIGENTE:
-     * - Se há espaço em memória: carrega série e mantém
-     * - Se memória cheia: processa incrementalmente do disco (streaming)
+     * Gere memória respeitando limite S (política LRU)
      */
     private Agregacao calcularAgregacaoDia(int produtoID, int dia) {
         // Verificar se série já está em memória
         if (seriesEmMemoria.containsKey(dia)) {
-            // Atualizar LRU
+            // Atualizar LRU (mover para final da lista)
             ordemAcesso.remove(Integer.valueOf(dia));
             ordemAcesso.add(dia);
             
@@ -100,28 +97,12 @@ public class CacheManager {
             return agregarEventos(eventos);
         }
 
-        // Série não está em memória
-        // DECISÃO: carregar para memória OU processar em streaming?
-        
-        if (seriesEmMemoria.size() < S) {
-            // HÁ ESPAÇO - Carregar série para memória
-            return calcularComCarregamento(produtoID, dia);
-        } else {
-            // MEMÓRIA CHEIA - Processar em streaming (sem adicionar à memória)
-            return calcularEmStreaming(produtoID, dia);
-        }
-    }
-
-    /**
-     * Carrega série para memória (quando há espaço)
-     * Remove série LRU se necessário
-     */
-    private Agregacao calcularComCarregamento(int produtoID, int dia) {
-        // Verificar se precisa remover série antiga
+        // Série não está em memória - precisa carregar do disco
+        // Se memória cheia (S séries), remover a mais antiga (LRU)
         if (seriesEmMemoria.size() >= S) {
             int diaRemover = ordemAcesso.remove(0);
             seriesEmMemoria.remove(diaRemover);
-            System.out.println("Série do dia " + diaRemover + " removida (limite S=" + S + ")");
+            System.out.println("Série do dia " + diaRemover + " removida da memória (limite S=" + S + ")");
         }
 
         // Carregar série do disco
@@ -133,26 +114,6 @@ public class CacheManager {
         // Agregar eventos do produto
         List<Evento> eventos = seriesDia.get(produtoID);
         return agregarEventos(eventos);
-    }
-
-    /**
-     * Processa série em streaming do disco (SEM adicionar à memória)
-     * Usado quando já há S séries em memória
-     */
-    private Agregacao calcularEmStreaming(int produtoID, int dia) {
-        System.out.println("STREAMING: processando dia " + dia + " sem adicionar à memória (S=" + S + " cheio)");
-        
-        // Carregar série do disco
-        Map<Integer, List<Evento>> seriesDia = eventoRepository.carregarEventosDia(dia);
-        
-        // Processar eventos do produto
-        List<Evento> eventos = seriesDia.get(produtoID);
-        Agregacao resultado = agregarEventos(eventos);
-        
-        // Série é descartada automaticamente (não adicionada à memória)
-        System.out.println("Série do dia " + dia + " processada e descartada (streaming)");
-        
-        return resultado;
     }
 
     /**
@@ -275,3 +236,6 @@ public class CacheManager {
         }
     }
 }
+
+
+
