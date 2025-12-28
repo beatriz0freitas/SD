@@ -35,7 +35,7 @@ public class ServicoAdmin implements IServicoAdmin {
     
     @Override
     public RespostaDTO obterEstatisticas() throws AdminException {
-        int totalUsuarios = usuarioRepository.listarTodos().size();
+        int totalUsuarios = usuarioRepository.contarUtilizadores();
         
         StringBuilder sb = new StringBuilder();
         sb.append("=== ESTATÍSTICAS DO SISTEMA ===\n");

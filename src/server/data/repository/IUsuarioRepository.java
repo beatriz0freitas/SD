@@ -31,6 +31,11 @@ public interface IUsuarioRepository {
      * Lista todos os usuários
      */
     List<Usuario> listarTodos();
+
+    /**
+     * Conta o número total de usuários
+     */
+    int contarUtilizadores() ;
     
     /**
      * Verifica se usuário existe

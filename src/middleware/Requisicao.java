@@ -15,16 +15,10 @@ public class Requisicao implements Serializable {
 
     public Requisicao() {}
 
-    /**
-     * Construtor ANTIGO - mantém compatibilidade
-     * Tag será 0 (para comunicação síncrona simples)
-     */
-    public Requisicao(byte serviceId, byte methodId, Object parametros) {
-        this(serviceId, methodId, parametros, 0L);
-    }
+   
 
     /**
-     * Construtor NOVO - com tag para demultiplexing
+     * Construtor - com tag para demultiplexing
      *
      * @param serviceId ID do serviço (ex: 1=Auth, 2=Eventos)
      * @param methodId  ID do método (ex: 1=Registrar, 2=Login)

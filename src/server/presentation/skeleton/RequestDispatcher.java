@@ -5,6 +5,9 @@ import java.util.Map;
 import static middleware.Protocolos.*;
 import middleware.Requisicao;
 import server.business.services.*;
+import server.data.cache.CacheManager;
+import server.data.repository.IEventoRepository;
+import server.data.repository.RepositoryFactory;
 
 /**
  * Cria serviços e skeletons e despacha pedidos para o skeleton correto
@@ -16,11 +19,17 @@ public class RequestDispatcher {
         this.skeletonsPorServico = skeletons;
     }
     
-    public static RequestDispatcher criar(int D) {
-        // Criar serviços
+    public static RequestDispatcher criar(int D, int S) {
+        // Obter repository
+        IEventoRepository eventoRepository = RepositoryFactory.getInstance().getEventoRepository();
+        
+        // Criar cache manager
+        CacheManager cacheManager = new CacheManager(eventoRepository, S);
+
+        // Criar serviços (injeção de dependências via construtor)
         ServicoAutenticacao servicoAuth = new ServicoAutenticacao();
-        ServicoEventos servicoEventos = new ServicoEventos(D);
-        ServicoAgregacoes servicoAgregacoes = new ServicoAgregacoes(servicoEventos, D);
+        ServicoEventos servicoEventos = new ServicoEventos(eventoRepository, cacheManager, D);
+ServicoAgregacoes servicoAgregacoes = new ServicoAgregacoes(cacheManager, servicoEventos, eventoRepository, D);
         ServicoAdmin servicoAdmin = new ServicoAdmin();
         
         // Criar skeletons e mapear
@@ -30,6 +39,8 @@ public class RequestDispatcher {
             SERVICO_AGREGACOES, new ServicoAgregacoesSkeleton(servicoAgregacoes),
             SERVICO_ADMIN, new ServicoAdminSkeleton(servicoAdmin)
         );
+        
+        System.out.println("RequestDispatcher criado com D=" + D + " e S=" + S);
         
         return new RequestDispatcher(skeletons);
     }

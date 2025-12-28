@@ -20,7 +20,7 @@ src/
 │   ├── business/        # Camada de negócio
 │   │   ├── domain/      # Entidades de domínio
 │   │   └── services/    # Serviços de negócio
-│   │   
+│   │
 |   |
 │   ├── data/            # Camada de dados
 │   │   ├── repository/  # Data Access Objects
@@ -32,7 +32,7 @@ src/
 │
 └── middleware/          # Middleware compartilhado
     └── proto/           # Protocolo de comunicação
-    
+
 ```
 
 ## Arquitetura
@@ -82,13 +82,13 @@ chmod +x build.sh
 
 ```bash
 # Porta padrão (5001), D=30, S=5
-java -cp bin server.Servidor
+java -cp bin server.Server
 
 # Porta customizada
-java -cp bin server.Servidor 8080
+java -cp bin server.Server 8080
 
 # Porta + parâmetros D e S
-java -cp bin server.Servidor 8080 30 5
+java -cp bin server.Server 8080 30 5
 ```
 
 **Parâmetros:**
@@ -167,13 +167,17 @@ protocolo
 Uso de DTOs
 Os DTOs são usados para desacoplar cliente e servidor, permitindo que cada lado evolua independentemente. Enviam apenas dados necessários pela rede (não estruturas internas completas), reduzindo o payload e protegendo informação sensível. Facilitam validação centralizada, tornam a API clara e autodocumentada, e garantem que mudanças no servidor não quebrem o cliente.
 
-//TODO melhorar tratamento de erros
+OBRIGATÓRIO
+//TODO Falta a parte das notificações
 
-//TODO guardar a stack tree nas excecoes
+Alta perioridade
+//TODO Meter os clientes a fechar quando o server fecha (acho que é melhor porque se voltarmos a abrir eles nao reconectam)
+//TODO podemos meter o admin a pode eliminar uses etc (apesar de termos o scrpit para elminimar tudo)
+//TODO melhorar tratamento de erros (criar mais exceções e guardar a stack tree )
+//TODO mais concorrencia
+
+Média perioridade
 //TODO fazer o nosso proprio threadpoll (nao acho necessario )
 //TODO Pool de conexões reutilizáveis (cada midleware do cliente gera uma nova conexcao)
 //TODO Logging estruturado
-
-//TODO Config do server e cliente mais centralizada
 //TODO ajustar interface (tem muitas responsabilidades)
-

@@ -2,116 +2,170 @@ package server.data.repository;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import server.business.domain.Usuario;
 
 /**
- * Implementação do Repository de usuários com persistência em arquivo binário
+ * Persistência de utilizadores em ficheiro binário
+ * Thread-safe com armazenamento em memória
  */
 public class UsuarioFileRepository implements IUsuarioRepository {
     private static final String FICHEIRO = "dados/utilizadores.dat";
-    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
-    private final Map<String, Usuario> cache = new HashMap<>();
+    
+    private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
+    private final Lock readLock = rwLock.readLock();
+    private final Lock writeLock = rwLock.writeLock();
+    
+    private final Map<String, Usuario> utilizadores = new HashMap<>();
+    private boolean modificado = false; // Flag para saber se precisa persistir
     
     public UsuarioFileRepository() {
         carregarTodos();
+        
+        // Persistir ao encerrar JVM
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (modificado) {
+                System.out.println("Persistindo utilizadores antes de encerrar...");
+                persistirTodos();
+            }
+        }));
     }
     
     @Override
     public Usuario buscar(String username) {
-        lock.readLock().lock();
+        readLock.lock();
         try {
-            return cache.get(username);
+            return utilizadores.get(username);
         } finally {
-            lock.readLock().unlock();
+            readLock.unlock();
         }
     }
     
     @Override
     public void salvar(Usuario usuario) {
-        lock.writeLock().lock();
+        writeLock.lock();
         try {
-            cache.put(usuario.getUsername(), usuario);
-            persistirTodos();
+            utilizadores.put(usuario.getUsername(), usuario);
+            modificado = true;
+            // Não persiste imediatamente - será persistido no shutdown
         } finally {
-            lock.writeLock().unlock();
+            writeLock.unlock();
         }
     }
     
     @Override
     public void atualizar(Usuario usuario) {
-        salvar(usuario); // mesmo comportamento
+        salvar(usuario);
     }
     
     @Override
     public void deletar(String username) {
-        lock.writeLock().lock();
+        writeLock.lock();
         try {
-            cache.remove(username);
-            persistirTodos();
+            utilizadores.remove(username);
+            modificado = true;
         } finally {
-            lock.writeLock().unlock();
+            writeLock.unlock();
         }
     }
     
     @Override
     public List<Usuario> listarTodos() {
-        lock.readLock().lock();
+        readLock.lock();
         try {
-            return new ArrayList<>(cache.values());
+            return new ArrayList<>(utilizadores.values());
         } finally {
-            lock.readLock().unlock();
+            readLock.unlock();
         }
     }
+
+
+    @Override
+public int contarUtilizadores() {
+    readLock.lock();
+    try {
+        return utilizadores.size();
+    } finally {
+        readLock.unlock();
+    }
+}
+
     
     @Override
     public boolean existe(String username) {
-        lock.readLock().lock();
+        readLock.lock();
         try {
-            return cache.containsKey(username);
+            return utilizadores.containsKey(username);
         } finally {
-            lock.readLock().unlock();
+            readLock.unlock();
+        }
+    }
+    
+    /**
+     * Força persistência imediata (para comandos admin)
+     */
+    public void persistirAgora() {
+        writeLock.lock();
+        try {
+            if (modificado) {
+                persistirTodos();
+                modificado = false;
+            }
+        } finally {
+            writeLock.unlock();
         }
     }
     
     // Métodos privados de persistência
     
     private void carregarTodos() {
-        File file = new File(FICHEIRO);
-        if (!file.exists()) return;
+        File ficheiro = new File(FICHEIRO);
+        if (!ficheiro.exists()) {
+            return;
+        }
         
-        try (DataInputStream in = new DataInputStream(
-                new BufferedInputStream(new FileInputStream(file)))) {
-            
-            int count = in.readInt();
-            for (int i = 0; i < count; i++) {
-                String username = in.readUTF();
-                String passwordHash = in.readUTF();
-                cache.put(username, new Usuario(username, passwordHash));
+        writeLock.lock();
+        try {
+            try (DataInputStream in = new DataInputStream(
+                    new BufferedInputStream(new FileInputStream(ficheiro)))) {
+                
+                int count = in.readInt();
+                for (int i = 0; i < count; i++) {
+                    String username = in.readUTF();
+                    String passwordHash = in.readUTF();
+                    utilizadores.put(username, new Usuario(username, passwordHash));
+                }
+                
+                System.out.println("Carregados " + count + " utilizadores do disco");
+                
+            } catch (IOException e) {
+                System.err.println("Erro ao carregar utilizadores: " + e.getMessage());
             }
-            System.out.println("Carregados " + count + " usuários do disco");
-            
-        } catch (IOException e) {
-            System.err.println("Erro ao carregar usuários: " + e.getMessage());
+        } finally {
+            writeLock.unlock();
         }
     }
     
     private void persistirTodos() {
-        File file = new File(FICHEIRO);
-        file.getParentFile().mkdirs();
+        File ficheiro = new File(FICHEIRO);
+        ficheiro.getParentFile().mkdirs();
         
         try (DataOutputStream out = new DataOutputStream(
-                new BufferedOutputStream(new FileOutputStream(file)))) {
+                new BufferedOutputStream(new FileOutputStream(ficheiro)))) {
             
-            out.writeInt(cache.size());
-            for (Usuario u : cache.values()) {
+            out.writeInt(utilizadores.size());
+            for (Usuario u : utilizadores.values()) {
                 out.writeUTF(u.getUsername());
                 out.writeUTF(u.getPasswordHash());
             }
             out.flush();
             
+            System.out.println("Persistidos " + utilizadores.size() + " utilizadores");
+            
         } catch (IOException e) {
-            System.err.println("Erro ao persistir usuários: " + e.getMessage());
+            System.err.println("Erro ao persistir utilizadores: " + e.getMessage());
         }
     }
 }
