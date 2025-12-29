@@ -8,6 +8,8 @@ public class ServerConfig {
     public static final int DEFAULT_D = 30; // Dias de histórico
     public static final int DEFAULT_S = 10; // Séries máximas em memória
 
+    public static final int N_WORKERS_SERVER = 50;
+
     public static final int MIN_USERNAME_LENGTH = 3;
     public static final int MIN_PASSWORD_LENGTH = 3;
 

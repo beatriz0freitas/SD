@@ -1,8 +1,10 @@
 package client;
 
 import client.stub.*;
+import common.concurrency.*;
 import common.dto.*;
 import common.interfaces.*;
+
 import java.util.Random;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -38,11 +40,14 @@ public class ClienteTeste {
         
         mostrarHeader(config);
         
-        ExecutorService pool = Executors.newFixedThreadPool(config.numClientes);
+        ThreadPool pool = new ThreadPoolImpl(config.numClientes);
+
 
         for (int i = 1; i <= config.numClientes; i++) {
             final int clienteId = i;
-            pool.execute(() -> executarCliente(clienteId, config));
+            if(!pool.submit(() -> executarCliente(clienteId, config))) {
+                System.err.println("Não foi possível submeter o cliente " + clienteId + ". Fila cheia...");
+            }
         }
 
         pool.shutdown();
@@ -66,10 +71,10 @@ public class ClienteTeste {
         System.out.println("Servidor: " + config.host + ":" + config.porta);
         System.out.println("=========================\n");
     }
-    
-    private static void aguardarTerminacao(ExecutorService pool) {
+
+    private static void aguardarTerminacao(ThreadPool pool) {
         try {
-            if (!pool.awaitTermination(TIMEOUT_MINUTOS, TimeUnit.MINUTES)) {
+            if (!pool.awaitTermination(5, TimeUnit.SECONDS)) {
                 System.err.println("Timeout atingido! Forçando shutdown...");
                 pool.shutdownNow();
             }
@@ -142,15 +147,17 @@ public class ClienteTeste {
     private static void executarOperacoesConcorrentes(int clienteId, 
                                                       IServicoEventos servicoEventos,
                                                       IServicoAgregacoes servicoAgregacoes) throws InterruptedException {
-        ExecutorService threadPool = Executors.newFixedThreadPool(THREADS_POR_CLIENTE);
+        ThreadPool threadPool = new ThreadPoolImpl(THREADS_POR_CLIENTE);
         
         for (int t = 0; t < THREADS_POR_CLIENTE; t++) {
             final int threadId = t;
-            threadPool.execute(() -> {
+            if(!threadPool.submit(() -> {
                 executarThread(clienteId, threadId, servicoEventos, servicoAgregacoes);
-            });
+            })) {
+                logErro(clienteId, threadId, "Não foi possível submeter a thread. Fila cheia ou shutdown...");
+            }
         }
-
+        Thread.currentThread().sleep(2000); // espera 2 segundos para as threads terminarem, senao shutdown cancela novos pedidos
         threadPool.shutdown();
         threadPool.awaitTermination(TIMEOUT_MINUTOS, TimeUnit.MINUTES);
     }

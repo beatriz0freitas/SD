@@ -85,10 +85,10 @@ chmod +x build.sh
 java -cp bin server.Server
 
 # Porta customizada
-java -cp bin server.Server 8080
+java -cp bin server.Server 5001
 
 # Porta + parâmetros D e S
-java -cp bin server.Server 8080 30 5
+java -cp bin server.Server 5001 30 5
 ```
 
 **Parâmetros:**
@@ -107,7 +107,7 @@ java -cp bin client.Cliente
 java -cp bin client.Cliente localhost 8080
 
 # Numero de clientes em simultaneo
-java -cp bin client.ClienteTeste 20
+java -cp bin client.ClienteTeste 20 localhost 8080
 ```
 
 ## Persistência
@@ -177,7 +177,8 @@ Alta perioridade
 //TODO mais concorrencia
 
 Média perioridade
-//TODO fazer o nosso proprio threadpoll (nao acho necessario )
+//TODO fazer o nosso proprio threadpoll (nao acho necessario ) -> done
+//        - substituir AtomicInteger's...?
 //TODO Pool de conexões reutilizáveis (cada midleware do cliente gera uma nova conexcao)
 //TODO Logging estruturado
 //TODO ajustar interface (tem muitas responsabilidades)

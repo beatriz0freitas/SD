@@ -1,10 +1,9 @@
 package server.presentation.handlers;
 
+import common.concurrency.ThreadPool;
 import common.dto.RespostaDTO;
 import java.io.*;
 import java.net.Socket;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -22,14 +21,14 @@ public class ClientHandler implements Runnable {
     private final Socket socket;
     private final RequestDispatcher dispatcher;
     private final ProtocoloHandler proto;
-    private final ExecutorService requestExecutor;
+    private final ThreadPool requestExecutor;
     private final Lock writeLock;
     
-    public ClientHandler(Socket socket, RequestDispatcher dispatcher) {
+    public ClientHandler(Socket socket, RequestDispatcher dispatcher, ThreadPool requestExecutor) {
         this.socket = socket;
         this.dispatcher = dispatcher;
         this.proto = new ProtocoloHandler();
-        this.requestExecutor = Executors.newCachedThreadPool();
+        this.requestExecutor = requestExecutor;
         this.writeLock = new ReentrantLock();
     }
     
@@ -42,7 +41,9 @@ public class ClientHandler implements Runnable {
             
             while (true) {
                 Requisicao req = (Requisicao) proto.receber(in);
-                requestExecutor.execute(new RequestProcessor(req, out));
+                if (!requestExecutor.submit(new RequestProcessor(req, out))) {
+                    enviarErro(req.getTag(), "Fila de pedidos cheia (ou shutdown). Tente novamente mais tarde.", out);
+                }
             }
             
         } catch (EOFException e) {
