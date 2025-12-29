@@ -2,6 +2,7 @@ package client.stub;
 
 import client.ClienteMiddleware;
 import common.dto.EventoDTO;
+import common.dto.NotificacaoDTO;
 import common.dto.RespostaDTO;
 import common.exceptions.EventoException;
 import common.interfaces.IServicoEventos;
@@ -21,6 +22,19 @@ public class ServicoEventosStub implements IServicoEventos {
                 Protocolos.SERVICO_EVENTOS,
                 Protocolos.EVENTO_REGISTRAR,
                 evento
+            );
+        } catch (Exception e) {
+            throw new EventoException("Erro ao registrar evento: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public RespostaDTO notificarVendaEspecifica(NotificacaoDTO notificacao) throws EventoException {
+        try {
+            return middleware.invocar(
+                Protocolos.SERVICO_EVENTOS,
+                Protocolos.EVENTO_NOTIFICAR_VENDA_ESPECIFICA,
+                notificacao
             );
         } catch (Exception e) {
             throw new EventoException("Erro ao registrar evento: " + e.getMessage(), e);

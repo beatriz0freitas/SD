@@ -4,6 +4,7 @@ import static middleware.Protocolos.*;
 
 import common.dto.EventoDTO;
 import common.dto.RespostaDTO;
+import common.dto.NotificacaoDTO;
 import server.business.services.ServicoEventos;
 
 public class ServicoEventosSkeleton implements ISkeleton {
@@ -23,6 +24,8 @@ public class ServicoEventosSkeleton implements ISkeleton {
                     return servico.listarEventosDiaAtual();
                 case EVENTO_NOVO_DIA:
                     return servico.novoDia();
+                case EVENTO_NOTIFICAR_VENDA_ESPECIFICA:
+                    return servico.notificarVendaEspecifica((NotificacaoDTO) parametros);
                 default:
                     return RespostaDTO.erro("Método desconhecido: " + methodId);
             }

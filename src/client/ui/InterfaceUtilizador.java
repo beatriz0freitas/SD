@@ -115,7 +115,9 @@ public class InterfaceUtilizador {
             System.out.println("3. Volume de Vendas");
             System.out.println("4. Preço Médio");
             System.out.println("5. Preço Máximo");
-            System.out.println("6. Logout");
+            System.out.println("6. Notificar Venda Específica");
+            System.out.println("7. Notificar Venda Consecutiva (TODO)");
+            System.out.println("8. Logout");
         }
         
         System.out.println("0. Sair");
@@ -182,7 +184,9 @@ public class InterfaceUtilizador {
             case 3: volumeVendas(); break;
             case 4: precoMedio(); break;
             case 5: precoMaximo(); break;
-            case 6: logout(); break;
+            case 6: notificarVendaEspecifica(); break;
+            //case 7: notificarVendaConsecutiva(); break;
+            case 8: logout(); break;
             case 0: sair(); break;
             default: System.out.println("Opção inválida!");
         }
@@ -259,6 +263,25 @@ public class InterfaceUtilizador {
         
         EventoDTO dto = new EventoDTO(produtoID, quantidade, preco);
         RespostaDTO resposta = servicoEventos.registrarEvento(dto);
+        mostrarResposta(resposta);
+    }
+
+    private void notificarVendaEspecifica() throws Exception {
+        System.out.print("ID do produto 1: ");
+        Integer produtoID1 = lerInteiroOpt();
+        if (produtoID1 == null) { 
+            System.out.println("Operação cancelada."); 
+            return; 
+        }
+
+        System.out.print("ID do produto 2: ");
+        Integer produtoID2 = lerInteiroOpt();
+        if (produtoID2 == null) { 
+            System.out.println("Operação cancelada."); 
+            return; 
+        }
+
+        RespostaDTO resposta = servicoEventos.notificarVendaEspecifica(new NotificacaoDTO(produtoID1, produtoID2));
         mostrarResposta(resposta);
     }
     

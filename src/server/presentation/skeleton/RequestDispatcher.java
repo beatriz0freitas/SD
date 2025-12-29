@@ -29,7 +29,7 @@ public class RequestDispatcher {
         // Criar serviços (injeção de dependências via construtor)
         ServicoAutenticacao servicoAuth = new ServicoAutenticacao();
         ServicoEventos servicoEventos = new ServicoEventos(eventoRepository, cacheManager, D);
-ServicoAgregacoes servicoAgregacoes = new ServicoAgregacoes(cacheManager, servicoEventos, eventoRepository, D);
+        ServicoAgregacoes servicoAgregacoes = new ServicoAgregacoes(cacheManager, servicoEventos, eventoRepository, D);
         ServicoAdmin servicoAdmin = new ServicoAdmin();
         
         // Criar skeletons e mapear

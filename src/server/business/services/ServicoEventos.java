@@ -1,10 +1,12 @@
 package server.business.services;
 
 import common.dto.EventoDTO;
+import common.dto.NotificacaoDTO;
 import common.dto.RespostaDTO;
 import common.exceptions.EventoException;
 import common.interfaces.IServicoEventos;
 import java.util.*;
+import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import server.business.domain.Evento;
 import server.data.cache.CacheManager;
@@ -21,6 +23,24 @@ public class ServicoEventos implements IServicoEventos {
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private int diaAtual;
     private final Map<Integer, List<Evento>> eventosDiaAtual = new HashMap<>();
+    private final Map<Integer, ConditionCounter> condsEspecificas = new HashMap<>();
+
+    private class ConditionCounter {
+        int interested = 0;
+        Condition c;
+        
+        ConditionCounter(ReentrantReadWriteLock lock) {
+            this.c = lock.writeLock().newCondition();
+        }
+
+        void increment() {
+            interested++;
+        }
+
+        void decrement() {
+            interested--;
+        }
+    }
     
     public ServicoEventos(IEventoRepository eventoRepository, CacheManager cacheManager, int D) {
         this.eventoRepository = eventoRepository;
@@ -49,6 +69,11 @@ public class ServicoEventos implements IServicoEventos {
             }
         
             lista.add(evento);
+            // Notificar condições específicas
+            ConditionCounter cc = condsEspecificas.get(dto.getProdutoID());
+            if (cc != null) {
+                cc.c.signalAll();
+            }
         } finally {
             lock.writeLock().unlock();
         }
@@ -58,6 +83,72 @@ public class ServicoEventos implements IServicoEventos {
             dto.getProdutoID(), dto.getQuantidade(), dto.getPreco(), diaAtual));
         
         return RespostaDTO.sucesso("Evento registado com sucesso");
+    }
+
+    @Override
+    public RespostaDTO notificarVendaEspecifica(NotificacaoDTO notificacao) throws EventoException {
+        int produtoID1 = notificacao.getProdutoID1();
+        int produtoID2 = notificacao.getProdutoID2();
+        lock.writeLock().lock();
+        try {
+            ConditionCounter cc1 = condsEspecificas.get(produtoID1);
+            if (cc1 == null) {
+                cc1 = new ConditionCounter(lock);
+                condsEspecificas.put(produtoID1, cc1);
+            }
+            cc1.increment();
+
+            ConditionCounter cc2 = condsEspecificas.get(produtoID2);
+            if (cc2 == null) {
+                cc2 = new ConditionCounter(lock);
+                condsEspecificas.put(produtoID2, cc2);
+            }
+            cc2.increment();
+
+            int diaAtual = this.diaAtual;
+            int size1 = eventosDiaAtual.getOrDefault(produtoID1, Collections.emptyList()).size();
+            int size2 = eventosDiaAtual.getOrDefault(produtoID2, Collections.emptyList()).size();
+
+            while (size1 == eventosDiaAtual.getOrDefault(produtoID1, Collections.emptyList()).size() || size2 == eventosDiaAtual.getOrDefault(produtoID2, Collections.emptyList()).size()) {
+                try {
+                    if (size1 == eventosDiaAtual.getOrDefault(produtoID1, Collections.emptyList()).size()) {
+                        cc1.c.await();
+                    }
+                    if (diaAtual != this.diaAtual) {
+                        return RespostaDTO.erro("Dia avançou, notificação falhou");
+                    }
+                    if (size2 == eventosDiaAtual.getOrDefault(produtoID2, Collections.emptyList()).size()) {
+                        cc2.c.await();
+                    }
+                    if (diaAtual != this.diaAtual) {
+                        return RespostaDTO.erro("Dia avançou, notificação falhou"); // verificar apos ambos awaits para evitar bloqueios
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new EventoException("Espera por notificação interrompida", e);
+                }
+            }
+
+            return RespostaDTO.sucesso("Itens vendidos!");
+                
+        } finally {
+            // decrementar aqui para evitar incoerencias por interrupções
+            ConditionCounter cc1 = condsEspecificas.get(produtoID1);
+            if (cc1 != null) {
+                cc1.decrement();
+                if (cc1.interested == 0) {
+                    condsEspecificas.remove(produtoID1);
+                }
+            }
+            ConditionCounter cc2 = condsEspecificas.get(produtoID2);
+            if (cc2 != null) {
+                cc2.decrement();
+                if (cc2.interested == 0) {
+                    condsEspecificas.remove(produtoID2);
+                }
+            }
+            lock.writeLock().unlock();
+        }
     }
 
     @Override
@@ -124,6 +215,10 @@ public class ServicoEventos implements IServicoEventos {
                 
                 // 2. Avançar dia
                 diaAtual++;
+                for (ConditionCounter cc : condsEspecificas.values()) {
+                    cc.c.signalAll();
+                }
+                condsEspecificas.clear();
                 
                 // 3. Limpar agregações que saem da janela D
                 if (cacheManager != null) {

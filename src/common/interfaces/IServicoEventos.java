@@ -1,6 +1,7 @@
 package common.interfaces;
 
 import common.dto.EventoDTO;
+import common.dto.NotificacaoDTO;
 import common.dto.RespostaDTO;
 import common.exceptions.EventoException;
 
@@ -17,6 +18,15 @@ public interface IServicoEventos {
      */
     RespostaDTO registrarEvento(EventoDTO evento) throws EventoException;
     
+    /**
+     * Notifica quando ocorrerem vendas específicas de dois produtos
+     * @param produtoID1 ID do primeiro produto
+     * @param produtoID2 ID do segundo produto
+     * @return true quando ambos os produtos forem vendidos
+     * @throws EventoException se ocorrer erro na notificação
+     */
+    RespostaDTO notificarVendaEspecifica(NotificacaoDTO notificacao) throws EventoException;
+
     /**
      * Lista eventos do dia atual (apenas admin)
      * @return lista de eventos

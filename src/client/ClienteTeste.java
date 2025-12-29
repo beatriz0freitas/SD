@@ -203,6 +203,12 @@ public class ClienteTeste {
                     consultasRealizadas.incrementAndGet();
                 }
                 break;
+            case 3:
+                resposta = notificarVendaEspecifica(servicoEventos);
+                if (resposta.isSucesso()) {
+                    eventosRegistados.incrementAndGet();
+                }
+                break;
             default:
                 throw new IllegalStateException("Operação inválida: " + operacao);
         }
@@ -230,6 +236,12 @@ public class ClienteTeste {
         int produtoId = random.nextInt(NUM_PRODUTOS) + 1;
         int dias = random.nextInt(MAX_DIAS) + 1;
         return servicoAgregacoes.obterVolumeVendas(produtoId, dias);
+    }
+
+    private static RespostaDTO notificarVendaEspecifica(IServicoEventos servicoEventos) throws Exception {
+        int produtoID1 = random.nextInt(NUM_PRODUTOS) + 1;
+        int produtoID2 = random.nextInt(NUM_PRODUTOS) + 1;
+        return servicoEventos.notificarVendaEspecifica(new NotificacaoDTO(produtoID1, produtoID2));
     }
     
     // Métodos de logging
