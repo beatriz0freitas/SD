@@ -26,6 +26,8 @@ public class ServicoEventosSkeleton implements ISkeleton {
                     return servico.novoDia();
                 case EVENTO_NOTIFICAR_VENDA_ESPECIFICA:
                     return servico.notificarVendaEspecifica((NotificacaoDTO) parametros);
+                case EVENTO_NOTIFICAR_VENDAS_CONSECUTIVAS:
+                    return servico.notificarVendasConsecutivas((NotificacaoDTO) parametros);
                 default:
                     return RespostaDTO.erro("Método desconhecido: " + methodId);
             }

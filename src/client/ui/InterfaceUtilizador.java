@@ -116,7 +116,7 @@ public class InterfaceUtilizador {
             System.out.println("4. Preço Médio");
             System.out.println("5. Preço Máximo");
             System.out.println("6. Notificar Venda Específica");
-            System.out.println("7. Notificar Venda Consecutiva (TODO)");
+            System.out.println("7. Notificar Vendas Consecutivas");
             System.out.println("8. Logout");
         }
         
@@ -185,7 +185,7 @@ public class InterfaceUtilizador {
             case 4: precoMedio(); break;
             case 5: precoMaximo(); break;
             case 6: notificarVendaEspecifica(); break;
-            //case 7: notificarVendaConsecutiva(); break;
+            case 7: notificarVendasConsecutivas(); break;
             case 8: logout(); break;
             case 0: sair(); break;
             default: System.out.println("Opção inválida!");
@@ -282,6 +282,25 @@ public class InterfaceUtilizador {
         }
 
         RespostaDTO resposta = servicoEventos.notificarVendaEspecifica(new NotificacaoDTO(produtoID1, produtoID2));
+        mostrarResposta(resposta);
+    }
+
+    private void notificarVendasConsecutivas() throws Exception {
+        System.out.print("ID do produto: ");
+        Integer produtoID = lerInteiroOpt();
+        if (produtoID == null) { 
+            System.out.println("Operação cancelada."); 
+            return; 
+        }
+
+        System.out.print("Número de vendas consecutivas: ");
+        Integer n = lerInteiroOpt();
+        if (n == null) { 
+            System.out.println("Operação cancelada."); 
+            return;
+        }
+
+        RespostaDTO resposta = servicoEventos.notificarVendasConsecutivas(new NotificacaoDTO(produtoID, n));
         mostrarResposta(resposta);
     }
     

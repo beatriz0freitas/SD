@@ -23,7 +23,9 @@ public class ServicoEventos implements IServicoEventos {
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private int diaAtual;
     private final Map<Integer, List<Evento>> eventosDiaAtual = new HashMap<>();
-    private final Map<Integer, ConditionCounter> condsEspecificas = new HashMap<>();
+    private final Map<Integer, ConditionCounter> condsProduto = new HashMap<>();
+    private int lastProductID = -1;
+    private int consecutiveCount = -1;
 
     private class ConditionCounter {
         int interested = 0;
@@ -69,8 +71,14 @@ public class ServicoEventos implements IServicoEventos {
             }
         
             lista.add(evento);
+            if (lastProductID == dto.getProdutoID()) {
+                consecutiveCount++;
+            } else {
+                lastProductID = dto.getProdutoID();
+                consecutiveCount = 1;
+            }
             // Notificar condições específicas
-            ConditionCounter cc = condsEspecificas.get(dto.getProdutoID());
+            ConditionCounter cc = condsProduto.get(dto.getProdutoID());
             if (cc != null) {
                 cc.c.signalAll();
             }
@@ -87,27 +95,29 @@ public class ServicoEventos implements IServicoEventos {
 
     @Override
     public RespostaDTO notificarVendaEspecifica(NotificacaoDTO notificacao) throws EventoException {
-        int produtoID1 = notificacao.getProdutoID1();
-        int produtoID2 = notificacao.getProdutoID2();
+        int produtoID1 = notificacao.getArg1();
+        int produtoID2 = notificacao.getArg2();
         lock.writeLock().lock();
         try {
-            ConditionCounter cc1 = condsEspecificas.get(produtoID1);
+            ConditionCounter cc1 = condsProduto.get(produtoID1);
             if (cc1 == null) {
                 cc1 = new ConditionCounter(lock);
-                condsEspecificas.put(produtoID1, cc1);
+                condsProduto.put(produtoID1, cc1);
             }
             cc1.increment();
 
-            ConditionCounter cc2 = condsEspecificas.get(produtoID2);
+            ConditionCounter cc2 = condsProduto.get(produtoID2);
             if (cc2 == null) {
                 cc2 = new ConditionCounter(lock);
-                condsEspecificas.put(produtoID2, cc2);
+                condsProduto.put(produtoID2, cc2);
             }
             cc2.increment();
 
             int diaAtual = this.diaAtual;
-            int size1 = eventosDiaAtual.getOrDefault(produtoID1, Collections.emptyList()).size();
-            int size2 = eventosDiaAtual.getOrDefault(produtoID2, Collections.emptyList()).size();
+            List<Evento> l1 = eventosDiaAtual.computeIfAbsent(produtoID1, k -> new ArrayList<>());
+            List<Evento> l2 = eventosDiaAtual.computeIfAbsent(produtoID2, k -> new ArrayList<>());
+            int size1 = l1.size();
+            int size2 = l2.size();
 
             while (size1 == eventosDiaAtual.getOrDefault(produtoID1, Collections.emptyList()).size() || size2 == eventosDiaAtual.getOrDefault(produtoID2, Collections.emptyList()).size()) {
                 try {
@@ -133,23 +143,80 @@ public class ServicoEventos implements IServicoEventos {
                 
         } finally {
             // decrementar aqui para evitar incoerencias por interrupções
-            ConditionCounter cc1 = condsEspecificas.get(produtoID1);
+            ConditionCounter cc1 = condsProduto.get(produtoID1);
             if (cc1 != null) {
                 cc1.decrement();
                 if (cc1.interested == 0) {
-                    condsEspecificas.remove(produtoID1);
+                    condsProduto.remove(produtoID1);
                 }
             }
-            ConditionCounter cc2 = condsEspecificas.get(produtoID2);
+            ConditionCounter cc2 = condsProduto.get(produtoID2);
             if (cc2 != null) {
                 cc2.decrement();
                 if (cc2.interested == 0) {
-                    condsEspecificas.remove(produtoID2);
+                    condsProduto.remove(produtoID2);
                 }
             }
             lock.writeLock().unlock();
         }
     }
+
+    @Override
+    public RespostaDTO notificarVendasConsecutivas(NotificacaoDTO notificacao) throws EventoException {
+        int produtoID = notificacao.getArg1();
+        int n = notificacao.getArg2();
+        lock.writeLock().lock();
+        try {
+            ConditionCounter cc = condsProduto.get(produtoID);
+            if (cc == null) {
+                cc = new ConditionCounter(lock);
+                condsProduto.put(produtoID, cc);
+            }
+            cc.increment();
+
+            int diaAtual = this.diaAtual;
+
+            int base = 0;
+
+            while (diaAtual == this.diaAtual){
+
+                if (lastProductID != produtoID) { // nao esta numa streak desejada
+                    base = 0;
+                } else { // esta numa streak
+                    if (base == 0) {
+                        // contar a partir de streak existente apos request
+                        base = consecutiveCount;
+                    }
+                    int progress = consecutiveCount - base + 1; // numero de eventos apos base
+                    if (progress >= n) {
+                        return RespostaDTO.sucesso("TODO INSERIR NOME DE PRODUTO AQUI?!");
+                    }
+                }
+
+                try {
+                    cc.c.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new EventoException("Espera por notificação interrompida", e);
+                }
+            }
+            
+            return new RespostaDTO(false, null);
+
+        } finally {
+            // decrementar aqui para evitar incoerencias por interrupções
+            ConditionCounter cc = condsProduto.get(produtoID);
+            if (cc != null) {
+                cc.decrement();
+                if (cc.interested == 0) {
+                    condsProduto.remove(produtoID);
+                }
+            }
+            lock.writeLock().unlock();
+        }
+
+    }
+
 
     @Override
     public RespostaDTO listarEventosDiaAtual() throws EventoException {
@@ -215,10 +282,10 @@ public class ServicoEventos implements IServicoEventos {
                 
                 // 2. Avançar dia
                 diaAtual++;
-                for (ConditionCounter cc : condsEspecificas.values()) {
+                for (ConditionCounter cc : condsProduto.values()) {
                     cc.c.signalAll();
                 }
-                condsEspecificas.clear();
+                condsProduto.clear();
                 
                 // 3. Limpar agregações que saem da janela D
                 if (cacheManager != null) {

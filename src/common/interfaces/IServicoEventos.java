@@ -19,13 +19,20 @@ public interface IServicoEventos {
     RespostaDTO registrarEvento(EventoDTO evento) throws EventoException;
     
     /**
-     * Notifica quando ocorrerem vendas específicas de dois produtos
-     * @param produtoID1 ID do primeiro produto
-     * @param produtoID2 ID do segundo produto
+     * Notifica quando ocorrerem vendas específicas de dois produtos no dia atual
+     * @param notificacao DTO contendo os IDs dos dois produtos
      * @return true quando ambos os produtos forem vendidos
      * @throws EventoException se ocorrer erro na notificação
      */
     RespostaDTO notificarVendaEspecifica(NotificacaoDTO notificacao) throws EventoException;
+
+    /**
+     * Notifica quando um produto atingir um número de vendas consecutivas no dia atual
+     * @param notificacao DTO contendo o ID do produto e o número de vendas consecutivas
+     * @return resposta confirmando notificação
+     * @throws EventoException se ocorrer erro na notificação
+     */
+    RespostaDTO notificarVendasConsecutivas(NotificacaoDTO notificacao) throws EventoException;
 
     /**
      * Lista eventos do dia atual (apenas admin)

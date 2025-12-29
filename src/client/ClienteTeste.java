@@ -157,7 +157,7 @@ public class ClienteTeste {
                 logErro(clienteId, threadId, "Não foi possível submeter a thread. Fila cheia ou shutdown...");
             }
         }
-        Thread.currentThread().sleep(200000); // espera 2 segundos para as threads terminarem, senao shutdown cancela novos pedidos
+        Thread.currentThread().sleep(5000); // espera 5 segundos para as threads terminarem, senao shutdown cancela novos pedidos
         threadPool.shutdown();
         threadPool.awaitTermination(TIMEOUT_MINUTOS, TimeUnit.MINUTES);
     }
@@ -181,7 +181,7 @@ public class ClienteTeste {
     private static void executarOperacaoAleatoria(int clienteId, int threadId,
                                                   IServicoEventos servicoEventos,
                                                   IServicoAgregacoes servicoAgregacoes) throws Exception {
-        int operacao = random.nextInt(4);
+        int operacao = random.nextInt(5);
         RespostaDTO resposta;
         
         switch (operacao) {
@@ -205,6 +205,12 @@ public class ClienteTeste {
                 break;
             case 3:
                 resposta = notificarVendaEspecifica(servicoEventos);
+                if (resposta.isSucesso()) {
+                    eventosRegistados.incrementAndGet();
+                }
+                break;
+            case 4:
+                resposta = notificarVendasConsecutivas(servicoEventos);
                 if (resposta.isSucesso()) {
                     eventosRegistados.incrementAndGet();
                 }
@@ -242,6 +248,12 @@ public class ClienteTeste {
         int produtoID1 = random.nextInt(NUM_PRODUTOS) + 1;
         int produtoID2 = random.nextInt(NUM_PRODUTOS) + 1;
         return servicoEventos.notificarVendaEspecifica(new NotificacaoDTO(produtoID1, produtoID2));
+    }
+
+    private static RespostaDTO notificarVendasConsecutivas(IServicoEventos servicoEventos) throws Exception {
+        int produtoID = random.nextInt(NUM_PRODUTOS) + 1;
+        int n = random.nextInt(3) + 1;
+        return servicoEventos.notificarVendaEspecifica(new NotificacaoDTO(produtoID, n));
     }
     
     // Métodos de logging

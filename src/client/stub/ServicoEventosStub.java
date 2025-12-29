@@ -42,6 +42,19 @@ public class ServicoEventosStub implements IServicoEventos {
     }
 
     @Override
+    public RespostaDTO notificarVendasConsecutivas(NotificacaoDTO notificacao) throws EventoException {
+        try {
+            return middleware.invocar(
+                Protocolos.SERVICO_EVENTOS,
+                Protocolos.EVENTO_NOTIFICAR_VENDAS_CONSECUTIVAS,
+                notificacao
+            );
+        } catch (Exception e) {
+            throw new EventoException("Erro ao registrar evento: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
     public RespostaDTO listarEventosDiaAtual() throws EventoException {
         try {
             return middleware.invocar(

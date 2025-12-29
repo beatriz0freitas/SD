@@ -15,10 +15,11 @@ public final class Protocolos {
     public static final byte AUTH_LOGIN_ADMIN     = 3;
 
     // Métodos Eventos
-    public static final byte EVENTO_REGISTRAR                  = 1;
-    public static final byte EVENTO_LISTAR                     = 2;
-    public static final byte EVENTO_NOVO_DIA                   = 3;
-    public static final byte EVENTO_NOTIFICAR_VENDA_ESPECIFICA = 4;
+    public static final byte EVENTO_REGISTRAR                     = 1;
+    public static final byte EVENTO_LISTAR                        = 2;
+    public static final byte EVENTO_NOVO_DIA                      = 3;
+    public static final byte EVENTO_NOTIFICAR_VENDA_ESPECIFICA    = 4;
+    public static final byte EVENTO_NOTIFICAR_VENDAS_CONSECUTIVAS = 5;
 
     // Métodos Agregações
     public static final byte AGREG_QTD            = 1;
