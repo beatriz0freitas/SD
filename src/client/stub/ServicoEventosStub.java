@@ -6,7 +6,7 @@ import common.dto.NotificacaoDTO;
 import common.dto.RespostaDTO;
 import common.exceptions.EventoException;
 import common.interfaces.IServicoEventos;
-import middleware.Protocolos;
+import middleware.MessageTypes;
 
 public class ServicoEventosStub implements IServicoEventos {
     private final ClienteMiddleware middleware;
@@ -19,8 +19,8 @@ public class ServicoEventosStub implements IServicoEventos {
     public RespostaDTO registrarEvento(EventoDTO evento) throws EventoException {
         try {
             return middleware.invocar(
-                Protocolos.SERVICO_EVENTOS,
-                Protocolos.EVENTO_REGISTRAR,
+                MessageTypes.SERVICO_EVENTOS,
+                MessageTypes.EVENTO_REGISTRAR,
                 evento
             );
         } catch (Exception e) {
@@ -32,8 +32,8 @@ public class ServicoEventosStub implements IServicoEventos {
     public RespostaDTO notificarVendaEspecifica(NotificacaoDTO notificacao) throws EventoException {
         try {
             return middleware.invocar(
-                Protocolos.SERVICO_EVENTOS,
-                Protocolos.EVENTO_NOTIFICAR_VENDA_ESPECIFICA,
+                MessageTypes.SERVICO_EVENTOS,
+                MessageTypes.EVENTO_NOTIFICAR_VENDA_ESPECIFICA,
                 notificacao
             );
         } catch (Exception e) {
@@ -45,8 +45,8 @@ public class ServicoEventosStub implements IServicoEventos {
     public RespostaDTO notificarVendasConsecutivas(NotificacaoDTO notificacao) throws EventoException {
         try {
             return middleware.invocar(
-                Protocolos.SERVICO_EVENTOS,
-                Protocolos.EVENTO_NOTIFICAR_VENDAS_CONSECUTIVAS,
+                MessageTypes.SERVICO_EVENTOS,
+                MessageTypes.EVENTO_NOTIFICAR_VENDAS_CONSECUTIVAS,
                 notificacao
             );
         } catch (Exception e) {
@@ -58,8 +58,8 @@ public class ServicoEventosStub implements IServicoEventos {
     public RespostaDTO listarEventosDiaAtual() throws EventoException {
         try {
             return middleware.invocar(
-                Protocolos.SERVICO_EVENTOS,
-                Protocolos.EVENTO_LISTAR,
+                MessageTypes.SERVICO_EVENTOS,
+                MessageTypes.EVENTO_LISTAR,
                 null
             );
         } catch (Exception e) {
@@ -71,8 +71,8 @@ public class ServicoEventosStub implements IServicoEventos {
     public RespostaDTO novoDia() throws EventoException {
         try {
             return middleware.invocar(
-                Protocolos.SERVICO_EVENTOS,
-                Protocolos.EVENTO_NOVO_DIA,
+                MessageTypes.SERVICO_EVENTOS,
+                MessageTypes.EVENTO_NOVO_DIA,
                 null
             );
         } catch (Exception e) {

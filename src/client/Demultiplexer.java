@@ -6,16 +6,15 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
-
-import middleware.ProtocoloHandler;
-import middleware.TaggedResponse;
+import middleware.Message;
+import middleware.Protocolo;
 
 /**
  * Recebe respostas do servidor e acorda a thread que fez o pedido
  */
 public class Demultiplexer implements Runnable {
     private final DataInputStream entrada;
-    private final ProtocoloHandler protocolo;
+    private final Protocolo protocolo;
     private final ReentrantLock lock;
     private final Map<Long, Object> respostas;
     private final Map<Long, Condition> threadsEspera;
@@ -25,7 +24,7 @@ public class Demultiplexer implements Runnable {
     
     public Demultiplexer(DataInputStream entrada) {
         this.entrada = entrada;
-        this.protocolo = new ProtocoloHandler();
+        this.protocolo = new Protocolo();
         this.lock = new ReentrantLock();
         this.respostas = new HashMap<>();
         this.threadsEspera = new HashMap<>();
@@ -37,8 +36,13 @@ public class Demultiplexer implements Runnable {
     public void run() {
         try {
             while (ativo) {
-                TaggedResponse resp = (TaggedResponse) protocolo.receber(entrada);
-                entregarResposta(resp.getTag(), resp.getResposta());
+                Message msg = (Message) protocolo.receber(entrada);
+                
+                if (msg.isResponse()) {
+                    entregarResposta(msg.getTag(), msg.getPayload());
+                } else {
+                    System.err.println("Demux recebeu request (inesperado): " + msg);
+                }
             }
         } catch (IOException | ClassNotFoundException e) {
             tratarErroConexao(e);

@@ -2,8 +2,8 @@ package server.presentation.skeleton;
 
 import common.dto.RespostaDTO;
 import java.util.Map;
-import static middleware.Protocolos.*;
-import middleware.Requisicao;
+import middleware.Message;
+import static middleware.MessageTypes.*;
 import server.business.services.*;
 import server.data.cache.CacheManager;
 import server.data.repository.IEventoRepository;
@@ -25,7 +25,7 @@ public class RequestDispatcher {
         
         // Criar cache manager
         CacheManager cacheManager = new CacheManager(eventoRepository, S);
-
+        
         // Criar serviços (injeção de dependências via construtor)
         ServicoAutenticacao servicoAuth = new ServicoAutenticacao();
         ServicoEventos servicoEventos = new ServicoEventos(eventoRepository, cacheManager, D);
@@ -41,20 +41,19 @@ public class RequestDispatcher {
         );
         
         System.out.println("RequestDispatcher criado com D=" + D + " e S=" + S);
-        
         return new RequestDispatcher(skeletons);
     }
     
-    public RespostaDTO despachar(Requisicao requisicao) {
-        ISkeleton skeleton = skeletonsPorServico.get(requisicao.getServiceId());
+    public RespostaDTO despachar(Message msg) {
+        ISkeleton skeleton = skeletonsPorServico.get(msg.getServiceId());
         
         if (skeleton == null) {
-            return RespostaDTO.erro("Serviço desconhecido: " + requisicao.getServiceId());
+            return RespostaDTO.erro("Serviço desconhecido: " + msg.getServiceId());
         }
         
         return skeleton.processarRequisicao(
-            requisicao.getMethodId(), 
-            requisicao.getParametros()
+            msg.getMethodId(), 
+            msg.getPayload()
         );
     }
 }

@@ -4,7 +4,7 @@ import client.ClienteMiddleware;
 import common.dto.RespostaDTO;
 import common.exceptions.AdminException;
 import common.interfaces.IServicoAdmin;
-import middleware.Protocolos;
+import middleware.MessageTypes;
 
 public class ServicoAdminStub implements IServicoAdmin {
     private final ClienteMiddleware middleware;
@@ -17,8 +17,8 @@ public class ServicoAdminStub implements IServicoAdmin {
     public RespostaDTO listarClientes() throws AdminException {
         try {
             return middleware.invocar(
-                Protocolos.SERVICO_ADMIN,
-                Protocolos.ADMIN_LISTAR_CLIENTES,
+                MessageTypes.SERVICO_ADMIN,
+                MessageTypes.ADMIN_LISTAR_CLIENTES,
                 null
             );
         } catch (Exception e) {
@@ -30,8 +30,8 @@ public class ServicoAdminStub implements IServicoAdmin {
     public RespostaDTO obterEstatisticas() throws AdminException {
         try {
             return middleware.invocar(
-                Protocolos.SERVICO_ADMIN,
-                Protocolos.ADMIN_ESTATISTICAS,
+                MessageTypes.SERVICO_ADMIN,
+                MessageTypes.ADMIN_ESTATISTICAS,
                 null
             );
         } catch (Exception e) {

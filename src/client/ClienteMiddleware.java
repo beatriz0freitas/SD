@@ -5,13 +5,13 @@ import java.io.*;
 import java.net.Socket;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
-import middleware.ProtocoloHandler;
-import middleware.Requisicao;
+import middleware.Message;
+import middleware.Protocolo;
 
 public class ClienteMiddleware {
     private final String host;
     private final int porta;
-    private final ProtocoloHandler protocolo;
+    private final Protocolo protocolo;
     private final ReentrantLock lockEscrita;
     private final AtomicLong contadorPedidos;
     
@@ -24,7 +24,7 @@ public class ClienteMiddleware {
     public ClienteMiddleware(String host, int porta) {
         this.host = host;
         this.porta = porta;
-        this.protocolo = new ProtocoloHandler();
+        this.protocolo = new Protocolo();
         this.lockEscrita = new ReentrantLock();
         this.contadorPedidos = new AtomicLong(0);
         this.conectado = false;
@@ -71,7 +71,7 @@ public class ClienteMiddleware {
         
         try {
             long tag = contadorPedidos.incrementAndGet();
-            Requisicao pedido = new Requisicao(serviceId, methodId, parametros, tag);
+            Message pedido = Message.request(tag, serviceId, methodId, parametros);
             
             enviarPedido(pedido);
             
@@ -101,7 +101,7 @@ public class ClienteMiddleware {
         }
     }
     
-    private void enviarPedido(Requisicao pedido) throws IOException {
+    private void enviarPedido(Message pedido) throws IOException {
         lockEscrita.lock();
         try {
             protocolo.enviar(pedido, saida);

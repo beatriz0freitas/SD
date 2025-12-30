@@ -6,11 +6,8 @@ import java.io.*;
 import java.net.Socket;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-
-import middleware.ProtocoloHandler;
-import middleware.Requisicao;
-import middleware.TaggedResponse;
-import middleware.Protocolos;
+import middleware.Message;
+import middleware.Protocolo;
 import server.presentation.skeleton.RequestDispatcher;
 
 /**
@@ -20,14 +17,14 @@ import server.presentation.skeleton.RequestDispatcher;
 public class ClientHandler implements Runnable {
     private final Socket socket;
     private final RequestDispatcher dispatcher;
-    private final ProtocoloHandler proto;
+    private final Protocolo proto;
     private final ThreadPool requestExecutor;
     private final Lock writeLock;
     
     public ClientHandler(Socket socket, RequestDispatcher dispatcher, ThreadPool requestExecutor) {
         this.socket = socket;
         this.dispatcher = dispatcher;
-        this.proto = new ProtocoloHandler();
+        this.proto = new Protocolo();
         this.requestExecutor = requestExecutor;
         this.writeLock = new ReentrantLock();
     }
@@ -40,9 +37,15 @@ public class ClientHandler implements Runnable {
              DataOutputStream out = new DataOutputStream(socket.getOutputStream())) {
             
             while (true) {
-                Requisicao req = (Requisicao) proto.receber(in);
-                if (!requestExecutor.submit(new RequestProcessor(req, out))) {
-                    enviarErro(req.getTag(), "Fila de pedidos cheia (ou shutdown). Tente novamente mais tarde.", out);
+                Message msg = (Message) proto.receber(in);
+                
+                if (!msg.isRequest()) {
+                    System.err.println("Servidor recebeu response (inesperado): " + msg);
+                    continue;
+                }
+                
+                if (!requestExecutor.submit(new RequestProcessor(msg, out))) {
+                    enviarErro(msg.getTag(), "Fila de pedidos cheia (ou shutdown). Tente novamente mais tarde.", out);
                 }
             }
             
@@ -56,32 +59,31 @@ public class ClientHandler implements Runnable {
     }
     
     private class RequestProcessor implements Runnable {
-        private final Requisicao req;
+        private final Message msg;
         private final DataOutputStream out;
         
-        public RequestProcessor(Requisicao req, DataOutputStream out) {
-            this.req = req;
+        public RequestProcessor(Message msg, DataOutputStream out) {
+            this.msg = msg;
             this.out = out;
         }
         
         @Override
         public void run() {
-            processarPedido(req, out);
+            processarPedido(msg, out);
         }
     }
     
-    private void processarPedido(Requisicao req, DataOutputStream out) {
+    private void processarPedido(Message msg, DataOutputStream out) {
         try {
-            RespostaDTO resp = dispatcher.despachar(req);
-            enviarResposta(new TaggedResponse(req.getTag(), resp), out);
-            
+            RespostaDTO resp = dispatcher.despachar(msg);
+            enviarResposta(Message.response(msg.getTag(), resp), out);
         } catch (Exception e) {
             System.err.println("Erro ao processar pedido: " + e.getMessage());
-            enviarErro(req.getTag(), e.getMessage(), out);
+            enviarErro(msg.getTag(), e.getMessage(), out);
         }
     }
     
-    private void enviarResposta(TaggedResponse response, DataOutputStream out) {
+    private void enviarResposta(Message response, DataOutputStream out) {
         writeLock.lock();
         try {
             proto.enviar(response, out);
@@ -94,13 +96,14 @@ public class ClientHandler implements Runnable {
     
     private void enviarErro(long tag, String mensagem, DataOutputStream out) {
         RespostaDTO erro = new RespostaDTO(false, "Erro: " + mensagem);
-        enviarResposta(new TaggedResponse(tag, erro), out);
+        enviarResposta(Message.response(tag, erro), out);
     }
     
     private void encerrar() {
-        requestExecutor.shutdown();
         try {
-            socket.close();
+            if (socket != null && !socket.isClosed()) {
+                socket.close();
+            }
         } catch (IOException e) {
             // Ignora
         }

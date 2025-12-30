@@ -1,9 +1,8 @@
 package server.presentation.skeleton;
 
-import static middleware.Protocolos.*;
-
 import common.dto.AgregacaoRequestDTO;
 import common.dto.RespostaDTO;
+import static middleware.MessageTypes.*;
 import server.business.services.ServicoAgregacoes;
 
 public class ServicoAgregacoesSkeleton implements ISkeleton {
