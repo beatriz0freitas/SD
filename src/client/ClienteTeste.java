@@ -253,7 +253,7 @@ public class ClienteTeste {
     private static RespostaDTO notificarVendasConsecutivas(IServicoEventos servicoEventos) throws Exception {
         int produtoID = random.nextInt(NUM_PRODUTOS) + 1;
         int n = random.nextInt(3) + 1;
-        return servicoEventos.notificarVendaEspecifica(new NotificacaoDTO(produtoID, n));
+        return servicoEventos.notificarVendasConsecutivas(new NotificacaoDTO(produtoID, n));
     }
     
     // Métodos de logging
