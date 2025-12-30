@@ -1,6 +1,8 @@
 package server.business.services;
 
 import common.dto.EventoDTO;
+import common.dto.EventosFiltradosDTO;
+import common.dto.FiltrarEventosDTO;
 import common.dto.NotificacaoDTO;
 import common.dto.RespostaDTO;
 import common.exceptions.EventoException;
@@ -8,6 +10,8 @@ import common.interfaces.IServicoEventos;
 import java.util.*;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
+
 import server.business.domain.Evento;
 import server.data.cache.CacheManager;
 import server.data.repository.IEventoRepository;
@@ -165,6 +169,7 @@ public class ServicoEventos implements IServicoEventos {
     public RespostaDTO notificarVendasConsecutivas(NotificacaoDTO notificacao) throws EventoException {
         int produtoID = notificacao.getArg1();
         int n = notificacao.getArg2();
+        
         lock.writeLock().lock();
         try {
             ConditionCounter cc = condsProduto.get(produtoID);
@@ -324,6 +329,51 @@ public class ServicoEventos implements IServicoEventos {
         }
     }
     
+    /**
+     * Filtra eventos de um dia específico por conjunto de produtos
+     */
+    public RespostaDTO filtrarEventos(FiltrarEventosDTO dto) throws EventoException {
+        validarFiltro(dto);
+
+        int diaReal = diaAtual - dto.getDiaAnterior();
+
+        if (diaReal < 0) {
+            throw new EventoException("Dia requisitado ainda não ocorreu");
+        }
+
+        // Carregar eventos do dia
+        Map<Integer, List<Evento>> eventosDia = eventoRepository.carregarEventosDia(diaReal);
+
+        // Filtrar apenas produtos solicitados
+        Map<Integer, List<EventosFiltradosDTO.EventoCompacto>> eventosFiltrados = new HashMap<>();
+
+        for (Integer produtoID : dto.getProdutosIDs()) {
+            List<Evento> eventos = eventosDia.get(produtoID);
+
+            if (eventos != null && !eventos.isEmpty()) {
+                // Converter para formato compacto
+                List<EventosFiltradosDTO.EventoCompacto> compactos = eventos.stream()
+                    .map(e -> new EventosFiltradosDTO.EventoCompacto(
+                        e.getQuantidade(), 
+                        e.getPreco()
+                    ))
+                    .collect(Collectors.toList());
+                
+                eventosFiltrados.put(produtoID, compactos);
+            }
+        }
+
+        EventosFiltradosDTO resultado = new EventosFiltradosDTO(eventosFiltrados, diaReal);
+
+        String mensagem = String.format(
+            "Eventos do dia %d filtrados: %d produtos, %d eventos",
+            diaReal, resultado.getEventosPorProduto().size(), resultado.getTotalEventos()
+        );
+
+        System.out.println(mensagem);
+        return RespostaDTO.sucesso(mensagem, resultado);
+    }
+
     public int getDiaAtual() {
         lock.readLock().lock();
         try {
@@ -364,6 +414,18 @@ public class ServicoEventos implements IServicoEventos {
         }
         if (dto.getPreco() <= 0) {
             throw new EventoException("Preço deve ser positivo");
+        }
+    }
+
+    private void validarFiltro(FiltrarEventosDTO dto) throws EventoException {
+        if (dto == null) {
+            throw new EventoException("Dados de filtro não fornecidos");
+        }
+        if (dto.getProdutosIDs() == null || dto.getProdutosIDs().isEmpty()) {
+            throw new EventoException("Conjunto de produtos vazio");
+        }
+        if (dto.getDiaAnterior() < 1 || dto.getDiaAnterior() > D) {
+            throw new EventoException("Dia anterior deve estar entre 1 e " + D);
         }
     }
 }
