@@ -267,65 +267,87 @@ public class ServicoEventos implements IServicoEventos {
         return eventos.size();
     }
 
+    /**
+    * Avança para novo dia com I/O FORA DO LOCK
+    * 
+    * - Copia dados COM lock (rápido)
+    * - Faz I/O SEM lock (não paralisa servidor)
+    * - Rollback automático em caso de falha
+    */
     @Override
     public RespostaDTO novoDia() throws EventoException {
+        // Variáveis para backup
+        Map<Integer, List<Evento>> backup;
+        int diaAnterior;
+        
+        // CÓPIA RÁPIDA COM LOCK
         lock.writeLock().lock();
         try {
-            // Backup do estado
-            int diaAnterior = diaAtual;
-            Map<Integer, List<Evento>> backup = new HashMap<>();
+            diaAnterior = diaAtual;
+
+            // Cópia profunda (para segurança)
+            backup = new HashMap<>();
             for (Map.Entry<Integer, List<Evento>> entry : eventosDiaAtual.entrySet()) {
                 backup.put(entry.getKey(), new ArrayList<>(entry.getValue()));
             }
-            
+
+            diaAtual++;
+
+            // Sinalizar todas as notificações (dia acabou)
+            for (ConditionCounter cc : condsProduto.values()) {
+                cc.c.signalAll();
+            }
+            condsProduto.clear();
+
+            // Limpar eventos
+            eventosDiaAtual.clear();
+            lastProductID = -1;
+            consecutiveCount = 0;
+
+            System.out.println("Novo dia iniciado: " + diaAtual);
+
+        } finally {
+            lock.writeLock().unlock();
+        }
+
+        // I/O SEM LOCK (NÃO PARALISA SERVIDOR)
+        try {
+            // Persistir eventos do dia anterior
+            if (!backup.isEmpty()) {
+                eventoRepository.salvarEventosDia(diaAnterior, backup);
+                System.out.println("Eventos do dia " + diaAnterior + " persistidos (" + 
+                                 backup.size() + " produtos)");
+            }
+
+            // Limpar cache fora da janela D
+            if (cacheManager != null) {
+                int diaForaDaJanela = diaAtual - D - 1;
+                if (diaForaDaJanela >= 0) {
+                    cacheManager.limparDia(diaForaDaJanela);
+                    System.out.println("Dia " + diaForaDaJanela + " saiu da janela (D=" + D + ")");
+                }
+            }
+
+            return RespostaDTO.sucesso("Novo dia iniciado: " + diaAtual);
+
+        } catch (Exception e) {
+            // ROLLBACK EM CASO DE ERRO
+            lock.writeLock().lock();
             try {
-                // 1. Persistir eventos do dia anterior
-                if (!eventosDiaAtual.isEmpty()) {
-                    eventoRepository.salvarEventosDia(diaAnterior, eventosDiaAtual);
-                    System.out.println("Eventos do dia " + diaAnterior + " persistidos no disco");
-                }
-                
-                // 2. Avançar dia
-                diaAtual++;
-                for (ConditionCounter cc : condsProduto.values()) {
-                    cc.c.signalAll();
-                }
-                condsProduto.clear();
-                
-                // 3. Limpar agregações que saem da janela D
-                if (cacheManager != null) {
-                    // Se estamos no dia diaAtual e a janela é D dias,
-                    // o dia mais antigo válido é: diaAtual - D
-                    // Logo, dias anteriores a (diaAtual - D) devem ser removidos
-                    int diaForaDaJanela = diaAtual - D - 1;
-                
-                    if (diaForaDaJanela >= 0) {
-                        cacheManager.limparAgregacoesDia(diaForaDaJanela);
-                        cacheManager.removerSerieDaMemoria(diaForaDaJanela);
-                        System.out.println("Dia " + diaForaDaJanela + " saiu da janela (D=" + D + ")");
-                    }
-                }
-                
-                eventosDiaAtual.clear();
-                
-                System.out.println("========================================");
-                System.out.println("Novo dia iniciado: " + diaAtual);
-                System.out.println("========================================");
-                
-                return RespostaDTO.sucesso("Novo dia iniciado: " + diaAtual);
-                
-            } catch (Exception e) {
-                // Rollback em caso de erro
+                System.err.println("ERRO ao persistir dia " + diaAnterior + ": " + e.getMessage());
+                System.err.println("Executando rollback...");
+
                 diaAtual = diaAnterior;
                 eventosDiaAtual.clear();
                 eventosDiaAtual.putAll(backup);
-                
-                System.err.println("Erro ao avançar dia: " + e.getMessage());
-                throw new EventoException("Erro ao avançar dia: " + e.getMessage(), e);
+
+                System.err.println("Rollback completo. Dia atual: " + diaAtual);
+
+            } finally {
+                lock.writeLock().unlock();
             }
-            
-        } finally {
-            lock.writeLock().unlock();
+
+            throw new EventoException("Erro ao avançar dia (rollback executado): " + e.getMessage(), e);
         }
     }
     
