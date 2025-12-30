@@ -10,6 +10,10 @@ import server.data.repository.IEventoRepository;
 /**
  * Gerenciador de cache para agregações
  * Mantém no máximo S séries em memória (LRU)
+ * 
+ * Se memória cheia (S séries), usa STREAMING ao invés de carregar para memória
+ * Respeita especificação: "informação lida do disco deve ir sendo processada 
+ *   e descartada ao longo da agregação de modo a não exceder o limite S"
  */
 public class CacheManager {
     private final IEventoRepository eventoRepository;
@@ -35,10 +39,10 @@ public class CacheManager {
 
     /**
      * Obtém agregação de UM dia específico para um produto
-     * Usa cache se disponível, senão calcula
+     * Usa streaming se memória cheia
      */
     public Agregacao obterAgregacaoDia(int produtoID, int dia) {
-        // Primeiro tenta ler da cache de agregações
+        // 1. Tentar cache de agregações
         readLock.lock();
         try {
             if (cacheAgregacoes.containsKey(produtoID)) {
@@ -52,7 +56,7 @@ public class CacheManager {
             readLock.unlock();
         }
 
-        // Não está em cache, precisa calcular
+        // 2. Cache MISS - precisa calcular
         writeLock.lock();
         try {
             // Double-check
@@ -63,14 +67,21 @@ public class CacheManager {
                 }
             }
 
-            // Calcular agregação do dia
-            Agregacao agregacao = calcularAgregacaoDia(produtoID, dia);
+            Agregacao agregacao;
             
-            // Adicionar à cache
-            if (!cacheAgregacoes.containsKey(produtoID)) {
-                cacheAgregacoes.put(produtoID, new HashMap<>());
+            //Memória cheia E série não está em memória
+            if (seriesEmMemoria.size() >= S && !seriesEmMemoria.containsKey(dia)) {
+                // STREAMING: Processar sem carregar para memória
+                System.out.println("STREAMING dia " + dia + " (memória cheia, S=" + S + ")");
+                agregacao = eventoRepository.agregarEventosDia(produtoID, dia);
+            } else {
+                // Há espaço OU série já está em memória - usar memória
+                agregacao = calcularComMemoria(produtoID, dia);
             }
-            cacheAgregacoes.get(produtoID).put(dia, agregacao);
+            
+            // Cachear resultado
+            cacheAgregacoes.computeIfAbsent(produtoID, k -> new HashMap<>())
+                           .put(dia, agregacao);
             
             System.out.println("Cache MISS: produto=" + produtoID + " dia=" + dia);
             
@@ -81,35 +92,34 @@ public class CacheManager {
     }
 
     /**
-     * Calcula agregação de um produto em um dia
-     * Gere memória respeitando limite S (política LRU)
-     */
-    private Agregacao calcularAgregacaoDia(int produtoID, int dia) {
-        // Verificar se série já está em memória
+    * Calcula agregação usando memória (série já está OU há espaço)
+    */
+    private Agregacao calcularComMemoria(int produtoID, int dia) {
+        // 1. Verificar se série já está em memória
         if (seriesEmMemoria.containsKey(dia)) {
-            // Atualizar LRU (mover para final da lista)
-            ordemAcesso.remove(Integer.valueOf(dia));
+            // Atualizar LRU (mover para final)
+            ordemAcesso.remove(dia);
             ordemAcesso.add(dia);
-            
-            // Usar série da memória
-            Map<Integer, List<Evento>> seriesDia = seriesEmMemoria.get(dia);
-            List<Evento> eventos = seriesDia.get(produtoID);
+
+            List<Evento> eventos = seriesEmMemoria.get(dia).get(produtoID);
             return agregarEventos(eventos);
         }
 
-        // Série não está em memória - precisa carregar do disco
-        // Se memória cheia (S séries), remover a mais antiga (LRU)
+        // 2. Série não está - precisa carregar do disco
+        // Se memória cheia, remover LRU
         if (seriesEmMemoria.size() >= S) {
-            int diaRemover = ordemAcesso.remove(0);
+            Iterator<Integer> it = ordemAcesso.iterator();
+            int diaRemover = it.next();
+            it.remove();
             seriesEmMemoria.remove(diaRemover);
-            System.out.println("Série do dia " + diaRemover + " removida da memória (limite S=" + S + ")");
+            System.out.println("LRU: removida série dia " + diaRemover);
         }
 
         // Carregar série do disco
         Map<Integer, List<Evento>> seriesDia = eventoRepository.carregarEventosDia(dia);
         seriesEmMemoria.put(dia, seriesDia);
         ordemAcesso.add(dia);
-        System.out.println("Série do dia " + dia + " carregada do disco para memória");
+        System.out.println("Carregada série dia " + dia + " para memória (" + seriesEmMemoria.size() + "/" + S + ")");
 
         // Agregar eventos do produto
         List<Evento> eventos = seriesDia.get(produtoID);
@@ -167,28 +177,13 @@ public class CacheManager {
     }
 
     /**
-     * Remove todas as estruturas de um dia (agregações + série)
+     * Remove todas as estruturas de um dia
      */
     public void limparDia(int dia) {
         writeLock.lock();
         try {
-            // Remover agregações
-            boolean removeuAgregacao = false;
-            for (Map<Integer, Agregacao> cacheProduto : cacheAgregacoes.values()) {
-                if (cacheProduto.remove(dia) != null) {
-                    removeuAgregacao = true;
-                }
-            }
-            
-            // Remover série da memória
-            boolean removeuSerie = seriesEmMemoria.remove(dia) != null;
-            if (removeuSerie) {
-                ordemAcesso.remove(Integer.valueOf(dia));
-            }
-            
-            if (removeuAgregacao || removeuSerie) {
-                System.out.println("Dia " + dia + " completamente removido da cache");
-            }
+            limparAgregacoesDia(dia);
+            removerSerieDaMemoria(dia);
         } finally {
             writeLock.unlock();
         }
@@ -215,21 +210,17 @@ public class CacheManager {
     public String obterEstatisticas() {
         readLock.lock();
         try {
-            int totalAgregacoes = 0;
-            for (Map<Integer, Agregacao> cacheProduto : cacheAgregacoes.values()) {
-                totalAgregacoes += cacheProduto.size();
-            }
+            int totalAgregacoes = cacheAgregacoes.values().stream()
+                .mapToInt(Map::size).sum();
 
-            int totalEventos = 0;
-            for (Map<Integer, List<Evento>> serie : seriesEmMemoria.values()) {
-                for (List<Evento> eventos : serie.values()) {
-                    totalEventos += eventos.size();
-                }
-            }
+            int totalEventos = seriesEmMemoria.values().stream()
+                .flatMap(serie -> serie.values().stream())
+                .mapToInt(List::size).sum();
 
             return String.format(
-                "Cache: %d produtos, %d agregações, %d séries em memória (%d eventos)",
-                cacheAgregacoes.size(), totalAgregacoes, seriesEmMemoria.size(), totalEventos
+                "Cache: %d produtos, %d agregações, %d/%d séries em memória (%d eventos)",
+                cacheAgregacoes.size(), totalAgregacoes, 
+                seriesEmMemoria.size(), S, totalEventos
             );
         } finally {
             readLock.unlock();
