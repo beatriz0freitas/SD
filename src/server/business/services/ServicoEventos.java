@@ -8,6 +8,7 @@ import common.dto.RespostaDTO;
 import common.exceptions.EventoException;
 import common.interfaces.IServicoEventos;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
@@ -31,6 +32,11 @@ public class ServicoEventos implements IServicoEventos {
     private int lastProductID = -1;
     private int consecutiveCount = -1;
 
+    private final Map<Integer, String> nomeProdutos = new ConcurrentHashMap<>();
+
+    public void registrarNomeProduto(int produtoID, String nome) {
+        nomeProdutos.putIfAbsent(produtoID, nome);
+    }
     private class ConditionCounter {
         int interested = 0;
         Condition c;
@@ -165,11 +171,21 @@ public class ServicoEventos implements IServicoEventos {
         }
     }
 
+    /**
+    * Notifica quando um produto atingir n vendas consecutivas
+    * 
+    * Retorna produtoID ao invés de string vazia
+    * Opcionalmente pode manter mapeamento ID -> Nome
+    */
     @Override
     public RespostaDTO notificarVendasConsecutivas(NotificacaoDTO notificacao) throws EventoException {
         int produtoID = notificacao.getArg1();
         int n = notificacao.getArg2();
         
+        if (n <= 0) {
+            throw new EventoException("Número de vendas consecutivas deve ser positivo");
+        }
+
         lock.writeLock().lock();
         try {
             ConditionCounter cc = condsProduto.get(produtoID);
@@ -179,25 +195,24 @@ public class ServicoEventos implements IServicoEventos {
             }
             cc.increment();
 
-            int diaAtual = this.diaAtual;
-
+            int diaInicial = this.diaAtual;
             int base = 0;
 
-            while (diaAtual == this.diaAtual){
+            while (diaInicial == this.diaAtual){
 
                 if (lastProductID != produtoID) { // nao esta numa streak desejada
                     base = 0;
-                } else { // esta numa streak
+                } else {
                     if (base == 0) {
                         // contar a partir de streak existente apos request
                         base = consecutiveCount;
                     }
                     int progress = consecutiveCount - base + 1; // numero de eventos apos base
                     if (progress >= n) {
-                        return RespostaDTO.sucesso("TODO INSERIR NOME DE PRODUTO AQUI?!");
+                        String nome = nomeProdutos.getOrDefault(produtoID, "Produto " + produtoID);
+                        return RespostaDTO.sucesso(nome, produtoID);
                     }
                 }
-
                 try {
                     cc.c.await();
                 } catch (InterruptedException e) {
@@ -206,8 +221,8 @@ public class ServicoEventos implements IServicoEventos {
                 }
             }
             
-            return new RespostaDTO(false, null);
-
+            return RespostaDTO.erro("Dia terminou sem atingir " + n + " vendas consecutivas");
+        
         } finally {
             // decrementar aqui para evitar incoerencias por interrupções
             ConditionCounter cc = condsProduto.get(produtoID);
@@ -219,7 +234,6 @@ public class ServicoEventos implements IServicoEventos {
             }
             lock.writeLock().unlock();
         }
-
     }
 
 
