@@ -1,7 +1,7 @@
 package middleware;
 
-public final class Protocolos {
-    private Protocolos() {}
+public final class MessageTypes {
+    private MessageTypes() {}
 
     // IDs de serviços
     public static final byte SERVICO_AUTENTICACAO = 1;

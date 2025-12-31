@@ -5,7 +5,7 @@ import common.dto.AgregacaoRequestDTO;
 import common.dto.RespostaDTO;
 import common.exceptions.AgregacaoException;
 import common.interfaces.IServicoAgregacoes;
-import middleware.Protocolos;
+import middleware.MessageTypes;
 
 public class ServicoAgregacoesStub implements IServicoAgregacoes {
     private final ClienteMiddleware middleware;
@@ -19,8 +19,8 @@ public class ServicoAgregacoesStub implements IServicoAgregacoes {
         try {
             AgregacaoRequestDTO params = new AgregacaoRequestDTO(produtoID, dias);
             return middleware.invocar(
-                Protocolos.SERVICO_AGREGACOES,
-                Protocolos.AGREG_QTD,
+                MessageTypes.SERVICO_AGREGACOES,
+                MessageTypes.AGREG_QTD,
                 params
             );
         } catch (Exception e) {
@@ -33,8 +33,8 @@ public class ServicoAgregacoesStub implements IServicoAgregacoes {
         try {
             AgregacaoRequestDTO params = new AgregacaoRequestDTO(produtoID, dias);
             return middleware.invocar(
-                Protocolos.SERVICO_AGREGACOES,
-                Protocolos.AGREG_VOLUME,
+                MessageTypes.SERVICO_AGREGACOES,
+                MessageTypes.AGREG_VOLUME,
                 params
             );
         } catch (Exception e) {
@@ -47,8 +47,8 @@ public class ServicoAgregacoesStub implements IServicoAgregacoes {
         try {
             AgregacaoRequestDTO params = new AgregacaoRequestDTO(produtoID, dias);
             return middleware.invocar(
-                Protocolos.SERVICO_AGREGACOES,
-                Protocolos.AGREG_PRECO_MEDIO,
+                MessageTypes.SERVICO_AGREGACOES,
+                MessageTypes.AGREG_PRECO_MEDIO,
                 params
             );
         } catch (Exception e) {
@@ -61,8 +61,8 @@ public class ServicoAgregacoesStub implements IServicoAgregacoes {
         try {
             AgregacaoRequestDTO params = new AgregacaoRequestDTO(produtoID, dias);
             return middleware.invocar(
-                Protocolos.SERVICO_AGREGACOES,
-                Protocolos.AGREG_PRECO_MAXIMO,
+                MessageTypes.SERVICO_AGREGACOES,
+                MessageTypes.AGREG_PRECO_MAXIMO,
                 params
             );
         } catch (Exception e) {

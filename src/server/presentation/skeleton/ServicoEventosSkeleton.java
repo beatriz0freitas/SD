@@ -1,10 +1,9 @@
 package server.presentation.skeleton;
 
-import static middleware.Protocolos.*;
-
 import common.dto.EventoDTO;
-import common.dto.RespostaDTO;
 import common.dto.NotificacaoDTO;
+import common.dto.RespostaDTO;
+import static middleware.MessageTypes.*;
 import server.business.services.ServicoEventos;
 
 public class ServicoEventosSkeleton implements ISkeleton {
