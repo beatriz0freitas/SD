@@ -1,13 +1,19 @@
 package client;
 
+import client.connection.ConnectionPool;
+import client.connection.PooledConnection;
 import common.dto.RespostaDTO;
-import java.io.*;
-import java.net.Socket;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.ReentrantLock;
 import middleware.Message;
 import middleware.Protocolo;
 
+import java.io.*;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
+
+/**
+ * Middleware do cliente com suporte a pool de conexões
+ * Reutiliza conexões TCP para melhor performance
+ */
 public class ClienteMiddleware {
     private final String host;
     private final int porta;
@@ -15,19 +21,44 @@ public class ClienteMiddleware {
     private final ReentrantLock lockEscrita;
     private final AtomicLong contadorPedidos;
     
-    private Socket socket;
-    private DataOutputStream saida;
+    // Pool de conexões compartilhado
+    private ConnectionPool connectionPool;
+    private boolean usePool;
+    
+    // Conexão dedicada (modo antigo, sem pool)
+    private PooledConnection dedicatedConnection;
     private Demultiplexer demux;
     private Thread threadDemux;
+    
     private volatile boolean conectado;
     
+    /**
+     * Construtor padrão (sem pool)
+     */
     public ClienteMiddleware(String host, int porta) {
+        this(host, porta, false, 1);
+    }
+    
+    /**
+     * Construtor com opção de usar pool
+     * @param usePool se true, usa ConnectionPool; se false, usa conexão dedicada
+     * @param maxConnections número máximo de conexões no pool (ignorado se usePool=false)
+     */
+    public ClienteMiddleware(String host, int porta, boolean usePool, int maxConnections) {
         this.host = host;
         this.porta = porta;
         this.protocolo = new Protocolo();
         this.lockEscrita = new ReentrantLock();
         this.contadorPedidos = new AtomicLong(0);
         this.conectado = false;
+        this.usePool = usePool;
+        
+        if (usePool) {
+            this.connectionPool = new ConnectionPool(host, porta, maxConnections);
+            System.out.println("ClienteMiddleware configurado com ConnectionPool (max=" + maxConnections + ")");
+        } else {
+            System.out.println("ClienteMiddleware configurado com conexão dedicada");
+        }
     }
     
     public void conectar() throws IOException {
@@ -35,18 +66,37 @@ public class ClienteMiddleware {
         try {
             if (conectado) return;
             
-            socket = new Socket(host, porta);
-            DataInputStream entrada = new DataInputStream(socket.getInputStream());
-            saida = new DataOutputStream(socket.getOutputStream());
+            if (!usePool) {
+                // Modo antigo: conexão dedicada com demultiplexer
+                conectarDedicado();
+            } else {
+                // Modo pool: conexões são obtidas sob demanda
+                conectado = true;
+                System.out.println("ConnectionPool pronto para uso");
+            }
+            
+        } finally {
+            lockEscrita.unlock();
+        }
+    }
+    
+    private void conectarDedicado() throws IOException {
+        try {
+            dedicatedConnection = new PooledConnection(host, porta, null);
+            DataInputStream entrada = dedicatedConnection.getInputStream();
             
             demux = new Demultiplexer(entrada);
-            threadDemux = new Thread(demux);
+            threadDemux = new Thread(demux, "Demux-" + host + ":" + porta);
             threadDemux.start();
             
             conectado = true;
-            System.out.println("Conectado ao servidor " + host + ":" + porta);
-        } finally {
-            lockEscrita.unlock();
+            System.out.println("Conectado ao servidor " + host + ":" + porta + " (dedicado)");
+            
+        } catch (IOException e) {
+            if (dedicatedConnection != null) {
+                dedicatedConnection.closePhysical();
+            }
+            throw e;
         }
     }
     
@@ -55,12 +105,22 @@ public class ClienteMiddleware {
         try {
             conectado = false;
             
-            if (demux != null) {
-                demux.parar();
+            if (usePool) {
+                if (connectionPool != null) {
+                    connectionPool.close();
+                    System.out.println("ConnectionPool fechado");
+                }
+            } else {
+                if (demux != null) {
+                    demux.parar();
+                }
+                if (dedicatedConnection != null) {
+                    dedicatedConnection.closePhysical();
+                }
             }
             
-            fecharSocket();
             System.out.println("Desconectado do servidor");
+            
         } finally {
             lockEscrita.unlock();
         }
@@ -73,9 +133,80 @@ public class ClienteMiddleware {
             long tag = contadorPedidos.incrementAndGet();
             Message pedido = Message.request(tag, serviceId, methodId, parametros);
             
-            enviarPedido(pedido);
+            if (usePool) {
+                return invocarComPool(pedido);
+            } else {
+                return invocarDedicado(pedido);
+            }
             
-            Object resposta = demux.aguardar(tag);
+        } catch (Exception e) {
+            throw new IOException("Erro ao invocar: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Invocação usando pool de conexões
+     * Obtém conexão, envia pedido, recebe resposta e devolve conexão
+     */
+    private RespostaDTO invocarComPool(Message pedido) throws IOException, InterruptedException {
+        PooledConnection conn = null;
+        try {
+            // Obter conexão do pool
+            conn = connectionPool.getConnection();
+            
+            // Enviar pedido
+            DataOutputStream out = conn.getOutputStream();
+            lockEscrita.lock();
+            try {
+                protocolo.enviar(pedido, out);
+                out.flush();
+            } finally {
+                lockEscrita.unlock();
+            }
+            
+            // Receber resposta (bloqueante)
+            DataInputStream in = conn.getInputStream();
+            Message resposta = (Message) protocolo.receber(in);
+            
+            if (!resposta.isResponse() || resposta.getTag() != pedido.getTag()) {
+                throw new IOException("Resposta inválida recebida");
+            }
+            
+            return (RespostaDTO) resposta.getPayload();
+            
+        } catch (ClassNotFoundException e) {
+            throw new IOException("Erro ao deserializar resposta", e);
+        } catch (IOException e) {
+            // Marcar conexão como inválida
+            if (conn != null) {
+                conn.invalidate();
+            }
+            throw e;
+        } finally {
+            // Sempre devolver conexão ao pool
+            if (conn != null) {
+                conn.close(); // Retorna ao pool
+            }
+        }
+    }
+    
+    /**
+     * Invocação usando conexão dedicada (modo antigo)
+     */
+    private RespostaDTO invocarDedicado(Message pedido) throws IOException {
+        try {
+            // Enviar pedido
+            DataOutputStream out = dedicatedConnection.getOutputStream();
+            lockEscrita.lock();
+            try {
+                protocolo.enviar(pedido, out);
+                out.flush();
+            } finally {
+                lockEscrita.unlock();
+            }
+            
+            // Aguardar resposta via demultiplexer
+            Object resposta = demux.aguardar(pedido.getTag());
             return (RespostaDTO) resposta;
             
         } catch (Exception e) {
@@ -84,7 +215,19 @@ public class ClienteMiddleware {
     }
     
     public boolean isConectado() {
-        return conectado && socket != null && !socket.isClosed();
+        return conectado;
+    }
+    
+    public boolean isUsePool() {
+        return usePool;
+    }
+    
+    public String getConnectionStats() {
+        if (usePool && connectionPool != null) {
+            return connectionPool.getStats();
+        } else {
+            return "Conexão dedicada: " + (dedicatedConnection != null ? "ativa" : "inativa");
+        }
     }
     
     private void garantirConexao() throws IOException {
@@ -99,28 +242,5 @@ public class ClienteMiddleware {
                 lockEscrita.unlock();
             }
         }
-    }
-    
-    private void enviarPedido(Message pedido) throws IOException {
-        lockEscrita.lock();
-        try {
-            protocolo.enviar(pedido, saida);
-        } finally {
-            lockEscrita.unlock();
-        }
-    }
-    
-    private void fecharSocket() {
-        if (socket != null) {
-            try {
-                socket.close();
-            } catch (IOException e) {
-                // Ignora
-            }
-            socket = null;
-        }
-        saida = null;
-        demux = null;
-        threadDemux = null;
     }
 }

@@ -16,7 +16,7 @@ public class PooledConnection implements AutoCloseable {
     private volatile boolean valid;
     private long lastUsed;
     
-    PooledConnection(String host, int porta, ConnectionPool pool) throws IOException {
+    public PooledConnection(String host, int porta, ConnectionPool pool) throws IOException {
         this.socket = new Socket(host, porta);
         this.input = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
         this.output = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
@@ -79,7 +79,7 @@ public class PooledConnection implements AutoCloseable {
      * Fecha fisicamente a conexão
      * Chamado apenas pelo pool quando descarta a conexão
      */
-    void closePhysical() {
+    public void closePhysical() {
         valid = false;
         
         try {
