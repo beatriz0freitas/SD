@@ -87,7 +87,7 @@ public class ServicoAgregacoes implements IServicoAgregacoes {
     
     /**
      * Calcula agregação acumulada dos últimos N dias
-     * Usa cache quando possível via CacheManager
+     * Agregação Multi-Dia usando Repository Streaming
      */
     private Agregacao calcularAgregacao(int produtoID, int dias) {
         int ultimoDia = eventoRepository.obterUltimoDia();
@@ -97,23 +97,55 @@ public class ServicoAgregacoes implements IServicoAgregacoes {
         }
         
         int diasReais = Math.min(dias, ultimoDia + 1);
+        int diaInicio = ultimoDia - diasReais + 1;
+        int diaFim = ultimoDia;
         
-        // Acumular agregações dos últimos N dias
+        // ===== ESTRATÉGIA HÍBRIDA: Cache + Streaming =====
         Agregacao resultado = new Agregacao();
         
-        for (int i = 0; i < diasReais; i++) {
-            int dia = ultimoDia - i;
-            if (dia < 0) break;
-            
-            // Obter agregação do dia via cache
-            Agregacao agregacaoDia = cacheManager.obterAgregacaoDia(produtoID, dia);
-            if (agregacaoDia != null) {
-                resultado.acumular(agregacaoDia);
+        // Tentar usar cache para dias individuais (se já calculado)
+        int diasNaoCache = 0;
+        for (int dia = diaInicio; dia <= diaFim; dia++) {
+            Agregacao cached = tentarCache(produtoID, dia);
+            if (cached != null) {
+                resultado.acumular(cached);
+            } else {
+                diasNaoCache++;
             }
         }
-        
+
+        // Se muitos dias sem cache, usar streaming direto
+        if (diasNaoCache > 5) {
+            System.out.println("Muitos dias sem cache (" + diasNaoCache + ") - usando streaming multi-dia");
+
+            // Streaming otimizado (não passa por cache)
+            Agregacao streamingResult = eventoRepository.agregarEventosMultiDia(
+                produtoID, diaInicio, diaFim
+            );
+            return streamingResult;
+        }
+
+        // Poucos dias sem cache - calcular individualmente e cachear
+        for (int dia = diaInicio; dia <= diaFim; dia++) {
+            Agregacao cached = tentarCache(produtoID, dia);
+            if (cached == null) {
+                // Calcular e cachear este dia
+                cached = cacheManager.obterAgregacaoDia(produtoID, dia);
+                resultado.acumular(cached);
+            }
+        }
+
         resultado.updatePrecoMedio();
         return resultado;
+    }
+    
+    /**
+     * Tenta obter agregação do cache SEM calcular
+     */
+    private Agregacao tentarCache(int produtoID, int dia) {
+        // Implementar acesso direto ao cache (read-only)
+        // Retorna null se não existe
+        return null; // TODO: implementar
     }
     
     private void validarParametros(int produtoID, int dias) throws AgregacaoException {
