@@ -1,4 +1,3 @@
-// ============ middleware/Message.java ============
 package middleware;
 
 import java.io.Serializable;
