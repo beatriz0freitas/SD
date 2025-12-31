@@ -5,7 +5,6 @@ import java.util.HashSet;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -31,23 +30,16 @@ public class ThreadPoolImpl implements ThreadPool {
     private final int maxThreads;
     private final int maxQueueSize;
     
-    // Contador para dar nomes únicos aos workers
-    private final AtomicInteger workerIdCounter = new AtomicInteger(0);
-
+    // Contador protegido por lock (em vez de AtomicInteger)
+    private int workerIdCounter = 0;
     private int workerCount = 0;
     private boolean shutdown = false;
     private boolean shutdownNow = false;
 
-    /**
-     * Cria uma thread pool com número máximo de threads e fila ilimitada
-     */
     public ThreadPoolImpl(int maxThreads) {
         this(maxThreads, Integer.MAX_VALUE);
     }
     
-    /**
-     * Cria uma thread pool com número máximo de threads e capacidade de fila
-     */
     public ThreadPoolImpl(int maxThreads, int maxQueueSize) {
         if (maxThreads <= 0) {
             throw new IllegalArgumentException("maxThreads deve ser > 0");
@@ -67,24 +59,19 @@ public class ThreadPoolImpl implements ThreadPool {
 
         lock.lock();
         try {
-            // Rejeita novas tasks após shutdown
             if (shutdown) {
                 return false;
             }
 
-            // Rejeita se a fila estiver cheia
             if (taskQueue.size() >= maxQueueSize) {
                 return false;
             }
 
-            // Adiciona task à fila
             taskQueue.add(task);
 
-            // Cria novo worker se ainda não atingiu o máximo
             if (workerCount < maxThreads) {
                 startWorker();
             } else {
-                // Acorda um worker existente
                 notEmpty.signal();
             }
             
@@ -99,16 +86,12 @@ public class ThreadPoolImpl implements ThreadPool {
         lock.lock();
         try {
             if (shutdown) {
-                return; // já foi chamado
+                return;
             }
             
             shutdown = true;
-
-            // Acorda todos os workers para que possam processar
-            // as tasks pendentes e terminar quando a fila esvaziar
             notEmpty.signalAll();
 
-            // Se já não houver workers, sinaliza término imediato
             if (workerCount == 0) {
                 termination.signalAll();
             }
@@ -122,25 +105,22 @@ public class ThreadPoolImpl implements ThreadPool {
         lock.lock();
         try {
             if (shutdownNow) {
-                return; // já foi chamado
+                return;
             }
             
             shutdown = true;
             shutdownNow = true;
 
-            // Descarta todas as tasks pendentes
             int discarded = taskQueue.size();
             taskQueue.clear();
             if (discarded > 0) {
                 System.out.println("[ThreadPool] " + discarded + " tasks pendentes descartadas");
             }
 
-            // Interrompe todos os workers
             for (Thread t : workers) {
                 t.interrupt();
             }
 
-            // Acorda todos
             notEmpty.signalAll();
             termination.signalAll();
         } finally {
@@ -158,14 +138,13 @@ public class ThreadPoolImpl implements ThreadPool {
 
         lock.lock();
         try {
-            // Pool está terminada quando shutdown foi chamado e não há workers vivos
             while (!isTerminated()) {
                 if (nanos <= 0L) {
-                    return false; // timeout
+                    return false;
                 }
                 nanos = termination.awaitNanos(nanos);
             }
-            return true; // terminou com sucesso
+            return true;
         } finally {
             lock.unlock();
         }
@@ -186,9 +165,6 @@ public class ThreadPoolImpl implements ThreadPool {
         }
     }
     
-    /**
-     * Retorna o número de tasks pendentes na fila
-     */
     public int getQueueSize() {
         lock.lock();
         try {
@@ -198,34 +174,29 @@ public class ThreadPoolImpl implements ThreadPool {
         }
     }
     
-    /**
-     * Verifica se a pool está terminada
-     * (shutdown foi chamado E não há workers vivos)
-     */
     private boolean isTerminated() {
-        // lock já deve estar adquirido
         return shutdown && workerCount == 0;
     }
 
     /**
      * Cria e inicia um novo worker thread
-     * ATENÇÃO: deve ser chamado com o lock adquirido
+     * DEVE ser chamado com o lock adquirido
      */
     private void startWorker() {
-        int workerId = workerIdCounter.incrementAndGet();
+        // Incrementar counter (protegido por lock)
+        workerIdCounter++;
+        int workerId = workerIdCounter;
+        
         Thread worker = new Thread(
             this::runWorkerLoop, 
             "ThreadPool-worker-" + workerId
         );
-        worker.setDaemon(false); // não é daemon para garantir término gracioso
+        worker.setDaemon(false);
         workers.add(worker);
         workerCount++;
         worker.start();
     }
 
-    /**
-     * Loop principal de um worker thread
-     */
     private void runWorkerLoop() {
         try {
             while (true) {
@@ -233,34 +204,28 @@ public class ThreadPoolImpl implements ThreadPool {
 
                 lock.lock();
                 try {
-                    // Aguarda por trabalho
                     while (taskQueue.isEmpty() && !shutdown) {
                         notEmpty.await();
                     }
 
-                    // Se está em shutdownNow, termina imediatamente
                     if (shutdownNow) {
                         return;
                     }
 
-                    // Se está em shutdown e fila vazia, termina
                     if (shutdown && taskQueue.isEmpty()) {
                         return;
                     }
 
-                    // Obtém próxima task
                     task = taskQueue.poll();
                     
                 } finally {
                     lock.unlock();
                 }
 
-                // Executa a task fora do lock
                 if (task != null) {
                     try {
                         task.run();
                     } catch (Throwable t) {
-                        // Captura qualquer exceção/erro para evitar que o worker morra
                         System.err.println("[ThreadPool] Erro ao executar task: " + t.getMessage());
                         t.printStackTrace();
                     }
@@ -269,16 +234,13 @@ public class ThreadPoolImpl implements ThreadPool {
             
         } catch (InterruptedException e) {
             // Worker foi interrompido (shutdownNow)
-            // Thread vai terminar normalmente
             
         } finally {
-            // Cleanup: remove worker da pool
             lock.lock();
             try {
                 workerCount--;
                 workers.remove(Thread.currentThread());
 
-                // Se foi o último worker e está em shutdown, sinaliza término
                 if (shutdown && workerCount == 0) {
                     termination.signalAll();
                 }
