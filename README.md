@@ -172,16 +172,22 @@ OBRIGATÓRIO
 
 Alta perioridade
 //TODO Meter os clientes a fechar quando o server fecha (acho que é melhor porque se voltarmos a abrir eles nao reconectam)
+
  podemos meter o admin a pode eliminar uses etc (apesar de termos o scrpit para elminimar tudo) - > done
+
 melhorar tratamento de erros (criar mais exceções e guardar a stack tree ) -> semi done
+
 //TODO mais concorrencia
 
 Média perioridade
 //TODO fazer o nosso proprio threadpoll (nao acho necessario ) -> done
 
 substituir AtomicInteger's... -> done
+
 Pool de conexões reutilizáveis (cada midleware do cliente gera uma nova conexcao) -> done
+
  Logging estruturado -> semi done
+
 //TODO ajustar interface (tem muitas responsabilidades)
 
 //TODO: Integrar `ConnectionPool` no `ClienteMiddleware`
@@ -190,4 +196,4 @@ Pool de conexões reutilizáveis (cada midleware do cliente gera uma nova conexc
 
 //TODO: Implementar métricas de performance
 
-//TODO: Adicionar testes de concorrência
+//TODO: Adicionar testes de concorrência -> semi done - separar entre unit, integration, stress

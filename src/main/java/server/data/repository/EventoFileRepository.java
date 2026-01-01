@@ -1,0 +1,260 @@
+package server.data.repository;
+
+import java.io.*;
+import java.util.*;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+import server.business.domain.Agregacao;
+import server.business.domain.Evento;
+
+/**
+ * Persistência de eventos em ficheiros binários
+ * Thread-safe
+ */
+public class EventoFileRepository implements IEventoRepository {
+    private final String pastaBase;
+    private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
+    private final Lock readLock = rwLock.readLock();
+    private final Lock writeLock = rwLock.writeLock();
+    
+    public EventoFileRepository(String pastaBase) {
+        this.pastaBase = pastaBase;
+        new File(pastaBase).mkdirs();
+    }
+    
+    private File ficheiroDia(int dia) {
+        return new File(pastaBase, "eventos_dia_" + dia + ".dat");
+    }
+    
+    @Override
+    public void salvarEventosDia(int dia, Map<Integer, List<Evento>> eventosPorProduto) {
+        writeLock.lock();
+        try {
+            File ficheiro = ficheiroDia(dia);
+            
+            // Ordenar produtos para facilitar leitura posterior
+            List<Integer> produtosOrdenados = new ArrayList<>(eventosPorProduto.keySet());
+            Collections.sort(produtosOrdenados);
+            
+            // Escrever ficheiro binário
+            try (DataOutputStream out = new DataOutputStream(
+                    new BufferedOutputStream(new FileOutputStream(ficheiro)))) {
+                
+                // Número de produtos
+                out.writeInt(produtosOrdenados.size());
+                
+                // Para cada produto
+                for (int produtoID : produtosOrdenados) {
+                    List<Evento> eventos = eventosPorProduto.get(produtoID);
+                    
+                    out.writeInt(produtoID);
+                    out.writeInt(eventos.size());
+                    
+                    // Escrever cada evento
+                    for (Evento e : eventos) {
+                        out.writeInt(e.getQuantidade());
+                        out.writeDouble(e.getPreco());
+                    }
+                }
+                out.flush();
+                
+                System.out.println("Dia " + dia + " salvo: " + produtosOrdenados.size() + " produtos");
+                
+            } catch (IOException e) {
+                System.err.println("Erro ao salvar dia " + dia + ": " + e.getMessage());
+                throw new RuntimeException("Falha ao persistir eventos", e);
+            }
+        } finally {
+            writeLock.unlock();
+        }
+    }
+    
+    @Override
+    public Map<Integer, List<Evento>> carregarEventosDia(int dia) {
+        readLock.lock();
+        try {
+            Map<Integer, List<Evento>> resultado = new HashMap<>();
+            File ficheiro = ficheiroDia(dia);
+            
+            if (!ficheiro.exists()) {
+                return resultado;
+            }
+            
+            try (DataInputStream in = new DataInputStream(
+                    new BufferedInputStream(new FileInputStream(ficheiro)))) {
+                
+                int numProdutos = in.readInt();
+                
+                for (int i = 0; i < numProdutos; i++) {
+                    int produtoID = in.readInt();
+                    int numEventos = in.readInt();
+                    
+                    List<Evento> eventos = new ArrayList<>();
+                    for (int j = 0; j < numEventos; j++) {
+                        int quantidade = in.readInt();
+                        double preco = in.readDouble();
+                        eventos.add(new Evento(produtoID, quantidade, preco));
+                    }
+                    
+                    resultado.put(produtoID, eventos);
+                }
+                
+                System.out.println("Dia " + dia + " carregado: " + numProdutos + " produtos");
+                
+            } catch (IOException e) {
+                System.err.println("Erro ao carregar dia " + dia + ": " + e.getMessage());
+            }
+            
+            return resultado;
+        } finally {
+            readLock.unlock();
+        }
+    }
+    
+    @Override
+    public Agregacao agregarEventosDia(int produtoID, int dia) {
+        readLock.lock();
+        try {
+            File ficheiro = ficheiroDia(dia);
+            
+            if (!ficheiro.exists()) {
+                return new Agregacao(); // Dia não existe
+            }
+            
+            // Ler ficheiro procurando pelo produto específico
+            try (RandomAccessFile raf = new RandomAccessFile(ficheiro, "r")) {
+                int numProdutos = raf.readInt();
+                
+                for (int i = 0; i < numProdutos; i++) {
+                    int pid = raf.readInt();
+                    int numEventos = raf.readInt();
+                    
+                    if (pid == produtoID) {
+                        // Produto encontrado - agregar eventos
+                        Agregacao agregacao = new Agregacao();
+                        for (int j = 0; j < numEventos; j++) {
+                            int quantidade = raf.readInt();
+                            double preco = raf.readDouble();
+                            agregacao.update(quantidade, preco);
+                        }
+                        agregacao.updatePrecoMedio();
+                        return agregacao;
+                        
+                    } else if (pid < produtoID) {
+                        // Skip eventos deste produto (12 bytes = int + double)
+                        raf.skipBytes(numEventos * 12);
+                        
+                    } else {
+                        // pid > produtoID - produto não existe
+                        break;
+                    }
+                }
+                
+            } catch (IOException e) {
+                System.err.println("Erro ao agregar eventos: " + e.getMessage());
+            }
+            
+            // Produto não encontrado
+            return new Agregacao();
+            
+        } finally {
+            readLock.unlock();
+        }
+    }
+    
+    @Override
+    public int obterUltimoDia() {
+        readLock.lock();
+        try {
+            File dir = new File(pastaBase);
+            if (!dir.isDirectory()) {
+                return -1;
+            }
+            
+            File[] ficheiros = dir.listFiles((d, nome) ->
+                nome.startsWith("eventos_dia_") && nome.endsWith(".dat")
+            );
+            
+            if (ficheiros == null || ficheiros.length == 0) {
+                return -1;
+            }
+            
+            // Encontrar dia máximo
+            int maxDia = -1;
+            for (File f : ficheiros) {
+                try {
+                    String nome = f.getName();
+                    // "eventos_dia_".length() = 12, ".dat".length() = 4
+                    String diaStr = nome.substring(12, nome.length() - 4);
+                    int dia = Integer.parseInt(diaStr);
+                    if (dia > maxDia) {
+                        maxDia = dia;
+                    }
+                } catch (Exception e) {
+                    // Ignorar ficheiros com nome inválido
+                }
+            }
+            
+            return maxDia;
+            
+        } finally {
+            readLock.unlock();
+        }
+    }
+    
+    @Override
+    public boolean existeDia(int dia) {
+        readLock.lock();
+        try {
+            return ficheiroDia(dia).exists();
+        } finally {
+            readLock.unlock();
+        }
+    }
+
+    @Override
+    public Agregacao agregarEventosMultiDia(int produtoID, int diaInicio, int diaFim) {
+        Agregacao resultado = new Agregacao();
+
+        readLock.lock();
+        try {
+            for (int dia = diaInicio; dia <= diaFim; dia++) {
+                File ficheiro = ficheiroDia(dia);
+                if (!ficheiro.exists()) {
+                    continue;
+                }
+
+                try (RandomAccessFile raf = new RandomAccessFile(ficheiro, "r")) {
+                    int numProdutos = raf.readInt();
+
+                    for (int i = 0; i < numProdutos; i++) {
+                        int pid = raf.readInt();
+                        int numEventos = raf.readInt();
+
+                        if (pid == produtoID) {
+                            for (int j = 0; j < numEventos; j++) {
+                                int quantidade = raf.readInt();
+                                double preco = raf.readDouble();
+                                resultado.update(quantidade, preco);
+                            }
+                            break;
+                        } else {
+                            raf.skipBytes(numEventos * 12);
+                        }
+                    }
+                } catch (IOException e) {
+                    System.err.println("Erro no streaming multi-dia (dia " + dia + "): " + e.getMessage());
+                }
+            }
+
+            resultado.updatePrecoMedio();
+            return resultado;
+
+        } finally {
+            readLock.unlock();
+        }
+    }
+
+}
