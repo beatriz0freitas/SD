@@ -42,11 +42,13 @@ public class CacheManager {
      * Usa streaming se memória cheia
      */
     public Agregacao obterAgregacaoDia(int produtoID, int dia) {
-        // 1. Tentar cache de agregações
+
+        // ===== FASE 1: tentativa rápida (READ LOCK) =====
         readLock.lock();
         try {
-            if (cacheAgregacoes.containsKey(produtoID)) {
-                Agregacao existente = cacheAgregacoes.get(produtoID).get(dia);
+            Map<Integer, Agregacao> porProduto = cacheAgregacoes.get(produtoID);
+            if (porProduto != null) {
+                Agregacao existente = porProduto.get(dia);
                 if (existente != null) {
                     System.out.println("Cache HIT: produto=" + produtoID + " dia=" + dia);
                     return existente;
@@ -55,41 +57,46 @@ public class CacheManager {
         } finally {
             readLock.unlock();
         }
-
-        // 2. Cache MISS - precisa calcular
+    
+        // ===== FASE 2: cálculo SEM locks =====
+        Agregacao calculada;
+    
+        boolean usarStreaming;
+        readLock.lock();
+        try {
+            usarStreaming = seriesEmMemoria.size() >= S && !seriesEmMemoria.containsKey(dia);
+        } finally {
+            readLock.unlock();
+        }
+    
+        if (usarStreaming) {
+            System.out.println("STREAMING dia " + dia + " (memória cheia, S=" + S + ")");
+            calculada = eventoRepository.agregarEventosDia(produtoID, dia);
+        } else {
+            calculada = calcularComMemoria(produtoID, dia);
+        }
+    
+        // ===== FASE 3: inserir no cache (WRITE LOCK) =====
         writeLock.lock();
         try {
-            // Double-check
-            if (cacheAgregacoes.containsKey(produtoID)) {
-                Agregacao existente = cacheAgregacoes.get(produtoID).get(dia);
-                if (existente != null) {
-                    return existente;
-                }
+            // Double-check (outra thread pode ter inserido entretanto)
+            Map<Integer, Agregacao> porProduto =
+                cacheAgregacoes.computeIfAbsent(produtoID, k -> new HashMap<>());
+    
+            Agregacao existente = porProduto.get(dia);
+            if (existente != null) {
+                return existente;
             }
-
-            Agregacao agregacao;
-            
-            //Memória cheia E série não está em memória
-            if (seriesEmMemoria.size() >= S && !seriesEmMemoria.containsKey(dia)) {
-                // STREAMING: Processar sem carregar para memória
-                System.out.println("STREAMING dia " + dia + " (memória cheia, S=" + S + ")");
-                agregacao = eventoRepository.agregarEventosDia(produtoID, dia);
-            } else {
-                // Há espaço OU série já está em memória - usar memória
-                agregacao = calcularComMemoria(produtoID, dia);
-            }
-            
-            // Cachear resultado
-            cacheAgregacoes.computeIfAbsent(produtoID, k -> new HashMap<>())
-                           .put(dia, agregacao);
-            
+    
+            porProduto.put(dia, calculada);
             System.out.println("Cache MISS: produto=" + produtoID + " dia=" + dia);
-            
-            return agregacao;
+            return calculada;
+    
         } finally {
             writeLock.unlock();
         }
     }
+    
 
     /**
     * Calcula agregação usando memória (série já está OU há espaço)
@@ -226,6 +233,18 @@ public class CacheManager {
             readLock.unlock();
         }
     }
+    
+    public Agregacao getAgregacaoSeExistir(int produtoID, int dia) {
+        readLock.lock();
+        try {
+            Map<Integer, Agregacao> porProduto = cacheAgregacoes.get(produtoID);
+            if (porProduto == null) return null;
+            return porProduto.get(dia);
+        } finally {
+            readLock.unlock();
+        }
+    }
+    
 }
 
 
