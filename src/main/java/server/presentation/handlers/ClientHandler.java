@@ -4,6 +4,7 @@ import java.io.*;
 import java.net.Socket;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 
 import common.concurrency.ThreadPool;
 import common.dto.RespostaDTO;
@@ -21,13 +22,16 @@ public class ClientHandler implements Runnable {
     private final Protocolo proto;
     private final ThreadPool requestExecutor;
     private final Lock writeLock;
+    private final Consumer<Socket> onClientDisconnect;
     
-    public ClientHandler(Socket socket, RequestDispatcher dispatcher, ThreadPool requestExecutor) {
+    public ClientHandler(Socket socket, RequestDispatcher dispatcher, 
+                        ThreadPool requestExecutor, Consumer<Socket> onClientDisconnect) {
         this.socket = socket;
         this.dispatcher = dispatcher;
         this.proto = new Protocolo();
         this.requestExecutor = requestExecutor;
         this.writeLock = new ReentrantLock();
+        this.onClientDisconnect = onClientDisconnect;
     }
     
     @Override
@@ -46,14 +50,16 @@ public class ClientHandler implements Runnable {
                 }
                 
                 if (!requestExecutor.submit(new RequestProcessor(msg, out))) {
-                    enviarErro(msg.getTag(), "Fila de pedidos cheia (ou shutdown). Tente novamente mais tarde.", out);
+                    enviarErro(msg.getTag(), 
+                             "Fila de pedidos cheia (ou shutdown). Tente novamente mais tarde.", 
+                             out);
                 }
             }
             
         } catch (EOFException e) {
             System.out.println("Cliente desconectado: " + socket.getInetAddress());
         } catch (Exception e) {
-            System.err.println("Erro ao receber pedido: " + e.getMessage());
+            System.err.println("Erro ao processar cliente: " + e.getMessage());
         } finally {
             encerrar();
         }
@@ -107,6 +113,11 @@ public class ClientHandler implements Runnable {
             }
         } catch (IOException e) {
             // Ignora
+        }
+        
+        // Notificar servidor sobre desconexão
+        if (onClientDisconnect != null) {
+            onClientDisconnect.accept(socket);
         }
     }
 }

@@ -1,6 +1,7 @@
 package common.interfaces;
 
 import common.dto.EventoDTO;
+import common.dto.FiltrarEventosDTO;
 import common.dto.NotificacaoDTO;
 import common.dto.RespostaDTO;
 import common.exceptions.EventoException;
@@ -34,6 +35,14 @@ public interface IServicoEventos {
      */
     RespostaDTO notificarVendasConsecutivas(NotificacaoDTO notificacao) throws EventoException;
 
+    /**
+     * Filtra eventos de uma série temporal específica
+     * @param filtro conjunto de produtos e dia anterior
+     * @return eventos filtrados
+     * @throws EventoException se parâmetros inválidos
+     */
+    RespostaDTO filtrarEventos(FiltrarEventosDTO filtro) throws EventoException;
+    
     /**
      * Lista eventos do dia atual (apenas admin)
      * @return lista de eventos

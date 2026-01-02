@@ -2,9 +2,7 @@ package server.presentation.skeleton;
 
 import static middleware.MessageTypes.*;
 
-import common.dto.EventoDTO;
-import common.dto.NotificacaoDTO;
-import common.dto.RespostaDTO;
+import common.dto.*;
 import server.business.services.ServicoEventos;
 
 public class ServicoEventosSkeleton implements ISkeleton {
@@ -28,6 +26,8 @@ public class ServicoEventosSkeleton implements ISkeleton {
                     return servico.notificarVendaEspecifica((NotificacaoDTO) parametros);
                 case EVENTO_NOTIFICAR_VENDAS_CONSECUTIVAS:
                     return servico.notificarVendasConsecutivas((NotificacaoDTO) parametros);
+                case EVENTO_FILTRAR:
+                    return servico.filtrarEventos((FiltrarEventosDTO) parametros);
                 default:
                     return RespostaDTO.erro("Método desconhecido: " + methodId);
             }

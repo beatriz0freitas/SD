@@ -11,8 +11,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Middleware do cliente com suporte a pool de conexões
- * Reutiliza conexões TCP para melhor performance
+ * Middleware do cliente com suporte a pool de conexões e shutdown gracioso
  */
 public class ClienteMiddleware {
     private final String host;
@@ -29,8 +28,10 @@ public class ClienteMiddleware {
     private PooledConnection dedicatedConnection;
     private Demultiplexer demux;
     private Thread threadDemux;
+    private ClientShutdownHandler shutdownHandler;
     
     private volatile boolean conectado;
+    private volatile boolean serverShutdown;
     
     /**
      * Construtor padrão (sem pool)
@@ -51,7 +52,14 @@ public class ClienteMiddleware {
         this.lockEscrita = new ReentrantLock();
         this.contadorPedidos = new AtomicLong(0);
         this.conectado = false;
+        this.serverShutdown = false;
         this.usePool = usePool;
+        
+        // Criar shutdown handler
+        this.shutdownHandler = new ClientShutdownHandler(() -> {
+            serverShutdown = true;
+            conectado = false;
+        });
         
         if (usePool) {
             this.connectionPool = new ConnectionPool(host, porta, maxConnections);
@@ -65,6 +73,10 @@ public class ClienteMiddleware {
         lockEscrita.lock();
         try {
             if (conectado) return;
+            
+            if (serverShutdown) {
+                throw new IOException("Servidor foi encerrado. Não é possível reconectar.");
+            }
             
             if (!usePool) {
                 // Modo antigo: conexão dedicada com demultiplexer
@@ -85,7 +97,7 @@ public class ClienteMiddleware {
             dedicatedConnection = new PooledConnection(host, porta, null);
             DataInputStream entrada = dedicatedConnection.getInputStream();
             
-            demux = new Demultiplexer(entrada);
+            demux = new Demultiplexer(entrada, shutdownHandler);
             threadDemux = new Thread(demux, "Demux-" + host + ":" + porta);
             threadDemux.start();
             
@@ -127,6 +139,10 @@ public class ClienteMiddleware {
     }
     
     public RespostaDTO invocar(byte serviceId, byte methodId, Object parametros) throws IOException {
+        if (serverShutdown) {
+            throw new IOException("Servidor foi encerrado. Operação não disponível.");
+        }
+        
         garantirConexao();
         
         try {
@@ -140,21 +156,21 @@ public class ClienteMiddleware {
             }
             
         } catch (Exception e) {
+            if (serverShutdown) {
+                throw new IOException("Servidor encerrado: " + e.getMessage(), e);
+            }
             throw new IOException("Erro ao invocar: " + e.getMessage(), e);
         }
     }
     
     /**
      * Invocação usando pool de conexões
-     * Obtém conexão, envia pedido, recebe resposta e devolve conexão
      */
     private RespostaDTO invocarComPool(Message pedido) throws IOException, InterruptedException {
         PooledConnection conn = null;
         try {
-            // Obter conexão do pool
             conn = connectionPool.getConnection();
             
-            // Enviar pedido
             DataOutputStream out = conn.getOutputStream();
             lockEscrita.lock();
             try {
@@ -164,7 +180,6 @@ public class ClienteMiddleware {
                 lockEscrita.unlock();
             }
             
-            // Receber resposta (bloqueante)
             DataInputStream in = conn.getInputStream();
             Message resposta = (Message) protocolo.receber(in);
             
@@ -172,30 +187,33 @@ public class ClienteMiddleware {
                 throw new IOException("Resposta inválida recebida");
             }
             
-            return (RespostaDTO) resposta.getPayload();
+            // Verificar se é mensagem de shutdown
+            Object payload = resposta.getPayload();
+            if (shutdownHandler.processMessage(payload)) {
+                throw new IOException("Servidor encerrado");
+            }
+            
+            return (RespostaDTO) payload;
             
         } catch (ClassNotFoundException e) {
             throw new IOException("Erro ao deserializar resposta", e);
         } catch (IOException e) {
-            // Marcar conexão como inválida
             if (conn != null) {
                 conn.invalidate();
             }
             throw e;
         } finally {
-            // Sempre devolver conexão ao pool
             if (conn != null) {
-                conn.close(); // Retorna ao pool
+                conn.close();
             }
         }
     }
     
     /**
-     * Invocação usando conexão dedicada (modo antigo)
+     * Invocação usando conexão dedicada
      */
     private RespostaDTO invocarDedicado(Message pedido) throws IOException {
         try {
-            // Enviar pedido
             DataOutputStream out = dedicatedConnection.getOutputStream();
             lockEscrita.lock();
             try {
@@ -205,7 +223,6 @@ public class ClienteMiddleware {
                 lockEscrita.unlock();
             }
             
-            // Aguardar resposta via demultiplexer
             Object resposta = demux.aguardar(pedido.getTag());
             return (RespostaDTO) resposta;
             
@@ -215,7 +232,11 @@ public class ClienteMiddleware {
     }
     
     public boolean isConectado() {
-        return conectado;
+        return conectado && !serverShutdown;
+    }
+    
+    public boolean isServerShutdown() {
+        return serverShutdown;
     }
     
     public boolean isUsePool() {
@@ -231,6 +252,10 @@ public class ClienteMiddleware {
     }
     
     private void garantirConexao() throws IOException {
+        if (serverShutdown) {
+            throw new IOException("Servidor foi encerrado");
+        }
+        
         if (!isConectado()) {
             lockEscrita.lock();
             try {

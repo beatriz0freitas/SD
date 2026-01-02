@@ -6,10 +6,10 @@ import java.net.Socket;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import common.concurrency.*;
+import middleware.ServerShutdownHandler;
 import server.config.ServerConfig;
 import server.presentation.handlers.ClientHandler;
 import server.presentation.skeleton.RequestDispatcher;
@@ -19,33 +19,27 @@ public class Server {
     private final int D;
     private final int S;
     private ServerSocket serverSocket;
-        
-    // Lock para proteger a coleção de sockets ativos
-    private final Lock l = new ReentrantLock();
+    
+    private final ReentrantLock clientesLock = new ReentrantLock();
     private final Set<Socket> clientesAtivos = new HashSet<>();
     
-    // Pool para threads de I/O dos clientes (1 thread por cliente)
     private final ThreadPool clientHandlerPool;
-    
-    // Pool para processar requests (partilhado por todos os clientes)
     private final ThreadPool requestPool;
     
     private volatile boolean ativo;
     private final RequestDispatcher dispatcher;
+    private ServerShutdownHandler shutdownHandler;
     
     public Server(int porta, int D, int S) {
         this.porta = porta;
         this.D = D;
         this.S = S;
         
-        // Pool para threads de I/O dos clientes
-        // Limita número de clientes simultâneos
         this.clientHandlerPool = new ThreadPoolImpl(
             ServerConfig.N_CLIENT_HANDLERS,
-            ServerConfig.N_CLIENT_HANDLERS  // fila = maxThreads (rejeita se cheio)
+            ServerConfig.N_CLIENT_HANDLERS
         );
         
-        // Pool para processar requests (CPU/I/O bound)
         this.requestPool = new ThreadPoolImpl(
             ServerConfig.N_WORKERS_SERVER,
             ServerConfig.REQUEST_QUEUE_SIZE
@@ -53,6 +47,7 @@ public class Server {
         
         this.ativo = false;
         this.dispatcher = RequestDispatcher.criar(D, S);
+        this.shutdownHandler = new ServerShutdownHandler(clientesAtivos, clientesLock);
     }
     
     public void iniciar() {
@@ -64,27 +59,21 @@ public class Server {
             
             while (ativo) {
                 try {
-                    // Bloqueia até aceitar uma conexão
                     Socket clientSocket = serverSocket.accept();
                     
-                    // Adiciona à lista de ativos
                     adicionarCliente(clientSocket);
                     
-                    // Cria handler com callback de remoção
                     ClientHandler handler = new ClientHandler(
                         clientSocket,
                         dispatcher,
-                        requestPool
+                        requestPool,
+                        this::removerCliente
                     );
                     
-                    
-                    // Submete à pool (em vez de criar thread manualmente)
                     if (!clientHandlerPool.submit(handler)) {
-                        // Pool recusou: está cheia ou em shutdown
                         System.err.println("Pool de handlers cheia! Rejeitando cliente " + 
                                          clientSocket.getInetAddress());
                         
-                        // Fecha socket e remove da lista
                         try {
                             clientSocket.close();
                         } catch (IOException e) {
@@ -97,7 +86,6 @@ public class Server {
                     if (ativo) {
                         System.err.println("Erro ao aceitar conexão: " + e.getMessage());
                     }
-                    // Se ativo=false, é shutdown normal
                 }
             }
             
@@ -110,38 +98,32 @@ public class Server {
         System.out.println("\n" + "=".repeat(50));
         System.out.println("  ENCERRANDO SERVIDOR");
         System.out.println("=".repeat(50));
-    
+        
+        // Passo 0: Notificar clientes sobre shutdown
+        System.out.println("\n[0/4] Notificando clientes...");
+        shutdownHandler.notificarClientes("Servidor sendo encerrado");
+        
         // Passo 1: Para de aceitar novas conexões
         ativo = false;
         fecharServerSocket();
-    
+        
         // Passo 2: Fecha sockets de clientes
-        // (acorda threads bloqueadas em I/O)
         System.out.println("\n[1/4] Fechando sockets de clientes...");
         fecharSocketsClientes();
-    
+        
         // Passo 3: Encerra pool de client handlers
         System.out.println("\n[2/4] Encerrando client handlers...");
-        encerrarPoolComTimeout(
-            clientHandlerPool,
-            "Client Handler Pool",
-            5
-        );
-    
+        encerrarPoolComTimeout(clientHandlerPool, "Client Handler Pool", 5);
+        
         // Passo 4: Encerra pool de requests
         System.out.println("\n[3/4] Encerrando request pool...");
-        encerrarPoolComTimeout(
-            requestPool,
-            "Request Pool",
-            10
-        );
-    
+        encerrarPoolComTimeout(requestPool, "Request Pool", 10);
+        
         System.out.println("\n[4/4] Cleanup concluído.");
         System.out.println("=".repeat(50));
         System.out.println("  SERVIDOR ENCERRADO COM SUCESSO");
         System.out.println("=".repeat(50) + "\n");
     }
-    
     
     private void imprimirBanner() {
         System.out.println("=".repeat(50));
@@ -159,28 +141,28 @@ public class Server {
     }
     
     private void adicionarCliente(Socket socket) {
-        l.lock();
+        clientesLock.lock();
         try {
             clientesAtivos.add(socket);
             System.out.println("[Server] Cliente conectado: " + socket.getInetAddress() + 
                              " (Total: " + clientesAtivos.size() + ")");
         } finally {
-            l.unlock();
+            clientesLock.unlock();
         }
     }
     
     private void removerCliente(Socket socket) {
-        l.lock();
+        clientesLock.lock();
         try {
             if (clientesAtivos.remove(socket)) {
                 System.out.println("[Server] Cliente removido: " + socket.getInetAddress() + 
                                  " (Restantes: " + clientesAtivos.size() + ")");
             }
         } finally {
-            l.unlock();
+            clientesLock.unlock();
         }
     }
-
+    
     private void fecharServerSocket() {
         try {
             if (serverSocket != null && !serverSocket.isClosed()) {
@@ -191,9 +173,9 @@ public class Server {
             System.err.println("Erro ao fechar ServerSocket: " + e.getMessage());
         }
     }
-
+    
     private void fecharSocketsClientes() {
-        l.lock();
+        clientesLock.lock();
         try {
             int count = 0;
             for (Socket s : clientesAtivos) {
@@ -215,7 +197,7 @@ public class Server {
             
             clientesAtivos.clear();
         } finally {
-            l.unlock();
+            clientesLock.unlock();
         }
     }
     
@@ -233,7 +215,6 @@ public class Server {
                 System.err.println("  ✗ " + nome + " não terminou a tempo. Forçando...");
                 pool.shutdownNow();
                 
-                // Dá mais um tempo após shutdownNow
                 if (pool.awaitTermination(5, TimeUnit.SECONDS)) {
                     System.out.println("  ✓ " + nome + " forçadamente encerrada.");
                 } else {
@@ -252,7 +233,6 @@ public class Server {
         int D = ServerConfig.DEFAULT_D;
         int S = ServerConfig.DEFAULT_S;
         
-        // Parse argumentos
         if (args.length > 0) {
             porta = parseIntOuPadrao(args[0], porta, "Porta");
         }
@@ -263,16 +243,13 @@ public class Server {
             S = parseIntOuPadrao(args[2], S, "S");
         }
         
-        // Validação
         if (S > D) {
             System.err.println("AVISO: S (" + S + ") > D (" + D + "), ajustando S = D");
             S = D;
         }
         
-        // Cria e inicia servidor
         Server servidor = new Server(porta, D, S);
         
-        // Registra shutdown hook para Ctrl+C
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             servidor.parar();
         }, "Shutdown-Hook"));
