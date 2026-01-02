@@ -1,9 +1,7 @@
 package client.stub;
 
 import client.ClienteMiddleware;
-import common.dto.EventoDTO;
-import common.dto.NotificacaoDTO;
-import common.dto.RespostaDTO;
+import common.dto.*;
 import common.exceptions.EventoException;
 import common.interfaces.IServicoEventos;
 import middleware.MessageTypes;
@@ -37,7 +35,7 @@ public class ServicoEventosStub implements IServicoEventos {
                 notificacao
             );
         } catch (Exception e) {
-            throw new EventoException("Erro ao registrar evento: " + e.getMessage(), e);
+            throw new EventoException("Erro ao notificar venda específica: " + e.getMessage(), e);
         }
     }
 
@@ -50,7 +48,20 @@ public class ServicoEventosStub implements IServicoEventos {
                 notificacao
             );
         } catch (Exception e) {
-            throw new EventoException("Erro ao registrar evento: " + e.getMessage(), e);
+            throw new EventoException("Erro ao notificar vendas consecutivas: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public RespostaDTO filtrarEventos(FiltrarEventosDTO filtro) throws EventoException {
+        try {
+            return middleware.invocar(
+                MessageTypes.SERVICO_EVENTOS,
+                MessageTypes.EVENTO_FILTRAR,
+                filtro
+            );
+        } catch (Exception e) {
+            throw new EventoException("Erro ao filtrar eventos: " + e.getMessage(), e);
         }
     }
 
