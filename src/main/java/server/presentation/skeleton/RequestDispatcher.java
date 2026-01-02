@@ -4,6 +4,7 @@ import static middleware.MessageTypes.*;
 
 import java.util.Map;
 
+import common.PerformanceMetrics;
 import common.dto.RespostaDTO;
 import middleware.Message;
 import server.business.services.*;
@@ -47,15 +48,24 @@ public class RequestDispatcher {
     }
     
     public RespostaDTO despachar(Message msg) {
-        ISkeleton skeleton = skeletonsPorServico.get(msg.getServiceId());
+        long inicio = System.nanoTime();
+        boolean sucesso = false;
         
-        if (skeleton == null) {
-            return RespostaDTO.erro("Serviço desconhecido: " + msg.getServiceId());
+        try {
+            ISkeleton skeleton = skeletonsPorServico.get(msg.getServiceId());
+
+            if (skeleton == null) {
+                return RespostaDTO.erro("Serviço desconhecido: " + msg.getServiceId());
+            }
+
+            RespostaDTO resposta = skeleton.processarRequisicao(msg.getMethodId(), msg.getPayload());
+
+            sucesso = resposta.isSucesso();
+            return resposta;
+
+        } finally {
+            long latencia = System.nanoTime() - inicio;
+            PerformanceMetrics.getInstance().recordRequest(sucesso, latencia);
         }
-        
-        return skeleton.processarRequisicao(
-            msg.getMethodId(), 
-            msg.getPayload()
-        );
     }
 }

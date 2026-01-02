@@ -4,6 +4,7 @@ import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import common.PerformanceMetrics;
 import server.business.domain.Agregacao;
 import server.business.domain.Evento;
 import server.data.repository.IEventoRepository;
@@ -51,9 +52,11 @@ public class CacheManager {
             if (porProduto != null) {
                 Agregacao existente = porProduto.get(dia);
                 if (existente != null) {
-                    System.out.println("Cache HIT: produto=" + produtoID + " dia=" + dia);
+                    PerformanceMetrics.getInstance().recordCacheHit();
                     return existente;
                 }
+                // Quando não existe
+                PerformanceMetrics.getInstance().recordCacheMiss();
             }
         } finally {
             readLock.unlock();

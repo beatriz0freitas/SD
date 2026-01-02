@@ -3,6 +3,7 @@ package server.business.services;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import common.PerformanceMetrics;
 import common.dto.RespostaDTO;
 import common.exceptions.AdminException;
 import common.interfaces.IServicoAdmin;
@@ -176,6 +177,16 @@ public class ServicoAdmin implements IServicoAdmin {
         } finally {
             lock.readLock().unlock();
         }
+    }
+
+    /**
+     * Obtém métricas de performance
+     */
+    public RespostaDTO obterMetricas() throws AdminException {
+        PerformanceMetrics.MetricsSnapshot snapshot = 
+            PerformanceMetrics.getInstance().getSnapshot();
+        
+        return RespostaDTO.sucesso(snapshot.toString(), snapshot);
     }
     
     // === Utilitários ===
