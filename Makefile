@@ -1,4 +1,4 @@
-.PHONY: all compile test test-fast test-single test-stress clean run-server run-client help
+.PHONY: all compile test test-fast test-single test-stress test-summary clean run-server run-client help
 
 all: compile
 
@@ -26,6 +26,10 @@ test-stress:
 	@echo "==> Executar testes de stress"
 	mvn -Dtest=StressTest test
 
+# Executar testes com resumo visual
+test-summary:
+	@bash scripts/clean-test-data.sh
+	@bash scripts/test-summary.sh
 
 run-server:
 	@echo "==> Iniciar servidor"
@@ -37,4 +41,7 @@ run-client:
 
 clean:
 	@echo "==> Limpar projeto"
+	@bash scripts/clean-test-data.sh
+	rm -f dados/test_usuarios*.dat
+	rm -rf dados_teste_*
 	mvn clean

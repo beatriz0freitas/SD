@@ -26,10 +26,6 @@ class ConnectionPoolTest {
     private ServerSocket mockServer;
     private Thread serverThread;
 
-    /* =========================
-       Mock Server
-       ========================= */
-
     @BeforeAll
     void iniciarMockServer() throws IOException {
         mockServer = new ServerSocket(TEST_PORT);
@@ -78,10 +74,6 @@ class ConnectionPoolTest {
             serverThread.join(1000);
         }
     }
-
-    /* =========================
-       Testes
-       ========================= */
 
     @Test
     void testeBasico() throws Exception {
