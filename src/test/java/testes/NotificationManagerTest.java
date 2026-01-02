@@ -48,10 +48,6 @@ class NotificationManagerTest {
         manager.shutdown();
     }
 
-    /* =========================
-       2. Múltiplos interessados
-       ========================= */
-
     @Test
     @Order(2)
     @Timeout(value = 5, unit = TimeUnit.SECONDS)

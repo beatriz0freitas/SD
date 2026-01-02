@@ -23,10 +23,11 @@ class RepositoryTest {
     private IUsuarioRepository usuarioRepo;
     private IEventoRepository eventoRepo;
 
-    // ================= SETUP / TEARDOWN =================
-
     @BeforeEach
     void setup() {
+        // Limpar dados de testes anteriores
+        limparDadosTeste();
+
         usuarioRepo = criarUsuarioRepoTeste();
         eventoRepo = criarEventoRepoTeste();
     }
@@ -35,8 +36,6 @@ class RepositoryTest {
     void cleanup() {
         limparDadosTeste();
     }
-
-    // ================= USUARIO =================
 
     @Test
     void testUsuarioSalvarCarregar() {
@@ -60,6 +59,9 @@ class RepositoryTest {
 
     @Test
     void testUsuarioListar() {
+        assertEquals(0, usuarioRepo.contarUtilizadores(), 
+            "Deve começar com 0 usuários");
+
         for (int i = 0; i < 5; i++) {
             usuarioRepo.salvar(new Usuario("user" + i, "hash" + i));
         }
@@ -95,8 +97,6 @@ class RepositoryTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
         assertEquals(numThreads, sucessos.get());
     }
-
-    // ================= EVENTO =================
 
     @Test
     void testEventoSalvarCarregar() {
@@ -180,30 +180,39 @@ class RepositoryTest {
     // ================= UTILITÁRIOS =================
 
     private static IUsuarioRepository criarUsuarioRepoTeste() {
-        File file = new File(TEST_USUARIO_DIR);
-        if (file.exists()) file.delete();
         return new UsuarioFileRepository();
     }
 
     private static IEventoRepository criarEventoRepoTeste() {
         File dir = new File(TEST_EVENTO_DIR);
-        deleteDirectory(dir);
         dir.mkdirs();
         return new EventoFileRepository(TEST_EVENTO_DIR);
     }
 
     private static void limparDadosTeste() {
-        deleteDirectory(new File(TEST_EVENTO_DIR));
+        // Deletar arquivo de usuários
         File userFile = new File(TEST_USUARIO_DIR);
-        if (userFile.exists()) userFile.delete();
+        if (userFile.exists()) {
+            userFile.delete();
+            System.out.println("Arquivo de usuários de teste deletado");
+        }
+        
+        // Deletar diretório de eventos
+        File eventDir = new File(TEST_EVENTO_DIR);
+        deleteDirectory(eventDir);
     }
 
     private static void deleteDirectory(File dir) {
         if (dir.exists() && dir.isDirectory()) {
-            for (File f : Objects.requireNonNull(dir.listFiles())) {
-                deleteDirectory(f);
+            File[] files = dir.listFiles();
+            if (files != null) {
+                for (File f : files) {
+                    deleteDirectory(f);
+                }
             }
         }
-        if (dir.exists()) dir.delete();
+        if (dir.exists()) {
+            dir.delete();
+        }
     }
 }
