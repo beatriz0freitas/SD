@@ -172,7 +172,7 @@ Os DTOs são usados para desacoplar cliente e servidor, permitindo que cada lado
 * [X] podemos meter o admin a pode eliminar uses etc (apesar de termos o scrpit para elminimar tudo) - > done
 * [ ] melhorar tratamento de erros (criar mais exceções e guardar a stack tree ) -> semi done
 * [ ] mais concorrencia
-* [ ] fazer o nosso proprio threadpoll (nao acho necessario ) -> done
+* [X] fazer o nosso proprio threadpoll (nao acho necessario ) -> done
 * [X] substituir AtomicInteger's... -> done
 * [X] Pool de conexões reutilizáveis (cada midleware do cliente gera uma nova conexcao) -> done
 * [ ] Logging estruturado -> semi done
@@ -185,7 +185,4 @@ Os DTOs são usados para desacoplar cliente e servidor, permitindo que cada lado
 * [ ] **Integrar métricas no ServicoAdmin** (adicionar endpoint para consulta)
 * [ ] **Adicionar métricas ao CacheManager** (registrar hits/misses)
 * [ ] **Testes de notificações assíncronas** (completar suite de testes
-
-
-
-* [ ] clean do ServerShutdownHandler e ShutdownMessage
+* [X] clean do ServerShutdownHandler e ShutdownMessage

@@ -9,6 +9,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 public class PerformanceMetrics {
     private static PerformanceMetrics instance;
+    private static final ReentrantReadWriteLock instanceLock = new ReentrantReadWriteLock();
     
     // Contadores atômicos para operações de leitura
     private final AtomicLong totalRequests = new AtomicLong(0);
@@ -30,9 +31,17 @@ public class PerformanceMetrics {
         this.startTime = System.currentTimeMillis();
     }
     
-    public static synchronized PerformanceMetrics getInstance() {
+    public static PerformanceMetrics getInstance() {
+        // Double-checked locking com locks explícitos
         if (instance == null) {
-            instance = new PerformanceMetrics();
+            instanceLock.writeLock().lock();
+            try {
+                if (instance == null) {
+                    instance = new PerformanceMetrics();
+                }
+            } finally {
+                instanceLock.writeLock().unlock();
+            }
         }
         return instance;
     }
