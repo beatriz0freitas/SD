@@ -1,6 +1,7 @@
 package client.stub;
 
 import client.ClienteMiddleware;
+import common.ErrorLogger;
 import common.dto.*;
 import common.exceptions.EventoException;
 import common.interfaces.IServicoEventos;
@@ -87,6 +88,7 @@ public class ServicoEventosStub implements IServicoEventos {
                 null
             );
         } catch (Exception e) {
+            ErrorLogger.getInstance().logError("ServicoEventos.novoDia", e);
             throw new EventoException("Erro ao avançar dia: " + e.getMessage(), e);
         }
     }

@@ -6,6 +6,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import common.ErrorLogger;
 import server.business.domain.Agregacao;
 import server.business.domain.Evento;
 
@@ -63,7 +64,7 @@ public class EventoFileRepository implements IEventoRepository {
                 System.out.println("Dia " + dia + " salvo: " + produtosOrdenados.size() + " produtos");
                 
             } catch (IOException e) {
-                System.err.println("Erro ao salvar dia " + dia + ": " + e.getMessage());
+                ErrorLogger.getInstance().logError("EventoFileRepository.salvar", e);
                 throw new RuntimeException("Falha ao persistir eventos", e);
             }
         } finally {

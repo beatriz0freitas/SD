@@ -6,6 +6,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
+import common.ErrorLogger;
 import common.concurrency.ThreadPool;
 import common.dto.RespostaDTO;
 import middleware.Message;
@@ -85,7 +86,7 @@ public class ClientHandler implements Runnable {
             RespostaDTO resp = dispatcher.despachar(msg);
             enviarResposta(Message.response(msg.getTag(), resp), out);
         } catch (Exception e) {
-            System.err.println("Erro ao processar pedido: " + e.getMessage());
+            ErrorLogger.getInstance().logError("ClientHandler", e);
             enviarErro(msg.getTag(), e.getMessage(), out);
         }
     }
