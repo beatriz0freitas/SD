@@ -167,33 +167,25 @@ protocolo
 Uso de DTOs
 Os DTOs são usados para desacoplar cliente e servidor, permitindo que cada lado evolua independentemente. Enviam apenas dados necessários pela rede (não estruturas internas completas), reduzindo o payload e protegendo informação sensível. Facilitam validação centralizada, tornam a API clara e autodocumentada, e garantem que mudanças no servidor não quebrem o cliente.
 
-OBRIGATÓRIO
-//TODO Falta a parte das notificações
+* [X] Falta a parte das notificações
+* [ ] Meter os clientes a fechar quando o server fecha (acho que é melhor porque se voltarmos a abrir eles nao reconectam)
+* [X] podemos meter o admin a pode eliminar uses etc (apesar de termos o scrpit para elminimar tudo) - > done
+* [ ] melhorar tratamento de erros (criar mais exceções e guardar a stack tree ) -> semi done
+* [ ] mais concorrencia
+* [ ] fazer o nosso proprio threadpoll (nao acho necessario ) -> done
+* [X] substituir AtomicInteger's... -> done
+* [X] Pool de conexões reutilizáveis (cada midleware do cliente gera uma nova conexcao) -> done
+* [ ] Logging estruturado -> semi done
+* [ ] ajustar interface (tem muitas responsabilidades)
+* [ ] Integrar `ConnectionPool` no `ClienteMiddleware`
+* [ ] Adicionar mensagens de shutdown ao protocolo
+* [X] Implementar métricas de performance
+* [ ] Adicionar testes de concorrência -> semi done - separar entre unit, integration, stress
+* [ ] **Refatorar Interface de Utilizador** (criar MenuHandler, InputValidator, OutputFormatter
+* [ ] **Integrar métricas no ServicoAdmin** (adicionar endpoint para consulta)
+* [ ] **Adicionar métricas ao CacheManager** (registrar hits/misses)
+* [ ] **Testes de notificações assíncronas** (completar suite de testes
 
-Alta perioridade
-//TODO Meter os clientes a fechar quando o server fecha (acho que é melhor porque se voltarmos a abrir eles nao reconectam)
 
- podemos meter o admin a pode eliminar uses etc (apesar de termos o scrpit para elminimar tudo) - > done
 
-melhorar tratamento de erros (criar mais exceções e guardar a stack tree ) -> semi done
-
-//TODO mais concorrencia
-
-Média perioridade
-//TODO fazer o nosso proprio threadpoll (nao acho necessario ) -> done
-
-substituir AtomicInteger's... -> done
-
-Pool de conexões reutilizáveis (cada midleware do cliente gera uma nova conexcao) -> done
-
- Logging estruturado -> semi done
-
-//TODO ajustar interface (tem muitas responsabilidades)
-
-//TODO: Integrar `ConnectionPool` no `ClienteMiddleware`
-
-//TODO: Adicionar mensagens de shutdown ao protocolo
-
-//TODO: Implementar métricas de performance
-
-//TODO: Adicionar testes de concorrência -> semi done - separar entre unit, integration, stress
+* [ ] clean do ServerShutdownHandler e ShutdownMessage
