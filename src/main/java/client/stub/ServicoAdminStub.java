@@ -38,4 +38,17 @@ public class ServicoAdminStub implements IServicoAdmin {
             throw new AdminException("Erro ao obter estatísticas: " + e.getMessage(), e);
         }
     }
+
+    @Override
+    public RespostaDTO obterMetricas() throws AdminException {
+        try {
+            return middleware.invocar(
+                MessageTypes.SERVICO_ADMIN,
+                MessageTypes.ADMIN_METRICAS,
+                null
+            );
+        } catch (Exception e) {
+            throw new AdminException("Erro ao obter métricas: " + e.getMessage(), e);
+        }
+    }
 }

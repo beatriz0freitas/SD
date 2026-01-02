@@ -123,6 +123,8 @@ public class Server {
         System.out.println("=".repeat(50));
         System.out.println("  SERVIDOR ENCERRADO COM SUCESSO");
         System.out.println("=".repeat(50) + "\n");
+
+        dispatcher.shutdown();
     }
     
     private void imprimirBanner() {

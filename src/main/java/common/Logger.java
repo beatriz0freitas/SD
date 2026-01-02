@@ -78,30 +78,3 @@ public class Logger {
         }
     }
 }
-
-/**
- * EXEMPLO DE USO:
- * 
- * ANTES:
- * System.out.println("Cliente conectado: " + socket.getInetAddress());
- * System.err.println("Erro ao carregar série: " + e.getMessage());
- * e.printStackTrace();
- * 
- * DEPOIS:
- * Logger.info("ClientHandler", "Cliente conectado: " + socket.getInetAddress());
- * Logger.error("CacheManager", "Erro ao carregar série", e);
- * 
- * OUTPUT:
- * [2025-12-30 14:23:45.123] [INFO ] [Thread-5            ] [ClientHandler  ] Cliente conectado: /127.0.0.1
- * [2025-12-30 14:23:46.456] [ERROR] [Thread-3            ] [CacheManager   ] Erro ao carregar série
- * java.io.FileNotFoundException: dados/eventos/eventos_dia_5.dat
- *     at EventoFileRepository.carregarEventosDia(EventoFileRepository.java:89)
- *     ...
- * 
- * BENEFÍCIOS:
- * - Timestamp em todas as mensagens
- * - Identificação de thread
- * - Nível de log (filtrar DEBUG em produção)
- * - Formato consistente
- * - Fácil parsear logs para análise
- */

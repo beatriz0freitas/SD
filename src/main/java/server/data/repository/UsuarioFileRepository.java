@@ -6,6 +6,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import common.ErrorLogger;
 import server.business.domain.Usuario;
 
 /**
@@ -142,7 +143,8 @@ public int contarUtilizadores() {
                 System.out.println("Carregados " + count + " utilizadores do disco");
                 
             } catch (IOException e) {
-                System.err.println("Erro ao carregar utilizadores: " + e.getMessage());
+                ErrorLogger.getInstance().logError(
+                    "UsuarioFileRepository.carregarTodos", e);
             }
         } finally {
             writeLock.unlock();
@@ -166,7 +168,8 @@ public int contarUtilizadores() {
             System.out.println("Persistidos " + utilizadores.size() + " utilizadores");
             
         } catch (IOException e) {
-            System.err.println("Erro ao persistir utilizadores: " + e.getMessage());
+            ErrorLogger.getInstance().logError(
+                "UsuarioFileRepository.persistirTodos[usuarios=" + utilizadores.size() + "]", e);
         }
     }
 }

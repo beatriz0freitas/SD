@@ -18,12 +18,21 @@ public class ErrorLogger {
     private final StringBuilder errorLog = new StringBuilder();
     
     private static ErrorLogger instance;
+    private static final ReentrantReadWriteLock instanceLock = new ReentrantReadWriteLock();
     
     private ErrorLogger() {}
     
-    public static synchronized ErrorLogger getInstance() {
+    public static ErrorLogger getInstance() {
+        // Double-checked locking com locks explícitos
         if (instance == null) {
-            instance = new ErrorLogger();
+            instanceLock.writeLock().lock();
+            try {
+                if (instance == null) {
+                    instance = new ErrorLogger();
+                }
+            } finally {
+                instanceLock.writeLock().unlock();
+            }
         }
         return instance;
     }
@@ -46,8 +55,9 @@ public class ErrorLogger {
             erro.printStackTrace(new PrintWriter(sw));
             errorLog.append(sw.toString()).append("\n");
             
-            // Log também para console
-            System.err.println("\n" + errorLog.substring(errorLog.length() - 500));
+            // Log também para console (apenas últimas linhas)
+            String lastLines = getLastNCharacters(errorLog.toString(), 500);
+            System.err.println("\n" + lastLines);
             
         } finally {
             lock.writeLock().unlock();
@@ -96,67 +106,11 @@ public class ErrorLogger {
             lock.writeLock().unlock();
         }
     }
-}
-
-/**
- * Exceção customizada com contexto adicional
- */
-class ContextException extends Exception {
-    private final String contexto;
-    private final long timestamp;
     
-    public ContextException(String mensagem, String contexto) {
-        super(mensagem);
-        this.contexto = contexto;
-        this.timestamp = System.currentTimeMillis();
-    }
-    
-    public ContextException(String mensagem, String contexto, Throwable causa) {
-        super(mensagem, causa);
-        this.contexto = contexto;
-        this.timestamp = System.currentTimeMillis();
-    }
-    
-    public String getContexto() {
-        return contexto;
-    }
-    
-    public long getTimestamp() {
-        return timestamp;
-    }
-    
-    @Override
-    public String toString() {
-        return String.format("[%s @ %d] %s", contexto, timestamp, getMessage());
-    }
-}
-
-/**
- * Wrapper para tratamento seguro de exceções em callbacks
- */
-class SafeCallback {
-    private final ErrorLogger logger = ErrorLogger.getInstance();
-    
-    /**
-     * Executa callback capturando qualquer exceção
-     */
-    public void execute(String contexto, Runnable callback) {
-        try {
-            callback.run();
-        } catch (Throwable t) {
-            logger.logError(contexto, t);
+    private String getLastNCharacters(String str, int n) {
+        if (str.length() <= n) {
+            return str;
         }
-    }
-    
-    /**
-     * Executa callback com retorno
-     */
-    public <T> T executeWithReturn(String contexto, java.util.concurrent.Callable<T> callback, T defaultValue) {
-        try {
-            return callback.call();
-        } catch (Throwable t) {
-            logger.logError(contexto, t);
-            return defaultValue;
-        }
+        return str.substring(str.length() - n);
     }
 }

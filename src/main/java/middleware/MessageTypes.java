@@ -32,4 +32,5 @@ public final class MessageTypes {
     // Métodos Admin
     public static final byte ADMIN_LISTAR_CLIENTES = 1;
     public static final byte ADMIN_ESTATISTICAS    = 2;
+    public static final byte ADMIN_METRICAS        = 3;
 }

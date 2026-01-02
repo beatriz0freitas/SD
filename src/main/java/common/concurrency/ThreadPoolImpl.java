@@ -9,6 +9,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import common.ErrorLogger;
+
 /**
  * Implementação de ThreadPool com reutilização de threads.
  * 
@@ -226,8 +228,10 @@ public class ThreadPoolImpl implements ThreadPool {
                     try {
                         task.run();
                     } catch (Throwable t) {
-                        System.err.println("[ThreadPool] Erro ao executar task: " + t.getMessage());
-                        t.printStackTrace();
+                        ErrorLogger.getInstance().logError(
+                            "ThreadPool.Worker[" + Thread.currentThread().getName() + "]", 
+                            new Exception("Erro ao executar task", t)
+                        );
                     }
                 }
             }

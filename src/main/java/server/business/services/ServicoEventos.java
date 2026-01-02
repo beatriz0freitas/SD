@@ -3,6 +3,7 @@ package server.business.services;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import common.ErrorLogger;
 import common.dto.*;
 import common.exceptions.EventoException;
 import common.interfaces.IServicoEventos;
@@ -350,14 +351,15 @@ public class ServicoEventos implements IServicoEventos {
                 return RespostaDTO.sucesso("Novo dia iniciado: " + diaAtual);
                 
             } catch (Exception e) {
-                // Rollback
                 diaAtual = diaAnterior;
                 eventosDiaAtual.clear();
                 eventosDiaAtual.putAll(backup);
-                
+
+                ErrorLogger.getInstance().logError(
+                    "ServicoEventos.novoDia[diaAnterior=" + diaAnterior + "]", e);
+
                 throw new EventoException("Erro ao avançar dia: " + e.getMessage(), e);
             }
-            
         } finally {
             lock.writeLock().unlock();
         }

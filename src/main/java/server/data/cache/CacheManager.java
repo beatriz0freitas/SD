@@ -4,21 +4,20 @@ import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import common.PerformanceMetrics;
 import server.business.domain.Agregacao;
 import server.business.domain.Evento;
 import server.data.repository.IEventoRepository;
 
 /**
- * Gerenciador de cache para agregações
+ * Gestor de cache para agregações
  * Mantém no máximo S séries em memória (LRU)
- * 
- * Se memória cheia (S séries), usa STREAMING ao invés de carregar para memória
- * Respeita especificação: "informação lida do disco deve ir sendo processada 
- *   e descartada ao longo da agregação de modo a não exceder o limite S"
+ * Integrado com sistema de métricas
  */
 public class CacheManager {
     private final IEventoRepository eventoRepository;
     private final int S; // Máximo de séries em memória
+    private final PerformanceMetrics metrics;
 
     // Cache: produtoID -> dia -> Agregacao
     private final Map<Integer, Map<Integer, Agregacao>> cacheAgregacoes = new HashMap<>();
@@ -36,6 +35,7 @@ public class CacheManager {
     public CacheManager(IEventoRepository eventoRepository, int S) {
         this.eventoRepository = eventoRepository;
         this.S = S;
+        this.metrics = PerformanceMetrics.getInstance();
     }
 
     /**
@@ -51,6 +51,7 @@ public class CacheManager {
             if (porProduto != null) {
                 Agregacao existente = porProduto.get(dia);
                 if (existente != null) {
+                    metrics.recordCacheHit();
                     System.out.println("Cache HIT: produto=" + produtoID + " dia=" + dia);
                     return existente;
                 }
@@ -59,6 +60,9 @@ public class CacheManager {
             readLock.unlock();
         }
     
+        // Cache miss
+        metrics.recordCacheMiss();
+        
         // ===== FASE 2: cálculo SEM locks =====
         Agregacao calculada;
     
@@ -103,35 +107,39 @@ public class CacheManager {
     * Calcula agregação usando memória (série já está OU há espaço)
     */
     private Agregacao calcularComMemoria(int produtoID, int dia) {
-        // 1. Verificar se série já está em memória
-        if (seriesEmMemoria.containsKey(dia)) {
-            // Atualizar LRU (mover para final)
-            ordemAcesso.remove(dia);
+        writeLock.lock();
+        try {
+            // 1. Verificar se série já está em memória
+            if (seriesEmMemoria.containsKey(dia)) {
+                // Atualizar LRU (mover para final)
+                ordemAcesso.remove(Integer.valueOf(dia));
+                ordemAcesso.add(dia);
+
+                List<Evento> eventos = seriesEmMemoria.get(dia).get(produtoID);
+                return agregarEventos(eventos);
+            }
+
+            // 2. Série não está - precisa carregar do disco
+            // Se memória cheia, remover LRU
+            if (seriesEmMemoria.size() >= S) {
+                Integer diaRemover = ordemAcesso.remove(0);
+                seriesEmMemoria.remove(diaRemover);
+                System.out.println("LRU: removida série dia " + diaRemover);
+            }
+
+            // Carregar série do disco
+            Map<Integer, List<Evento>> seriesDia = eventoRepository.carregarEventosDia(dia);
+            seriesEmMemoria.put(dia, seriesDia);
             ordemAcesso.add(dia);
+            System.out.println("Carregada série dia " + dia + " para memória (" + seriesEmMemoria.size() + "/" + S + ")");
 
-            List<Evento> eventos = seriesEmMemoria.get(dia).get(produtoID);
+            // Agregar eventos do produto
+            List<Evento> eventos = seriesDia.get(produtoID);
             return agregarEventos(eventos);
+            
+        } finally {
+            writeLock.unlock();
         }
-
-        // 2. Série não está - precisa carregar do disco
-        // Se memória cheia, remover LRU
-        if (seriesEmMemoria.size() >= S) {
-            Iterator<Integer> it = ordemAcesso.iterator();
-            int diaRemover = it.next();
-            it.remove();
-            seriesEmMemoria.remove(diaRemover);
-            System.out.println("LRU: removida série dia " + diaRemover);
-        }
-
-        // Carregar série do disco
-        Map<Integer, List<Evento>> seriesDia = eventoRepository.carregarEventosDia(dia);
-        seriesEmMemoria.put(dia, seriesDia);
-        ordemAcesso.add(dia);
-        System.out.println("Carregada série dia " + dia + " para memória (" + seriesEmMemoria.size() + "/" + S + ")");
-
-        // Agregar eventos do produto
-        List<Evento> eventos = seriesDia.get(produtoID);
-        return agregarEventos(eventos);
     }
 
     /**
@@ -245,7 +253,4 @@ public class CacheManager {
             readLock.unlock();
         }
     }
-    
 }
-
-

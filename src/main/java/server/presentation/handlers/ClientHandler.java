@@ -6,6 +6,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
+import common.ErrorLogger;
 import common.concurrency.ThreadPool;
 import common.dto.RespostaDTO;
 import middleware.Message;
@@ -59,7 +60,8 @@ public class ClientHandler implements Runnable {
         } catch (EOFException e) {
             System.out.println("Cliente desconectado: " + socket.getInetAddress());
         } catch (Exception e) {
-            System.err.println("Erro ao processar cliente: " + e.getMessage());
+            ErrorLogger.getInstance().logError(
+                "ClientHandler[cliente=" + socket.getInetAddress() + "]", e);
         } finally {
             encerrar();
         }
@@ -85,7 +87,8 @@ public class ClientHandler implements Runnable {
             RespostaDTO resp = dispatcher.despachar(msg);
             enviarResposta(Message.response(msg.getTag(), resp), out);
         } catch (Exception e) {
-            System.err.println("Erro ao processar pedido: " + e.getMessage());
+            ErrorLogger.getInstance().logError(
+                "ClientHandler.processarPedido[tag=" + msg.getTag() + ", service=" + msg.getServiceId() + ", method=" + msg.getMethodId() + "]", e);
             enviarErro(msg.getTag(), e.getMessage(), out);
         }
     }
