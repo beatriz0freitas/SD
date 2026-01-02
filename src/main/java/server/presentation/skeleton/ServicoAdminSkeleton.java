@@ -20,6 +20,8 @@ public class ServicoAdminSkeleton implements ISkeleton {
                     return servico.listarClientes();
                 case ADMIN_ESTATISTICAS:
                     return servico.obterEstatisticas();
+                case ADMIN_METRICAS:
+                    return servico.obterMetricas();
                 default:
                     return RespostaDTO.erro("Método desconhecido: " + methodId);
             }

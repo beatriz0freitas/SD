@@ -175,10 +175,10 @@ Os DTOs são usados para desacoplar cliente e servidor, permitindo que cada lado
 * [X] fazer o nosso proprio threadpoll (nao acho necessario ) -> done
 * [X] substituir AtomicInteger's... -> done
 * [X] Pool de conexões reutilizáveis (cada midleware do cliente gera uma nova conexcao) -> done
-* [ ] Logging estruturado -> semi done
+* [X] Logging estruturado -> semi done
 * [ ] ajustar interface (tem muitas responsabilidades)
 * [ ] Integrar `ConnectionPool` no `ClienteMiddleware`
-* [ ] Adicionar mensagens de shutdown ao protocolo
+* [X] Adicionar mensagens de shutdown ao protocolo
 * [X] Implementar métricas de performance
 * [ ] Adicionar testes de concorrência -> semi done - separar entre unit, integration, stress
 * [ ] **Refatorar Interface de Utilizador** (criar MenuHandler, InputValidator, OutputFormatter
@@ -186,3 +186,22 @@ Os DTOs são usados para desacoplar cliente e servidor, permitindo que cada lado
 * [ ] **Adicionar métricas ao CacheManager** (registrar hits/misses)
 * [ ] **Testes de notificações assíncronas** (completar suite de testes
 * [X] clean do ServerShutdownHandler e ShutdownMessage
+
+
+
+
+* **Teste de Métricas**
+
+  * Verificar contadores incrementam corretamente
+  * Verificar latências calculadas
+  * Verificar cache hit rate
+* **Teste de Shutdown**
+
+  * Cliente recebe notificação
+  * Cliente não pode invocar após shutdown
+  * Servidor fecha graciosamente
+* **Teste de ErrorLogger**
+
+  * Erros são registados
+  * Stack traces completos
+  * Thread-safety

@@ -3,28 +3,28 @@ package server.business.services;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import common.PerformanceMetrics;
 import common.dto.RespostaDTO;
 import common.exceptions.AdminException;
 import common.interfaces.IServicoAdmin;
+import common.PerformanceMetrics;
 import server.business.domain.Usuario;
 import server.data.repository.IUsuarioRepository;
 import server.data.repository.RepositoryFactory;
 
 /**
- * Serviço administrativo expandido
+ * Serviço administrativo expandido com métricas
  */
 public class ServicoAdmin implements IServicoAdmin {
     private final IUsuarioRepository usuarioRepository;
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+    private final PerformanceMetrics metrics;
     
     // Estatísticas do servidor
-    private long totalRequests = 0;
-    private long totalErrors = 0;
     private long startTime;
     
     public ServicoAdmin() {
         this.usuarioRepository = RepositoryFactory.getInstance().getUsuarioRepository();
+        this.metrics = PerformanceMetrics.getInstance();
         this.startTime = System.currentTimeMillis();
     }
     
@@ -56,23 +56,41 @@ public class ServicoAdmin implements IServicoAdmin {
             int totalUsuarios = usuarioRepository.contarUtilizadores();
             long uptime = (System.currentTimeMillis() - startTime) / 1000;
             
+            // Obter métricas de performance
+            PerformanceMetrics.MetricsSnapshot metricsSnapshot = metrics.getSnapshot();
+            
             StringBuilder sb = new StringBuilder();
             sb.append("=== ESTATÍSTICAS DO SISTEMA ===\n\n");
             sb.append("Utilizadores registados: ").append(totalUsuarios).append("\n");
-            sb.append("Total de requests: ").append(totalRequests).append("\n");
-            sb.append("Total de erros: ").append(totalErrors).append("\n");
-            sb.append("Taxa de erro: ").append(
-                totalRequests > 0 ? 
-                String.format("%.2f%%", (totalErrors * 100.0) / totalRequests) : 
-                "0%"
-            ).append("\n");
-            sb.append("Uptime: ").append(formatUptime(uptime)).append("\n");
+            sb.append("Uptime: ").append(formatUptime(uptime)).append("\n\n");
+            
+            sb.append("=== PERFORMANCE ===\n");
+            sb.append("Requisições: ").append(metricsSnapshot.totalRequests).append("\n");
+            sb.append("Erros: ").append(metricsSnapshot.totalErrors).append(" (")
+              .append(String.format("%.2f%%", metricsSnapshot.errorRate)).append(")\n");
+            sb.append("Throughput: ").append(String.format("%.2f req/s", metricsSnapshot.throughput)).append("\n");
+            sb.append("Latência média: ").append(String.format("%.2fms", metricsSnapshot.avgLatencyMs)).append("\n");
+            sb.append("Latência min: ").append(String.format("%.2fms", metricsSnapshot.minLatencyMs)).append("\n");
+            sb.append("Latência max: ").append(String.format("%.2fms", metricsSnapshot.maxLatencyMs)).append("\n\n");
+            
+            sb.append("=== CACHE ===\n");
+            sb.append("Cache hits: ").append(metricsSnapshot.cacheHits).append("\n");
+            sb.append("Cache misses: ").append(metricsSnapshot.cacheMisses).append("\n");
+            sb.append("Hit rate: ").append(String.format("%.2f%%", metricsSnapshot.cacheHitRate)).append("\n");
             
             return RespostaDTO.sucesso(sb.toString());
             
         } finally {
             lock.readLock().unlock();
         }
+    }
+    
+    /**
+     * Obtém métricas detalhadas (para monitorização)
+     */
+    public RespostaDTO obterMetricas() throws AdminException {
+        PerformanceMetrics.MetricsSnapshot snapshot = metrics.getSnapshot();
+        return RespostaDTO.sucesso("Métricas obtidas", snapshot);
     }
     
     /**
@@ -122,28 +140,12 @@ public class ServicoAdmin implements IServicoAdmin {
     }
     
     /**
-     * Regista request processado
-     */
-    public void registrarRequest(boolean sucesso) {
-        lock.writeLock().lock();
-        try {
-            totalRequests++;
-            if (!sucesso) {
-                totalErrors++;
-            }
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-    
-    /**
      * Reseta estatísticas
      */
     public RespostaDTO resetarEstatisticas() {
         lock.writeLock().lock();
         try {
-            totalRequests = 0;
-            totalErrors = 0;
+            metrics.reset();
             startTime = System.currentTimeMillis();
             
             return RespostaDTO.sucesso("Estatísticas resetadas");
@@ -177,16 +179,6 @@ public class ServicoAdmin implements IServicoAdmin {
         } finally {
             lock.readLock().unlock();
         }
-    }
-
-    /**
-     * Obtém métricas de performance
-     */
-    public RespostaDTO obterMetricas() throws AdminException {
-        PerformanceMetrics.MetricsSnapshot snapshot = 
-            PerformanceMetrics.getInstance().getSnapshot();
-        
-        return RespostaDTO.sucesso(snapshot.toString(), snapshot);
     }
     
     // === Utilitários ===

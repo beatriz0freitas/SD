@@ -8,7 +8,14 @@ public class Cliente {
         String host = args.length > 0 ? args[0] : "localhost";
         int porta = args.length > 1 ? parsePorta(args[1]) : 5001;
         
-        ClienteMiddleware middleware = new ClienteMiddleware(host, porta);
+        boolean usePool = args.length > 2 && "pool".equals(args[2]);
+        int maxConnections = args.length > 3 ? Integer.parseInt(args[3]) : 5;
+
+        ClienteMiddleware middleware = new ClienteMiddleware(
+            host, porta, usePool, maxConnections
+        );
+
+        //ClienteMiddleware middleware = new ClienteMiddleware(host, porta);
         StubFactory stubFactory = new StubFactory(middleware);
         InterfaceUtilizador ui = new InterfaceUtilizador(middleware, stubFactory);
         
