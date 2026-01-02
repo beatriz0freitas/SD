@@ -60,7 +60,8 @@ public class ClientHandler implements Runnable {
         } catch (EOFException e) {
             System.out.println("Cliente desconectado: " + socket.getInetAddress());
         } catch (Exception e) {
-            System.err.println("Erro ao processar cliente: " + e.getMessage());
+            ErrorLogger.getInstance().logError(
+                "ClientHandler[cliente=" + socket.getInetAddress() + "]", e);
         } finally {
             encerrar();
         }
@@ -86,7 +87,8 @@ public class ClientHandler implements Runnable {
             RespostaDTO resp = dispatcher.despachar(msg);
             enviarResposta(Message.response(msg.getTag(), resp), out);
         } catch (Exception e) {
-            ErrorLogger.getInstance().logError("ClientHandler", e);
+            ErrorLogger.getInstance().logError(
+                "ClientHandler.processarPedido[tag=" + msg.getTag() + ", service=" + msg.getServiceId() + ", method=" + msg.getMethodId() + "]", e);
             enviarErro(msg.getTag(), e.getMessage(), out);
         }
     }

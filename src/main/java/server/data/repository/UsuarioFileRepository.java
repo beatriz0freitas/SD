@@ -143,7 +143,8 @@ public int contarUtilizadores() {
                 System.out.println("Carregados " + count + " utilizadores do disco");
                 
             } catch (IOException e) {
-                ErrorLogger.getInstance().logError("UsuarioFileRepository", e);
+                ErrorLogger.getInstance().logError(
+                    "UsuarioFileRepository.carregarTodos", e);
             }
         } finally {
             writeLock.unlock();
@@ -167,7 +168,8 @@ public int contarUtilizadores() {
             System.out.println("Persistidos " + utilizadores.size() + " utilizadores");
             
         } catch (IOException e) {
-            ErrorLogger.getInstance().logError("UsuarioFileRepository", e);
+            ErrorLogger.getInstance().logError(
+                "UsuarioFileRepository.persistirTodos[usuarios=" + utilizadores.size() + "]", e);
         }
     }
 }

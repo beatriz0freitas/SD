@@ -64,8 +64,8 @@ public class EventoFileRepository implements IEventoRepository {
                 System.out.println("Dia " + dia + " salvo: " + produtosOrdenados.size() + " produtos");
                 
             } catch (IOException e) {
-                ErrorLogger.getInstance().logError("EventoFileRepository.salvar", e);
-                throw new RuntimeException("Falha ao persistir eventos", e);
+                ErrorLogger.getInstance().logError(
+                    "EventoFileRepository.carregarEventosDia[dia=" + dia + "]", e);
             }
         } finally {
             writeLock.unlock();
@@ -154,7 +154,8 @@ public class EventoFileRepository implements IEventoRepository {
                 }
                 
             } catch (IOException e) {
-                System.err.println("Erro ao agregar eventos: " + e.getMessage());
+                ErrorLogger.getInstance().logError(
+                    "EventoFileRepository.agregarEventosDia[produto=" + produtoID + ", dia=" + dia + "]", e);
             }
             
             // Produto não encontrado
@@ -246,10 +247,12 @@ public class EventoFileRepository implements IEventoRepository {
                         }
                     }
                 } catch (IOException e) {
-                    System.err.println("Erro no streaming multi-dia (dia " + dia + "): " + e.getMessage());
+                    ErrorLogger.getInstance().logError(
+                        "EventoFileRepository.agregarEventosMultiDia[produto=" + produtoID + ", dias=" + diaInicio + "-" + diaFim + ", dia=" + dia + "]", 
+                        e
+                    );
                 }
             }
-
             resultado.updatePrecoMedio();
             return resultado;
 
