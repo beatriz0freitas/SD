@@ -3,9 +3,7 @@ package server.business.services;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import common.dto.EventoDTO;
-import common.dto.NotificacaoDTO;
-import common.dto.RespostaDTO;
+import common.dto.*;
 import common.exceptions.EventoException;
 import common.interfaces.IServicoEventos;
 import server.business.domain.Evento;
@@ -62,7 +60,6 @@ public class ServicoEventos implements IServicoEventos {
             }
             
             // Notificar sistema de notificações
-            // Converter para Map<Integer, List<?>> para compatibilidade
             Map<Integer, List<?>> eventosDiaGenerico = new HashMap<>(eventosDiaAtual);
             notificationManager.notificarEvento(
                 dto.getProdutoID(), 
@@ -91,16 +88,26 @@ public class ServicoEventos implements IServicoEventos {
         
         lock.readLock().lock();
         int diaSnapshot = diaAtual;
+        
+        // Verificar se já foi satisfeita
+        boolean jaSatisfeita = eventosDiaAtual.containsKey(produtoID1) && 
+                               eventosDiaAtual.containsKey(produtoID2);
         lock.readLock().unlock();
         
+        if (jaSatisfeita) {
+            return RespostaDTO.sucesso("Produtos já vendidos no dia atual!");
+        }
+        
         try {
-            // Registar interesse na notificação
             final boolean[] notified = {false};
             final String[] message = {null};
             
             NotificationManager.NotificationCallback callback = msg -> {
-                notified[0] = true;
-                message[0] = msg;
+                synchronized (notified) {
+                    notified[0] = true;
+                    message[0] = msg;
+                    notified.notify();
+                }
             };
             
             notificationManager.registarVendaEspecifica(
@@ -110,42 +117,31 @@ public class ServicoEventos implements IServicoEventos {
                 callback
             );
             
-            // Verificar se já foi satisfeita
-            lock.readLock().lock();
-            try {
-                if (diaAtual != diaSnapshot) {
-                    return RespostaDTO.erro("Dia avançou, notificação cancelada");
-                }
-                
-                if (eventosDiaAtual.containsKey(produtoID1) && 
-                    eventosDiaAtual.containsKey(produtoID2)) {
-                    return RespostaDTO.sucesso("Produtos já vendidos no dia atual!");
-                }
-            } finally {
-                lock.readLock().unlock();
-            }
-            
             // Aguardar notificação ou timeout
-            long timeout = System.currentTimeMillis() + 60000; // 60s timeout
-            while (!notified[0] && System.currentTimeMillis() < timeout) {
-                Thread.sleep(100);
+            synchronized (notified) {
+                long timeout = System.currentTimeMillis() + 60000; // 60s
                 
-                // Verificar se dia mudou
-                lock.readLock().lock();
-                try {
-                    if (diaAtual != diaSnapshot) {
-                        return RespostaDTO.erro("Dia avançou, notificação cancelada");
+                while (!notified[0]) {
+                    long remaining = timeout - System.currentTimeMillis();
+                    if (remaining <= 0) {
+                        return RespostaDTO.erro("Timeout aguardando vendas específicas");
                     }
-                } finally {
-                    lock.readLock().unlock();
+                    
+                    // Verificar se dia mudou
+                    lock.readLock().lock();
+                    try {
+                        if (diaAtual != diaSnapshot) {
+                            return RespostaDTO.erro("Dia avançou, notificação cancelada");
+                        }
+                    } finally {
+                        lock.readLock().unlock();
+                    }
+                    
+                    notified.wait(Math.min(remaining, 1000));
                 }
             }
             
-            if (notified[0]) {
-                return RespostaDTO.sucesso(message[0]);
-            } else {
-                return RespostaDTO.erro("Timeout aguardando vendas específicas");
-            }
+            return RespostaDTO.sucesso(message[0]);
             
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -160,21 +156,23 @@ public class ServicoEventos implements IServicoEventos {
         
         lock.readLock().lock();
         int diaSnapshot = diaAtual;
+        boolean jaAtingiu = lastProductID == produtoID && consecutiveCount >= n;
+        lock.readLock().unlock();
         
-        // Verificar se já atingiu o objetivo
-        if (lastProductID == produtoID && consecutiveCount >= n) {
-            lock.readLock().unlock();
+        if (jaAtingiu) {
             return RespostaDTO.sucesso("Produto já atingiu " + n + " vendas consecutivas!");
         }
-        lock.readLock().unlock();
         
         try {
             final boolean[] notified = {false};
             final String[] message = {null};
             
             NotificationManager.NotificationCallback callback = msg -> {
-                notified[0] = true;
-                message[0] = msg;
+                synchronized (notified) {
+                    notified[0] = true;
+                    message[0] = msg;
+                    notified.notify();
+                }
             };
             
             notificationManager.registarVendasConsecutivas(
@@ -185,30 +183,87 @@ public class ServicoEventos implements IServicoEventos {
             );
             
             // Aguardar notificação
-            long timeout = System.currentTimeMillis() + 60000; // 60s timeout
-            while (!notified[0] && System.currentTimeMillis() < timeout) {
-                Thread.sleep(100);
+            synchronized (notified) {
+                long timeout = System.currentTimeMillis() + 60000;
                 
-                lock.readLock().lock();
-                try {
-                    if (diaAtual != diaSnapshot) {
-                        return RespostaDTO.erro("Dia avançou, notificação cancelada");
+                while (!notified[0]) {
+                    long remaining = timeout - System.currentTimeMillis();
+                    if (remaining <= 0) {
+                        return RespostaDTO.erro("Timeout aguardando vendas consecutivas");
                     }
-                } finally {
-                    lock.readLock().unlock();
+                    
+                    lock.readLock().lock();
+                    try {
+                        if (diaAtual != diaSnapshot) {
+                            return RespostaDTO.erro("Dia avançou, notificação cancelada");
+                        }
+                    } finally {
+                        lock.readLock().unlock();
+                    }
+                    
+                    notified.wait(Math.min(remaining, 1000));
                 }
             }
             
-            if (notified[0]) {
-                return RespostaDTO.sucesso(message[0]);
-            } else {
-                return RespostaDTO.erro("Timeout aguardando vendas consecutivas");
-            }
+            return RespostaDTO.sucesso(message[0]);
             
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new EventoException("Espera interrompida", e);
         }
+    }
+    
+    @Override
+    public RespostaDTO filtrarEventos(FiltrarEventosDTO filtro) throws EventoException {
+        if (filtro == null) {
+            throw new EventoException("Filtro não fornecido");
+        }
+        
+        Set<Integer> produtosIDs = filtro.getProdutosIDs();
+        int diaAnterior = filtro.getDiaAnterior();
+        
+        // Validar
+        if (produtosIDs == null || produtosIDs.isEmpty()) {
+            throw new EventoException("Conjunto de produtos vazio");
+        }
+        if (diaAnterior < 1 || diaAnterior > D) {
+            throw new EventoException("Dia anterior inválido (deve estar entre 1 e " + D + ")");
+        }
+        
+        lock.readLock().lock();
+        int diaAlvo = diaAtual - diaAnterior;
+        lock.readLock().unlock();
+        
+        if (diaAlvo < 0) {
+            throw new EventoException("Dia anterior excede histórico disponível");
+        }
+        
+        // Carregar eventos do dia
+        Map<Integer, List<Evento>> eventosDia = eventoRepository.carregarEventosDia(diaAlvo);
+        
+        // Filtrar apenas produtos do conjunto
+        Map<Integer, List<EventosFiltradosDTO.EventoCompacto>> resultado = new HashMap<>();
+        
+        for (int produtoID : produtosIDs) {
+            List<Evento> eventos = eventosDia.get(produtoID);
+            if (eventos != null && !eventos.isEmpty()) {
+                List<EventosFiltradosDTO.EventoCompacto> compactos = new ArrayList<>();
+                for (Evento e : eventos) {
+                    compactos.add(new EventosFiltradosDTO.EventoCompacto(
+                        e.getQuantidade(), 
+                        e.getPreco()
+                    ));
+                }
+                resultado.put(produtoID, compactos);
+            }
+        }
+        
+        EventosFiltradosDTO resposta = new EventosFiltradosDTO(resultado, diaAlvo);
+        
+        return RespostaDTO.sucesso(
+            "Eventos filtrados do dia " + diaAlvo, 
+            resposta
+        );
     }
     
     @Override
