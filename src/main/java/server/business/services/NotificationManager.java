@@ -91,19 +91,76 @@ public class NotificationManager {
      * Notifica quando um evento de venda ocorre
      * Verifica todas as condições pendentes
      */
-    //todo: confirmafr estes argumentos sus
     public void notificarEvento(int produtoID, int diaAtual, Map<Integer, List<?>> eventosDia, int lastProductID, int consecutiveCount) {
         lock.lock();
         try {
-            // Verificar vendas específicas
-            verificarVendasEspecificas(produtoID, diaAtual, eventosDia);
-            
-            // Verificar vendas consecutivas
-            verificarVendasConsecutivas(produtoID, lastProductID, 
-                                       consecutiveCount, diaAtual);
-            
+            // ===== VENDAS ESPECÍFICAS =====
+            List<String> keysVendasEspecificas = new ArrayList<>();
+
+            for (String key : vendasEspecificas.keySet()) {
+                if (!key.endsWith(":" + diaAtual)) continue;
+
+                String[] parts = key.split(":");
+                int p1 = Integer.parseInt(parts[0]);
+                int p2 = Integer.parseInt(parts[1]);
+
+                if ((produtoID == p1 || produtoID == p2) && 
+                    eventosDia.containsKey(p1) && eventosDia.containsKey(p2)) {
+                    keysVendasEspecificas.add(key);
+                }
+            }
+
+            // Notificar handlers (dentro do lock)
+            for (String key : keysVendasEspecificas) {
+                List<NotificationHandler> handlers = vendasEspecificas.remove(key);
+                if (handlers != null) {
+                    notificarHandlersAsync(handlers, 
+                        "Produtos vendidos no dia " + diaAtual);
+                }
+            }
+
+            // ===== VENDAS CONSECUTIVAS =====
+            if (lastProductID != produtoID) {
+                return; // Não é consecutiva, sair
+            }
+
+            List<String> keysVendasConsecutivas = new ArrayList<>();
+
+            for (String key : vendasConsecutivas.keySet()) {
+                if (!key.endsWith(":" + diaAtual)) continue;
+
+                String[] parts = key.split(":");
+                int pid = Integer.parseInt(parts[0]);
+                int n = Integer.parseInt(parts[1]);
+
+                if (pid == produtoID && consecutiveCount >= n) {
+                    keysVendasConsecutivas.add(key);
+                }
+            }
+
+            // Notificar handlers
+            for (String key : keysVendasConsecutivas) {
+                List<NotificationHandler> handlers = vendasConsecutivas.remove(key);
+                if (handlers != null) {
+                    notificarHandlersAsync(handlers,
+                        "Produto " + produtoID + " atingiu " + consecutiveCount + " vendas consecutivas");
+                }
+            }
+
         } finally {
             lock.unlock();
+        }
+    }
+
+    private void notificarHandlersAsync(List<NotificationHandler> handlers, String mensagem) {
+        for (NotificationHandler handler : handlers) {
+            notificationPool.submit(() -> {
+                try {
+                    handler.callback.onNotification(mensagem);
+                } catch (Exception e) {
+                    System.err.println("Erro ao processar callback: " + e.getMessage());
+                }
+            });
         }
     }
     
