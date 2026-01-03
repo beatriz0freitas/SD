@@ -245,6 +245,16 @@ public class Server {
             S = parseIntOuPadrao(args[2], S, "S");
         }
         
+        if (D <= 0) {
+            System.err.println("ERRO: D (dias de histórico) deve ser positivo. Valor fornecido: " + D);
+            System.exit(1);
+        }
+        
+        if (S <= 0) {
+            System.err.println("ERRO: S (séries em memória) deve ser positivo. Valor fornecido: " + S);
+            System.exit(1);
+        }
+        
         if (S > D) {
             System.err.println("AVISO: S (" + S + ") > D (" + D + "), ajustando S = D");
             S = D;
