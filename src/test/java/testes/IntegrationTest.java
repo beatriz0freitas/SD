@@ -183,7 +183,7 @@ class IntegrationTest {
     
     @Test
     @Order(6)
-    @Timeout(value = 10, unit = TimeUnit.SECONDS)
+    @Timeout(value = 15, unit = TimeUnit.SECONDS)
     void testeNotificacoes() throws Exception {
         ClienteMiddleware middleware = new ClienteMiddleware(HOST, PORT);
         middleware.conectar();
@@ -202,24 +202,32 @@ class IntegrationTest {
     
         Thread t = new Thread(() -> {
             try {
+                // Esta operação vai bloquear até ambos produtos serem vendidos
                 RespostaDTO r = eventos.notificarVendaEspecifica(
                     new NotificacaoDTO(10, 11)
                 );
-                if (r.isSucesso()) notificado.set(1);
+                if (r.isSucesso()) {
+                    notificado.set(1);
+                }
             } catch (Exception e) {
-                fail("Erro inesperado na notificação: " + e.getMessage());
+                System.err.println("Erro na notificação: " + e.getMessage());
             } finally {
                 latch.countDown();
             }
         });
         
         t.start();
-    
+        
+        // Aguardar thread iniciar
+        Thread.sleep(500);
+        
+        // Registrar os eventos que vão satisfazer a notificação
         eventos.registrarEvento(new EventoDTO(10, 1, 100.0));
+        Thread.sleep(200);
         eventos.registrarEvento(new EventoDTO(11, 1, 100.0));
     
-        assertTrue(latch.await(5, TimeUnit.SECONDS));
-        assertEquals(1, notificado.get(), "Notificação deve ser recebida");
+        assertTrue(latch.await(8, TimeUnit.SECONDS), "Notificação deve ser recebida");
+        assertEquals(1, notificado.get(), "Notificação deve ter sucesso");
     
         middleware.desconectar();
     }

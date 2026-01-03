@@ -21,4 +21,11 @@ public interface IServicoAdmin {
      * @throws AdminException se não autorizado
      */
     RespostaDTO obterEstatisticas() throws AdminException;
+
+    /**
+     * Lista métricas de desempenho do sistema
+     * @return métricas de desempenho
+     * @throws AdminException se não autorizado
+     */
+    RespostaDTO obterMetricas() throws AdminException;
 }
