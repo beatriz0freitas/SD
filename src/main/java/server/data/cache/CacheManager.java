@@ -2,6 +2,7 @@ package server.data.cache;
 
 import java.util.*;
 import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import common.PerformanceMetrics;
@@ -32,6 +33,9 @@ public class CacheManager {
     private final Lock readLock = rwLock.readLock();
     private final Lock writeLock = rwLock.writeLock();
 
+    private final Map<String, ReentrantLock> computationLocks = new HashMap<>();
+    private final ReentrantLock computationLocksLock = new ReentrantLock();
+
     public CacheManager(IEventoRepository eventoRepository, int S) {
         this.eventoRepository = eventoRepository;
         this.S = S;
@@ -43,8 +47,7 @@ public class CacheManager {
      * Usa streaming se memória cheia
      */
     public Agregacao obterAgregacaoDia(int produtoID, int dia) {
-
-        // ===== FASE 1: tentativa rápida (READ LOCK) =====
+        // FASE 1: Tentativa rápida (READ LOCK)
         readLock.lock();
         try {
             Map<Integer, Agregacao> porProduto = cacheAgregacoes.get(produtoID);
@@ -52,56 +55,97 @@ public class CacheManager {
                 Agregacao existente = porProduto.get(dia);
                 if (existente != null) {
                     metrics.recordCacheHit();
-                    System.out.println("Cache HIT: produto=" + produtoID + " dia=" + dia);
                     return existente;
                 }
             }
         } finally {
             readLock.unlock();
         }
-    
-        // Cache miss
+
         metrics.recordCacheMiss();
-        
-        // ===== FASE 2: cálculo SEM locks =====
-        Agregacao calculada;
-    
-        boolean usarStreaming;
-        readLock.lock();
+
+        //Obter computation lock específico para esta chave
+        String computationKey = produtoID + ":" + dia;
+        ReentrantLock compLock = getComputationLock(computationKey);
+
+        compLock.lock();
         try {
-            usarStreaming = seriesEmMemoria.size() >= S && !seriesEmMemoria.containsKey(dia);
-        } finally {
-            readLock.unlock();
-        }
-    
-        if (usarStreaming) {
-            System.out.println("STREAMING dia " + dia + " (memória cheia, S=" + S + ")");
-            calculada = eventoRepository.agregarEventosDia(produtoID, dia);
-        } else {
-            calculada = calcularComMemoria(produtoID, dia);
-        }
-    
-        // ===== FASE 3: inserir no cache (WRITE LOCK) =====
-        writeLock.lock();
-        try {
-            // Double-check (outra thread pode ter inserido entretanto)
-            Map<Integer, Agregacao> porProduto =
-                cacheAgregacoes.computeIfAbsent(produtoID, k -> new HashMap<>());
-    
-            Agregacao existente = porProduto.get(dia);
-            if (existente != null) {
-                return existente;
+            // Double-check: outra thread pode ter calculado enquanto esperávamos
+            readLock.lock();
+            try {
+                Map<Integer, Agregacao> porProduto = cacheAgregacoes.get(produtoID);
+                if (porProduto != null) {
+                    Agregacao existente = porProduto.get(dia);
+                    if (existente != null) {
+                        return existente; // Outra thread já calculou
+                    }
+                }
+            } finally {
+                readLock.unlock();
             }
-    
-            porProduto.put(dia, calculada);
-            System.out.println("Cache MISS: produto=" + produtoID + " dia=" + dia);
-            return calculada;
-    
+
+            // FASE 2: Cálculo (SEM locks de cache, só computation lock)
+            Agregacao calculada;
+            boolean usarStreaming;
+
+            readLock.lock();
+            try {
+                usarStreaming = seriesEmMemoria.size() >= S && 
+                              !seriesEmMemoria.containsKey(dia);
+            } finally {
+                readLock.unlock();
+            }
+
+            if (usarStreaming) {
+                calculada = eventoRepository.agregarEventosDia(produtoID, dia);
+            } else {
+                calculada = calcularComMemoria(produtoID, dia);
+            }
+
+            // FASE 3: Inserir no cache (WRITE LOCK)
+            writeLock.lock();
+            try {
+                Map<Integer, Agregacao> porProduto = 
+                    cacheAgregacoes.computeIfAbsent(produtoID, k -> new HashMap<>());
+
+                // Triple-check (paranóia)
+                Agregacao existente = porProduto.get(dia);
+                if (existente != null) {
+                    return existente;
+                }
+
+                porProduto.put(dia, calculada);
+                return calculada;
+            } finally {
+                writeLock.unlock();
+            }
+
         } finally {
-            writeLock.unlock();
+            compLock.unlock();
+            releaseComputationLock(computationKey);
         }
     }
     
+    private ReentrantLock getComputationLock(String key) {
+        computationLocksLock.lock();
+        try {
+            return computationLocks.computeIfAbsent(key, k -> new ReentrantLock());
+        } finally {
+            computationLocksLock.unlock();
+        }
+    }
+    
+    private void releaseComputationLock(String key) {
+        computationLocksLock.lock();
+        try {
+            ReentrantLock lock = computationLocks.get(key);
+            if (lock != null && !lock.hasQueuedThreads()) {
+                computationLocks.remove(key);
+            }
+        } finally {
+            computationLocksLock.unlock();
+        }
+    }
 
     /**
     * Calcula agregação usando memória (série já está OU há espaço)
