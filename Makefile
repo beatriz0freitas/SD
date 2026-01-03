@@ -21,6 +21,7 @@ test-single:
 	@echo "==> Executar teste: $(TEST)"
 	mvn -Dtest=$(TEST) test
 
+#todo: confirmar divisao
 # Executar apenas testes de stress
 test-stress:
 	@echo "==> Executar testes de stress"
