@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Testes de stress e performance (JUnit 5)
  */
-@Tag("stress")
+
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class StressTest {
 
