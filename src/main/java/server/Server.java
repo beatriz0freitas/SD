@@ -29,6 +29,8 @@ public class Server {
     private volatile boolean ativo;
     private final RequestDispatcher dispatcher;
     private ServerShutdownHandler shutdownHandler;
+
+    private final DeadlockMonitor deadlockMonitor;
     
     public Server(int porta, int D, int S) {
         this.porta = porta;
@@ -48,6 +50,7 @@ public class Server {
         this.ativo = false;
         this.dispatcher = RequestDispatcher.criar(D, S);
         this.shutdownHandler = new ServerShutdownHandler(clientesAtivos, clientesLock);
+        this.deadlockMonitor = new DeadlockMonitor();
     }
     
     public void iniciar() {
@@ -57,6 +60,8 @@ public class Server {
             
             imprimirBanner();
             
+            deadlockMonitor.start(30);
+
             while (ativo) {
                 try {
                     Socket clientSocket = serverSocket.accept();
@@ -115,7 +120,7 @@ public class Server {
         System.out.println("\n[2/4] Encerrando client handlers...");
         encerrarPoolComTimeout(clientHandlerPool, "Client Handler Pool", 5);
         
-        //  Aguardar processamento de requests pendentes
+        // Aguardar processamento de requests pendentes
         System.out.println("\n[3/5] Processando requests pendentes...");
         requestPool.shutdown(); // Não aceita novos
         
@@ -135,12 +140,13 @@ public class Server {
             requestPool.shutdownNow();
             Thread.currentThread().interrupt();
         }
-           
+
         System.out.println("\n[4/4] Cleanup concluído.");
         System.out.println("=".repeat(50));
         System.out.println("  SERVIDOR ENCERRADO COM SUCESSO");
         System.out.println("=".repeat(50) + "\n");
 
+        deadlockMonitor.stop();
         dispatcher.shutdown();
     }
     
