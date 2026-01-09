@@ -21,12 +21,7 @@ public class ThreadPoolImpl implements ThreadPool {
 
     private final int maxThreads;
     private final int maxQueueSize;
-<<<<<<< HEAD
 
-=======
-    
-    // Contador protegido por lock
->>>>>>> f687d016804edc2027b834a529dfa9f4aa425ad0
     private int workerIdCounter = 0;
     private int workerCount = 0;
     private boolean shutdown = false;
@@ -177,8 +172,6 @@ public class ThreadPoolImpl implements ThreadPool {
             lock.lock();
             try {
                 workerCount--;
-                workers.remove(Thread.currentThread());
-
                 if (shutdown && workerCount == 0) {
                     termination.signalAll();
                 }

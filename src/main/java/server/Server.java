@@ -106,8 +106,8 @@ public class Server {
 
         // 3) Shutdown pools (sem timers)
         System.out.println("\n[2/4] Encerrando pools...");
-        clientHandlerPool.shutdown();
-        requestPool.shutdown();
+        clientHandlerPool.shutdownNow();   
+        requestPool.shutdown();            
 
         // 4) Espera até terminar (sem timeout)
         System.out.println("\n[3/4] Aguardando término das threads...");

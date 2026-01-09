@@ -7,6 +7,7 @@ import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
@@ -18,11 +19,6 @@ import middleware.Message;
 import middleware.Protocolo;
 import server.presentation.skeleton.RequestDispatcher;
 
-/**
- * Handler por cliente.
- * Lê requests sequencialmente do socket e processa em paralelo via requestExecutor.
- * Escrita no socket é serializada via writeLock para não intercalar respostas.
- */
 public class ClientHandler implements Runnable {
     private final Socket socket;
     private final RequestDispatcher dispatcher;
@@ -64,7 +60,23 @@ public class ClientHandler implements Runnable {
             }
 
         } catch (EOFException e) {
+            // cliente fechou normalmente
             System.out.println("Cliente desconectado: " + socket.getInetAddress());
+
+        } catch (SocketException e) {
+            // Server.parar() fecha o socket enquanto estamos bloqueados a ler
+            String msg = e.getMessage();
+            if (msg != null && msg.toLowerCase().contains("socket closed")) {
+                System.out.println("Conexão encerrada (shutdown): " + socket.getInetAddress());
+            } else {
+                ErrorLogger.getInstance().logError(
+                        "ClientHandler[cliente=" + socket.getInetAddress() + "]", e);
+            }
+
+        } catch (IOException e) {
+            // I/O geral (pode ser desconexão abrupta)
+            System.out.println("I/O encerrado para cliente " + socket.getInetAddress() + ": " + e.getMessage());
+
         } catch (Exception e) {
             ErrorLogger.getInstance().logError(
                     "ClientHandler[cliente=" + socket.getInetAddress() + "]", e);
@@ -91,8 +103,6 @@ public class ClientHandler implements Runnable {
     private void processarPedido(Message msg, DataOutputStream out) {
         try {
             RespostaDTO resp = dispatcher.despachar(msg);
-
-            // 10/10: response payload são bytes do RespostaDTO
             Message response = Message.response(msg.getTag(), resp.serialize());
             enviarResposta(response, out);
 
@@ -123,7 +133,6 @@ public class ClientHandler implements Runnable {
             Message response = Message.response(tag, erro.serialize());
             enviarResposta(response, out);
         } catch (IOException e) {
-            // Se nem conseguimos serializar/enviar, a conexão provavelmente vai morrer
             System.err.println("Erro fatal ao enviar erro: " + e.getMessage());
         }
     }
