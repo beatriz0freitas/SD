@@ -139,7 +139,7 @@ public class ServicoEventos implements IServicoEventos {
                 callback
             );
 
-            // Aguardar notificação (sem synchronized/wait/notify)
+            // Aguardar notificação (sem wait/notify)
             notificacaoLock.lock();
             try {
                 while (!notified[0]) {
@@ -203,7 +203,7 @@ public class ServicoEventos implements IServicoEventos {
                 callback
             );
 
-            // Aguardar notificação (sem synchronized/wait/notify)
+            // Aguardar notificação (sem wait/notify)
             notificacaoLock.lock();
             try {
                 while (!notified[0]) {

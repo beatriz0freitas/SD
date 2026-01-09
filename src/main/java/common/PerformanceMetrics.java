@@ -1,6 +1,5 @@
 package common;
 
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
@@ -11,11 +10,11 @@ public class PerformanceMetrics {
     private static PerformanceMetrics instance;
     private static final ReentrantReadWriteLock instanceLock = new ReentrantReadWriteLock();
     
-    // Contadores atômicos para operações de leitura
-    private final AtomicLong totalRequests = new AtomicLong(0);
-    private final AtomicLong totalErrors = new AtomicLong(0);
-    private final AtomicLong totalCacheHits = new AtomicLong(0);
-    private final AtomicLong totalCacheMisses = new AtomicLong(0);
+    // Contadores protegidos por lock
+    private long totalRequests = 0;
+    private long totalErrors = 0;
+    private long totalCacheHits = 0;
+    private long totalCacheMisses = 0;
     
     // Latências (protegidas por locks)
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
@@ -50,15 +49,14 @@ public class PerformanceMetrics {
      * Registra uma requisição
      */
     public void recordRequest(boolean success, long latencyNs) {
-        totalRequests.incrementAndGet();
-        
-        if (!success) {
-            totalErrors.incrementAndGet();
-        }
-        
-        // Atualizar latências
         lock.writeLock().lock();
         try {
+            totalRequests++;
+            if (!success) {
+                totalErrors++;
+            }
+
+            // Atualizar latências
             totalLatencyNs += latencyNs;
             latencySamples++;
             
@@ -77,14 +75,24 @@ public class PerformanceMetrics {
      * Registra cache hit
      */
     public void recordCacheHit() {
-        totalCacheHits.incrementAndGet();
+        lock.writeLock().lock();
+        try {
+            totalCacheHits++;
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
     
     /**
      * Registra cache miss
      */
     public void recordCacheMiss() {
-        totalCacheMisses.incrementAndGet();
+        lock.writeLock().lock();
+        try {
+            totalCacheMisses++;
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
     
     /**
@@ -93,10 +101,10 @@ public class PerformanceMetrics {
     public MetricsSnapshot getSnapshot() {
         lock.readLock().lock();
         try {
-            long requests = totalRequests.get();
-            long errors = totalErrors.get();
-            long cacheHits = totalCacheHits.get();
-            long cacheMisses = totalCacheMisses.get();
+            long requests = totalRequests;
+            long errors = totalErrors;
+            long cacheHits = totalCacheHits;
+            long cacheMisses = totalCacheMisses;
             
             double avgLatencyMs = latencySamples > 0 
                 ? (totalLatencyNs / latencySamples) / 1_000_000.0 
@@ -138,13 +146,12 @@ public class PerformanceMetrics {
      * Reseta todas as métricas
      */
     public void reset() {
-        totalRequests.set(0);
-        totalErrors.set(0);
-        totalCacheHits.set(0);
-        totalCacheMisses.set(0);
-        
         lock.writeLock().lock();
         try {
+            totalRequests = 0;
+            totalErrors = 0;
+            totalCacheHits = 0;
+            totalCacheMisses = 0;
             totalLatencyNs = 0;
             minLatencyNs = Long.MAX_VALUE;
             maxLatencyNs = 0;
