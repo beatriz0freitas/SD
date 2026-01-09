@@ -6,7 +6,6 @@ import java.io.File;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import server.business.domain.Agregacao;
 import server.business.domain.Evento;
@@ -105,10 +104,7 @@ class CacheManagerTest {
 
         String stats = cache.obterEstatisticas();
 
-        assertTrue(
-                stats.contains("3"),
-                "LRU deve limitar o número de séries em memória"
-        );
+        assertTrue(stats.contains("3"), "LRU deve limitar o número de séries em memória");
     }
 
     @Test
@@ -138,19 +134,22 @@ class CacheManagerTest {
 
         int numThreads = 20;
         CountDownLatch latch = new CountDownLatch(numThreads);
-        AtomicInteger sucessos = new AtomicInteger(0);
+
+        boolean[] ok = new boolean[numThreads];
 
         for (int i = 0; i < numThreads; i++) {
             final int threadId = i;
             new Thread(() -> {
                 try {
+                    boolean localOk = true;
                     for (int dia = 0; dia < 5; dia++) {
-                        Agregacao agg =
-                                cache.obterAgregacaoDia(threadId % 5 + 1, dia);
-                        if (agg != null && agg.getQuantidadeVendas() == 30) {
-                            sucessos.incrementAndGet();
+                        Agregacao agg = cache.obterAgregacaoDia(threadId % 5 + 1, dia);
+                        if (agg == null || agg.getQuantidadeVendas() != 30) {
+                            localOk = false;
+                            break;
                         }
                     }
+                    ok[threadId] = localOk;
                 } finally {
                     latch.countDown();
                 }
@@ -158,7 +157,11 @@ class CacheManagerTest {
         }
 
         assertTrue(latch.await(8, TimeUnit.SECONDS));
-        assertEquals(numThreads * 5, sucessos.get());
+
+        int sucessos = 0;
+        for (int i = 0; i < numThreads; i++) if (ok[i]) sucessos++;
+
+        assertEquals(numThreads, sucessos, "Todas as threads devem conseguir 5 leituras corretas.");
     }
 
     @Test

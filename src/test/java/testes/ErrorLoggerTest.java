@@ -4,7 +4,6 @@ import org.junit.jupiter.api.*;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import common.ErrorLogger;
 
@@ -38,10 +37,10 @@ class ErrorLoggerTest {
         String log = logger.getLog();
 
         assertAll(
-            () -> assertTrue(log.contains("ERRO"), "Log deve conter '[ERRO]'"),
-            () -> assertTrue(log.contains("TesteBasico"), "Log deve conter contexto"),
-            () -> assertTrue(log.contains("RuntimeException"), "Log deve conter tipo de exceção"),
-            () -> assertTrue(log.contains("Erro de teste"), "Log deve conter mensagem")
+                () -> assertTrue(log.contains("ERRO"), "Log deve conter '[ERRO]'"),
+                () -> assertTrue(log.contains("TesteBasico"), "Log deve conter contexto"),
+                () -> assertTrue(log.contains("RuntimeException"), "Log deve conter tipo de exceção"),
+                () -> assertTrue(log.contains("Erro de teste"), "Log deve conter mensagem")
         );
     }
 
@@ -58,12 +57,12 @@ class ErrorLoggerTest {
         String log = logger.getLog();
 
         assertAll(
-            () -> assertTrue(log.contains("metodoComErro"), 
-                           "Stack trace deve conter o método que causou o erro"),
-            () -> assertTrue(log.contains("ErrorLoggerTest"), 
-                           "Stack trace deve conter a classe de teste"),
-            () -> assertTrue(log.contains("at testes.ErrorLoggerTest"), 
-                           "Stack trace deve ter formato correto")
+                () -> assertTrue(log.contains("metodoComErro"),
+                        "Stack trace deve conter o método que causou o erro"),
+                () -> assertTrue(log.contains("ErrorLoggerTest"),
+                        "Stack trace deve conter a classe de teste"),
+                () -> assertTrue(log.contains("at testes.ErrorLoggerTest"),
+                        "Stack trace deve ter formato correto")
         );
     }
 
@@ -75,24 +74,19 @@ class ErrorLoggerTest {
     @Order(3)
     @DisplayName("Diferentes tipos de exceções são registados")
     void testeDiferentesTiposExcecoes() {
-        // IOException
         logger.logError("IO", new java.io.IOException("Erro de IO"));
-        
-        // NullPointerException
         logger.logError("NPE", new NullPointerException("Ponteiro nulo"));
-        
-        // Custom Exception
         logger.logError("Custom", new IllegalArgumentException("Argumento inválido"));
 
         String log = logger.getLog();
 
         assertAll(
-            () -> assertTrue(log.contains("IOException"), "Deve conter IOException"),
-            () -> assertTrue(log.contains("NullPointerException"), "Deve conter NullPointerException"),
-            () -> assertTrue(log.contains("IllegalArgumentException"), "Deve conter IllegalArgumentException"),
-            () -> assertTrue(log.contains("Erro de IO"), "Deve conter mensagem de IO"),
-            () -> assertTrue(log.contains("Ponteiro nulo"), "Deve conter mensagem de NPE"),
-            () -> assertTrue(log.contains("Argumento inválido"), "Deve conter mensagem custom")
+                () -> assertTrue(log.contains("IOException"), "Deve conter IOException"),
+                () -> assertTrue(log.contains("NullPointerException"), "Deve conter NullPointerException"),
+                () -> assertTrue(log.contains("IllegalArgumentException"), "Deve conter IllegalArgumentException"),
+                () -> assertTrue(log.contains("Erro de IO"), "Deve conter mensagem de IO"),
+                () -> assertTrue(log.contains("Ponteiro nulo"), "Deve conter mensagem de NPE"),
+                () -> assertTrue(log.contains("Argumento inválido"), "Deve conter mensagem custom")
         );
     }
 
@@ -102,16 +96,16 @@ class ErrorLoggerTest {
     void testeExcecoesEncadeadas() {
         Exception causa = new IllegalStateException("Causa raiz");
         Exception principal = new RuntimeException("Erro principal", causa);
-        
+
         logger.logError("Encadeado", principal);
 
         String log = logger.getLog();
 
         assertAll(
-            () -> assertTrue(log.contains("RuntimeException"), "Deve conter exceção principal"),
-            () -> assertTrue(log.contains("Erro principal"), "Deve conter mensagem principal"),
-            () -> assertTrue(log.contains("IllegalStateException"), "Deve conter causa"),
-            () -> assertTrue(log.contains("Causa raiz"), "Deve conter mensagem da causa")
+                () -> assertTrue(log.contains("RuntimeException"), "Deve conter exceção principal"),
+                () -> assertTrue(log.contains("Erro principal"), "Deve conter mensagem principal"),
+                () -> assertTrue(log.contains("IllegalStateException"), "Deve conter causa"),
+                () -> assertTrue(log.contains("Causa raiz"), "Deve conter mensagem da causa")
         );
     }
 
@@ -124,9 +118,9 @@ class ErrorLoggerTest {
         String log = logger.getLog();
 
         assertAll(
-            () -> assertTrue(log.contains("AVISO"), "Log deve conter '[AVISO]'"),
-            () -> assertTrue(log.contains("TesteWarning"), "Log deve conter contexto"),
-            () -> assertTrue(log.contains("Este é um aviso"), "Log deve conter mensagem")
+                () -> assertTrue(log.contains("AVISO"), "Log deve conter '[AVISO]'"),
+                () -> assertTrue(log.contains("TesteWarning"), "Log deve conter contexto"),
+                () -> assertTrue(log.contains("Este é um aviso"), "Log deve conter mensagem")
         );
     }
 
@@ -145,7 +139,6 @@ class ErrorLoggerTest {
             assertTrue(log.contains("Exceção " + i), "Deve conter exceção " + i);
         }
 
-        // Verificar que há 5 ocorrências de [ERRO]
         int count = log.split("\\[ERRO\\]").length - 1;
         assertEquals(5, count, "Deve ter exatamente 5 erros registados");
     }
@@ -155,7 +148,7 @@ class ErrorLoggerTest {
     @DisplayName("Clear limpa o log")
     void testeClear() {
         logger.logError("Teste", new RuntimeException("Erro"));
-        
+
         String antes = logger.getLog();
         assertTrue(antes.length() > 0, "Log deve ter conteúdo antes de clear");
 
@@ -170,20 +163,21 @@ class ErrorLoggerTest {
     @DisplayName("Timestamps são registados")
     void testeTimestamps() {
         logger.logError("Timestamp1", new RuntimeException("Erro 1"));
-        
+
         try {
             Thread.sleep(100);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        
+
         logger.logError("Timestamp2", new RuntimeException("Erro 2"));
 
         String log = logger.getLog();
 
-        // Verificar formato de timestamp (yyyy-MM-dd HH:mm:ss.SSS)
-        assertTrue(log.matches("(?s).*\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3}.*"), 
-                  "Log deve conter timestamps no formato correto");
+        assertTrue(
+                log.matches("(?s).*\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3}.*"),
+                "Log deve conter timestamps no formato correto"
+        );
     }
 
     @Test
@@ -193,7 +187,9 @@ class ErrorLoggerTest {
     void testeThreadSafety() throws InterruptedException {
         int numThreads = 20;
         CountDownLatch latch = new CountDownLatch(numThreads);
-        AtomicInteger errosLogados = new AtomicInteger(0);
+
+        // cada thread conta localmente e escreve no seu índice
+        int[] logsFeitos = new int[numThreads];
 
         for (int i = 0; i < numThreads; i++) {
             final int threadId = i;
@@ -201,9 +197,11 @@ class ErrorLoggerTest {
             new Thread(() -> {
                 try {
                     for (int j = 0; j < 10; j++) {
-                        logger.logError("Thread-" + threadId + "-Erro-" + j, 
-                                      new RuntimeException("Erro da thread " + threadId + ", iteração " + j));
-                        errosLogados.incrementAndGet();
+                        logger.logError(
+                                "Thread-" + threadId + "-Erro-" + j,
+                                new RuntimeException("Erro da thread " + threadId + ", iteração " + j)
+                        );
+                        logsFeitos[threadId]++;
                     }
                 } finally {
                     latch.countDown();
@@ -213,25 +211,23 @@ class ErrorLoggerTest {
 
         assertTrue(latch.await(8, TimeUnit.SECONDS), "Todas threads devem completar");
 
-        Thread.sleep(500); // Aguardar logs serem escritos
+        Thread.sleep(500);
+
+        int totalEsperado = numThreads * 10;
+        int totalFeito = 0;
+        for (int i = 0; i < numThreads; i++) totalFeito += logsFeitos[i];
+
+        assertEquals(totalEsperado, totalFeito, "Deve ter exatamente " + totalEsperado + " logs feitos");
 
         String log = logger.getLog();
 
-        // Verificar que todos os erros foram registados
-        int expectedErrors = numThreads * 10;
-        assertTrue(errosLogados.get() >= expectedErrors, 
-                  "Deve ter pelo menos " + expectedErrors + " erros logados");
-
-        // Verificar que pelo menos 90% dos erros estão no log
-        int count = 0;
+        int threadsEncontradas = 0;
         for (int i = 0; i < numThreads; i++) {
-            if (log.contains("Thread-" + i)) {
-                count++;
-            }
+            if (log.contains("Thread-" + i)) threadsEncontradas++;
         }
 
-        assertTrue(count >= numThreads * 0.9, 
-                  "Log deve conter pelo menos 90% das threads. Encontradas: " + count);
+        assertTrue(threadsEncontradas >= (int) (numThreads * 0.9),
+                "Log deve conter pelo menos 90% das threads. Encontradas: " + threadsEncontradas);
     }
 
     @Test
@@ -239,22 +235,24 @@ class ErrorLoggerTest {
     @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Thread-safety - leituras concorrentes")
     void testeThreadSafetyLeituras() throws InterruptedException {
-        // Adicionar alguns erros
         for (int i = 0; i < 10; i++) {
             logger.logError("Setup-" + i, new RuntimeException("Erro " + i));
         }
 
         int numThreads = 20;
         CountDownLatch latch = new CountDownLatch(numThreads);
-        AtomicInteger leiturasComSucesso = new AtomicInteger(0);
+
+        // cada thread conta as suas leituras com sucesso
+        int[] leiturasOk = new int[numThreads];
 
         for (int i = 0; i < numThreads; i++) {
+            final int idx = i;
             new Thread(() -> {
                 try {
                     for (int j = 0; j < 100; j++) {
                         String log = logger.getLog();
                         if (log.contains("Setup-")) {
-                            leiturasComSucesso.incrementAndGet();
+                            leiturasOk[idx]++;
                         }
                     }
                 } finally {
@@ -265,9 +263,10 @@ class ErrorLoggerTest {
 
         assertTrue(latch.await(8, TimeUnit.SECONDS), "Todas threads devem completar");
 
-        int expectedReads = numThreads * 100;
-        assertEquals(expectedReads, leiturasComSucesso.get(), 
-                    "Todas leituras devem ter sucesso");
+        int total = 0;
+        for (int i = 0; i < numThreads; i++) total += leiturasOk[i];
+
+        assertEquals(numThreads * 100, total, "Todas leituras devem ter sucesso");
     }
 
     @Test
@@ -278,34 +277,33 @@ class ErrorLoggerTest {
         int numWriters = 10;
         int numReaders = 10;
         CountDownLatch latch = new CountDownLatch(numWriters + numReaders);
-        AtomicInteger escritasCompletas = new AtomicInteger(0);
-        AtomicInteger leiturasCompletas = new AtomicInteger(0);
 
-        // Writers
+        boolean[] writerDone = new boolean[numWriters];
+        boolean[] readerDone = new boolean[numReaders];
+
         for (int i = 0; i < numWriters; i++) {
             final int writerId = i;
             new Thread(() -> {
                 try {
                     for (int j = 0; j < 50; j++) {
-                        logger.logError("Writer-" + writerId, 
-                                      new RuntimeException("Erro " + j));
+                        logger.logError("Writer-" + writerId, new RuntimeException("Erro " + j));
                     }
-                    escritasCompletas.incrementAndGet();
+                    writerDone[writerId] = true;
                 } finally {
                     latch.countDown();
                 }
             }).start();
         }
 
-        // Readers
         for (int i = 0; i < numReaders; i++) {
+            final int readerId = i;
             new Thread(() -> {
                 try {
                     for (int j = 0; j < 50; j++) {
                         logger.getLog();
                         Thread.sleep(10);
                     }
-                    leiturasCompletas.incrementAndGet();
+                    readerDone[readerId] = true;
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 } finally {
@@ -314,13 +312,16 @@ class ErrorLoggerTest {
             }).start();
         }
 
-        assertTrue(latch.await(15, TimeUnit.SECONDS), 
-                  "Todas threads devem completar");
+        assertTrue(latch.await(15, TimeUnit.SECONDS), "Todas threads devem completar");
 
-        assertEquals(numWriters, escritasCompletas.get(), 
-                    "Todas escritas devem completar");
-        assertEquals(numReaders, leiturasCompletas.get(), 
-                    "Todas leituras devem completar");
+        int writersOk = 0;
+        for (int i = 0; i < numWriters; i++) if (writerDone[i]) writersOk++;
+
+        int readersOk = 0;
+        for (int i = 0; i < numReaders; i++) if (readerDone[i]) readersOk++;
+
+        assertEquals(numWriters, writersOk, "Todas escritas devem completar");
+        assertEquals(numReaders, readersOk, "Todas leituras devem completar");
     }
 
     @Test
@@ -340,6 +341,7 @@ class ErrorLoggerTest {
     void testeSingletonThreadSafe() throws InterruptedException {
         int numThreads = 50;
         CountDownLatch latch = new CountDownLatch(numThreads);
+
         ErrorLogger[] instances = new ErrorLogger[numThreads];
 
         for (int i = 0; i < numThreads; i++) {
@@ -355,11 +357,9 @@ class ErrorLoggerTest {
 
         assertTrue(latch.await(3, TimeUnit.SECONDS), "Todas threads devem completar");
 
-        // Todas instâncias devem ser a mesma
         ErrorLogger first = instances[0];
         for (int i = 1; i < numThreads; i++) {
-            assertSame(first, instances[i], 
-                      "Todas instâncias devem ser iguais (índice " + i + ")");
+            assertSame(first, instances[i], "Todas instâncias devem ser iguais (índice " + i + ")");
         }
     }
 
@@ -374,9 +374,9 @@ class ErrorLoggerTest {
         String log = logger.getLog();
 
         assertAll(
-            () -> assertTrue(log.contains("Repositorio.salvar"), "Deve identificar repositório"),
-            () -> assertTrue(log.contains("ClientHandler.processar"), "Deve identificar handler"),
-            () -> assertTrue(log.contains("ServicoEventos.novoDia"), "Deve identificar serviço")
+                () -> assertTrue(log.contains("Repositorio.salvar"), "Deve identificar repositório"),
+                () -> assertTrue(log.contains("ClientHandler.processar"), "Deve identificar handler"),
+                () -> assertTrue(log.contains("ServicoEventos.novoDia"), "Deve identificar serviço")
         );
     }
 
@@ -384,7 +384,6 @@ class ErrorLoggerTest {
     @Order(15)
     @DisplayName("Log não cresce indefinidamente em uso normal")
     void testeLogNaoCresceIndefinidamente() {
-        // Adicionar 100 erros
         for (int i = 0; i < 100; i++) {
             logger.logError("Erro-" + i, new RuntimeException("Erro " + i));
         }
@@ -392,8 +391,8 @@ class ErrorLoggerTest {
         String log1 = logger.getLog();
         int tamanho1 = log1.length();
 
-        // Limpar e adicionar mais 100
         logger.clear();
+
         for (int i = 0; i < 100; i++) {
             logger.logError("Erro-" + i, new RuntimeException("Erro " + i));
         }
@@ -401,8 +400,7 @@ class ErrorLoggerTest {
         String log2 = logger.getLog();
         int tamanho2 = log2.length();
 
-        // Tamanhos devem ser similares (não crescimento indefinido)
-        assertTrue(Math.abs(tamanho1 - tamanho2) < tamanho1 * 0.1, 
-                  "Tamanho deve ser similar após clear. Antes: " + tamanho1 + ", Depois: " + tamanho2);
+        assertTrue(Math.abs(tamanho1 - tamanho2) < tamanho1 * 0.1,
+                "Tamanho deve ser similar após clear. Antes: " + tamanho1 + ", Depois: " + tamanho2);
     }
 }

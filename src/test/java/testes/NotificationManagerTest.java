@@ -7,7 +7,6 @@ import server.business.services.NotificationManager;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -23,28 +22,27 @@ class NotificationManagerTest {
     @DisplayName("Notificação de venda específica - caso simples")
     void testeVendaEspecificaSimples() throws InterruptedException {
         NotificationManager manager = new NotificationManager();
-        AtomicInteger notificado = new AtomicInteger(0);
         CountDownLatch latch = new CountDownLatch(1);
         int diaAtual = 1;
 
+        final boolean[] notificado = {false};
+
         manager.registarVendaEspecifica(1, 2, diaAtual, msg -> {
-            notificado.set(1);
+            notificado[0] = true;
             latch.countDown();
         });
 
         Map<Integer, List<?>> eventosDia = new HashMap<>();
         eventosDia.put(1, List.of("evento1"));
 
-        // Primeira venda — não deve notificar
         manager.notificarEvento(1, diaAtual, eventosDia, 1, 1);
-        assertEquals(0, notificado.get(), "Não deve notificar prematuramente");
+        assertFalse(notificado[0], "Não deve notificar prematuramente");
 
-        // Segunda venda — agora deve notificar
         eventosDia.put(2, List.of("evento2"));
         manager.notificarEvento(2, diaAtual, eventosDia, 2, 1);
 
         assertTrue(latch.await(2, TimeUnit.SECONDS), "Notificação não recebida");
-        assertEquals(1, notificado.get(), "Callback deve ter sido chamado");
+        assertTrue(notificado[0], "Callback deve ter sido chamado");
 
         manager.shutdown();
     }
@@ -55,13 +53,17 @@ class NotificationManagerTest {
     @DisplayName("Múltiplos interessados na mesma notificação")
     void testeVendaEspecificaMultiplosInteressados() throws InterruptedException {
         NotificationManager manager = new NotificationManager();
-        AtomicInteger notificados = new AtomicInteger(0);
-        CountDownLatch latch = new CountDownLatch(3);
         int diaAtual = 1;
 
-        for (int i = 0; i < 3; i++) {
+        int n = 3;
+        CountDownLatch latch = new CountDownLatch(n);
+
+        boolean[] chamados = new boolean[n];
+
+        for (int i = 0; i < n; i++) {
+            final int idx = i;
             manager.registarVendaEspecifica(1, 2, diaAtual, msg -> {
-                notificados.incrementAndGet();
+                chamados[idx] = true;
                 latch.countDown();
             });
         }
@@ -73,7 +75,11 @@ class NotificationManagerTest {
         manager.notificarEvento(2, diaAtual, eventosDia, 2, 1);
 
         assertTrue(latch.await(2, TimeUnit.SECONDS), "Todos callbacks devem ser chamados");
-        assertEquals(3, notificados.get(), "3 callbacks devem ter sido executados");
+
+        int totalChamados = 0;
+        for (int i = 0; i < n; i++) if (chamados[i]) totalChamados++;
+
+        assertEquals(n, totalChamados, "3 callbacks devem ter sido executados");
 
         manager.shutdown();
     }
@@ -84,29 +90,28 @@ class NotificationManagerTest {
     @DisplayName("Vendas consecutivas - caso simples")
     void testeVendasConsecutivas() throws InterruptedException {
         NotificationManager manager = new NotificationManager();
-        AtomicInteger notificado = new AtomicInteger(0);
         CountDownLatch latch = new CountDownLatch(1);
         int diaAtual = 1;
 
+        final boolean[] notificado = {false};
+
         manager.registarVendasConsecutivas(1, 3, diaAtual, msg -> {
-            notificado.set(1);
+            notificado[0] = true;
             latch.countDown();
         });
 
         Map<Integer, List<?>> eventosDia = new HashMap<>();
         eventosDia.put(1, List.of("evento"));
 
-        // Vendas 1 e 2 - não notifica
         manager.notificarEvento(1, diaAtual, eventosDia, 1, 1);
         manager.notificarEvento(1, diaAtual, eventosDia, 1, 2);
 
-        assertEquals(0, notificado.get(), "Ainda não deve notificar");
+        assertFalse(notificado[0], "Ainda não deve notificar");
 
-        // Venda 3 - agora notifica
         manager.notificarEvento(1, diaAtual, eventosDia, 1, 3);
 
         assertTrue(latch.await(2, TimeUnit.SECONDS), "Notificação não recebida");
-        assertEquals(1, notificado.get(), "Callback deve ter sido chamado");
+        assertTrue(notificado[0], "Callback deve ter sido chamado");
 
         manager.shutdown();
     }
@@ -117,25 +122,23 @@ class NotificationManagerTest {
     @DisplayName("Vendas consecutivas interrompidas - não deve notificar")
     void testeVendasConsecutivasInterrompidas() throws InterruptedException {
         NotificationManager manager = new NotificationManager();
-        AtomicInteger notificado = new AtomicInteger(0);
         int diaAtual = 1;
 
-        manager.registarVendasConsecutivas(1, 3, diaAtual, msg -> {
-            notificado.set(1);
-        });
+        final boolean[] notificado = {false};
+
+        manager.registarVendasConsecutivas(1, 3, diaAtual, msg -> notificado[0] = true);
 
         Map<Integer, List<?>> eventosDia = new HashMap<>();
         eventosDia.put(1, List.of("evento"));
         eventosDia.put(2, List.of("evento"));
 
-        // Vendas: produto 1, produto 1, produto 2 (interrompeu), produto 1
         manager.notificarEvento(1, diaAtual, eventosDia, 1, 1);
         manager.notificarEvento(1, diaAtual, eventosDia, 1, 2);
-        manager.notificarEvento(2, diaAtual, eventosDia, 2, 1); // Interrupção
+        manager.notificarEvento(2, diaAtual, eventosDia, 2, 1);
         manager.notificarEvento(1, diaAtual, eventosDia, 1, 1);
 
         Thread.sleep(500);
-        assertEquals(0, notificado.get(), "Não deve notificar - sequência interrompida");
+        assertFalse(notificado[0], "Não deve notificar - sequência interrompida");
 
         manager.shutdown();
     }
@@ -146,11 +149,10 @@ class NotificationManagerTest {
     @DisplayName("Limpeza de notificações ao avançar dia")
     void testeLimpezaDia() {
         NotificationManager manager = new NotificationManager();
-        AtomicInteger notificado = new AtomicInteger(0);
 
-        manager.registarVendaEspecifica(1, 2, 1, msg -> {
-            notificado.set(1);
-        });
+        final boolean[] notificado = {false};
+
+        manager.registarVendaEspecifica(1, 2, 1, msg -> notificado[0] = true);
 
         manager.limparNotificacoesDia(1);
 
@@ -160,7 +162,7 @@ class NotificationManagerTest {
 
         manager.notificarEvento(2, 1, eventosDia, 2, 1);
 
-        assertEquals(0, notificado.get(), "Notificação não deve ocorrer após limpeza");
+        assertFalse(notificado[0], "Notificação não deve ocorrer após limpeza");
 
         manager.shutdown();
     }
@@ -175,7 +177,7 @@ class NotificationManagerTest {
 
         manager.registarVendaEspecifica(1, 2, 1, msg -> {
             try {
-                Thread.sleep(1000); // Callback demora 1 segundo
+                Thread.sleep(1000);
             } catch (InterruptedException ignored) {
             }
             latch.countDown();
@@ -201,22 +203,24 @@ class NotificationManagerTest {
     @DisplayName("Teste de concorrência - múltiplas notificações simultâneas")
     void testeConcorrencia() throws InterruptedException {
         NotificationManager manager = new NotificationManager();
-        AtomicInteger notificados = new AtomicInteger(0);
-        CountDownLatch latch = new CountDownLatch(100);
         int diaAtual = 1;
 
-        // Registar 100 notificações diferentes
-        for (int i = 0; i < 100; i++) {
+        int n = 100;
+        CountDownLatch latch = new CountDownLatch(n);
+
+        boolean[] chamados = new boolean[n];
+
+        for (int i = 0; i < n; i++) {
+            final int idx = i;
             final int p1 = i / 10;
             final int p2 = (i % 10) + 100;
 
             manager.registarVendaEspecifica(p1, p2, diaAtual, msg -> {
-                notificados.incrementAndGet();
+                chamados[idx] = true;
                 latch.countDown();
             });
         }
 
-        // Disparar eventos concorrentemente
         for (int i = 0; i < 20; i++) {
             final int produto = i;
             new Thread(() -> {
@@ -229,7 +233,11 @@ class NotificationManagerTest {
         }
 
         assertTrue(latch.await(10, TimeUnit.SECONDS), "Todas notificações devem ser recebidas");
-        assertEquals(100, notificados.get(), "Todos callbacks devem ser executados");
+
+        int total = 0;
+        for (int i = 0; i < n; i++) if (chamados[i]) total++;
+
+        assertEquals(n, total, "Todos callbacks devem ser executados");
 
         manager.shutdown();
     }
@@ -240,27 +248,26 @@ class NotificationManagerTest {
     @DisplayName("Ordem de produtos não importa na venda específica")
     void testeOrdemProdutosNaoImporta() throws InterruptedException {
         NotificationManager manager = new NotificationManager();
-        AtomicInteger notificado = new AtomicInteger(0);
         CountDownLatch latch = new CountDownLatch(1);
         int diaAtual = 1;
 
-        // Registar interesse em produtos 5 e 3 (nesta ordem)
+        final boolean[] notificado = {false};
+
         manager.registarVendaEspecifica(5, 3, diaAtual, msg -> {
-            notificado.set(1);
+            notificado[0] = true;
             latch.countDown();
         });
 
         Map<Integer, List<?>> eventosDia = new HashMap<>();
-        
-        // Vender primeiro o 3, depois o 5
+
         eventosDia.put(3, List.of("evento"));
         manager.notificarEvento(3, diaAtual, eventosDia, 3, 1);
-        
+
         eventosDia.put(5, List.of("evento"));
         manager.notificarEvento(5, diaAtual, eventosDia, 5, 1);
 
         assertTrue(latch.await(2, TimeUnit.SECONDS), "Ordem não deve importar");
-        assertEquals(1, notificado.get(), "Callback deve ser chamado");
+        assertTrue(notificado[0], "Callback deve ser chamado");
 
         manager.shutdown();
     }
@@ -271,20 +278,20 @@ class NotificationManagerTest {
     @DisplayName("Callback com exceção não afeta outros callbacks")
     void testeCallbackComExcecao() throws InterruptedException {
         NotificationManager manager = new NotificationManager();
-        AtomicInteger sucesso1 = new AtomicInteger(0);
-        AtomicInteger sucesso2 = new AtomicInteger(0);
         CountDownLatch latch = new CountDownLatch(2);
         int diaAtual = 1;
 
-        // Callback 1 - lança exceção
+        final boolean[] cb1Executou = {false};
+        final boolean[] cb2Executou = {false};
+
         manager.registarVendaEspecifica(1, 2, diaAtual, msg -> {
+            cb1Executou[0] = true;
             latch.countDown();
             throw new RuntimeException("Erro no callback 1");
         });
 
-        // Callback 2 - deve executar normalmente
         manager.registarVendaEspecifica(1, 2, diaAtual, msg -> {
-            sucesso2.set(1);
+            cb2Executou[0] = true;
             latch.countDown();
         });
 
@@ -295,7 +302,8 @@ class NotificationManagerTest {
         manager.notificarEvento(2, diaAtual, eventosDia, 2, 1);
 
         assertTrue(latch.await(2, TimeUnit.SECONDS), "Ambos callbacks devem executar");
-        assertEquals(1, sucesso2.get(), "Callback 2 deve ter sucesso");
+        assertTrue(cb1Executou[0], "Callback 1 deve executar");
+        assertTrue(cb2Executou[0], "Callback 2 deve executar (não deve ser afetado)");
 
         manager.shutdown();
     }
@@ -306,25 +314,21 @@ class NotificationManagerTest {
     @DisplayName("Notificação não ocorre se dia mudou")
     void testeNotificacaoNaoOcorreSeDialMudou() throws InterruptedException {
         NotificationManager manager = new NotificationManager();
-        AtomicInteger notificado = new AtomicInteger(0);
-        int diaAtual = 1;
 
-        manager.registarVendaEspecifica(1, 2, diaAtual, msg -> {
-            notificado.set(1);
-        });
+        final boolean[] notificado = {false};
 
-        // Limpar dia (simula avanço de dia)
-        manager.limparNotificacoesDia(diaAtual);
+        manager.registarVendaEspecifica(1, 2, 1, msg -> notificado[0] = true);
 
-        // Tentar notificar no dia seguinte
+        manager.limparNotificacoesDia(1);
+
         Map<Integer, List<?>> eventosDia = new HashMap<>();
         eventosDia.put(1, List.of("evento"));
         eventosDia.put(2, List.of("evento"));
 
-        manager.notificarEvento(2, diaAtual + 1, eventosDia, 2, 1);
+        manager.notificarEvento(2, 2, eventosDia, 2, 1);
 
         Thread.sleep(500);
-        assertEquals(0, notificado.get(), "Não deve notificar - dia mudou");
+        assertFalse(notificado[0], "Não deve notificar - dia mudou");
 
         manager.shutdown();
     }

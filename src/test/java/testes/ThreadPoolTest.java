@@ -6,12 +6,11 @@ import common.concurrency.ThreadPoolImpl;
 import org.junit.jupiter.api.*;
 
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Testes do ThreadPool (JUnit 5) - versão sem timers no pool.
+ * Testes do ThreadPool 
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class ThreadPoolTestJUnit {
@@ -21,15 +20,18 @@ class ThreadPoolTestJUnit {
     @DisplayName("Executar tarefas simples")
     void testeBasico() throws InterruptedException {
         ThreadPool pool = new ThreadPoolImpl(2);
-        AtomicInteger contador = new AtomicInteger(0);
 
-        for (int i = 0; i < 5; i++) {
-            assertTrue(pool.submit(contador::incrementAndGet), "Task rejeitada inesperadamente");
+        int tasks = 5;
+        CountDownLatch latch = new CountDownLatch(tasks);
+
+        for (int i = 0; i < tasks; i++) {
+            assertTrue(pool.submit(latch::countDown), "Task rejeitada inesperadamente");
         }
 
         pool.shutdown();
         pool.awaitTermination();
-        assertEquals(5, contador.get(), "Número incorreto de tasks executadas");
+
+        assertEquals(0, latch.getCount(), "Número incorreto de tasks executadas");
     }
 
     @Test
@@ -65,25 +67,20 @@ class ThreadPoolTestJUnit {
     @DisplayName("Execução concorrente de múltiplas tasks")
     void testeConcorrencia() throws InterruptedException {
         ThreadPool pool = new ThreadPoolImpl(10);
-        AtomicInteger contador = new AtomicInteger(0);
 
         int numTasks = 100;
         CountDownLatch latch = new CountDownLatch(numTasks);
 
         for (int i = 0; i < numTasks; i++) {
-            pool.submit(() -> {
-                contador.incrementAndGet();
-                latch.countDown();
-            });
+            pool.submit(latch::countDown);
         }
 
-        // Espera as tasks terminarem
         latch.await();
 
         pool.shutdown();
         pool.awaitTermination();
 
-        assertEquals(numTasks, contador.get(), "Nem todas as tasks foram executadas");
+        assertEquals(0, latch.getCount(), "Nem todas as tasks foram executadas");
     }
 
     @Test
@@ -91,26 +88,29 @@ class ThreadPoolTestJUnit {
     @DisplayName("Shutdown processa tasks pendentes")
     void testeShutdown() throws InterruptedException {
         ThreadPool pool = new ThreadPoolImpl(1);
-        AtomicInteger contador = new AtomicInteger(0);
-        CountDownLatch latch = new CountDownLatch(1);
+        CountDownLatch bloqueio = new CountDownLatch(1);
 
         pool.submit(() -> {
             try {
-                latch.await();
+                bloqueio.await();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         });
 
-        for (int i = 0; i < 5; i++) {
-            pool.submit(contador::incrementAndGet);
+        int pendentes = 5;
+        CountDownLatch executadas = new CountDownLatch(pendentes);
+
+        for (int i = 0; i < pendentes; i++) {
+            pool.submit(executadas::countDown);
         }
 
         pool.shutdown();
-        latch.countDown();
+        bloqueio.countDown();
 
         pool.awaitTermination();
-        assertEquals(5, contador.get(), "Tasks pendentes não foram executadas");
+
+        assertEquals(0, executadas.getCount(), "Tasks pendentes não foram executadas");
     }
 
     @Test
@@ -118,28 +118,30 @@ class ThreadPoolTestJUnit {
     @DisplayName("ShutdownNow descarta tasks pendentes")
     void testeShutdownNow() throws InterruptedException {
         ThreadPool pool = new ThreadPoolImpl(1);
-        AtomicInteger contador = new AtomicInteger(0);
-        CountDownLatch latch = new CountDownLatch(1);
+        CountDownLatch bloqueio = new CountDownLatch(1);
 
         pool.submit(() -> {
             try {
-                latch.await();
+                bloqueio.await();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         });
 
-        for (int i = 0; i < 5; i++) {
-            pool.submit(contador::incrementAndGet);
+        int pendentes = 5;
+        CountDownLatch executadas = new CountDownLatch(pendentes);
+
+        for (int i = 0; i < pendentes; i++) {
+            pool.submit(executadas::countDown);
         }
 
         pool.shutdownNow();
-        latch.countDown();
+        bloqueio.countDown();
 
-        // Aqui não dá para "esperar com timeout". Vamos esperar terminar mesmo.
         pool.awaitTermination();
 
-        assertEquals(0, contador.get(), "Tasks pendentes não deveriam ter sido executadas");
+        // Nenhuma das pendentes deveria executar
+        assertEquals(pendentes, executadas.getCount(), "Tasks pendentes não deveriam ter sido executadas");
     }
 
     @Test
@@ -148,14 +150,15 @@ class ThreadPoolTestJUnit {
     void testeReutilizacaoThreads() throws InterruptedException {
         ThreadPool pool = new ThreadPoolImpl(2);
 
-        CountDownLatch done = new CountDownLatch(10);
-        for (int i = 0; i < 10; i++) {
-            pool.submit(() -> {
-                done.countDown();
-            });
+        int tasks = 10;
+        CountDownLatch done = new CountDownLatch(tasks);
+
+        for (int i = 0; i < tasks; i++) {
+            pool.submit(done::countDown);
         }
 
         done.await();
+
         assertEquals(2, pool.getActiveThreads(), "Número incorreto de workers ativos");
 
         pool.shutdown();
@@ -167,16 +170,19 @@ class ThreadPoolTestJUnit {
     @DisplayName("Workers sobrevivem a exceções em tasks")
     void testeExcecoesEmTasks() throws InterruptedException {
         ThreadPool pool = new ThreadPoolImpl(2);
-        AtomicInteger sucesso = new AtomicInteger(0);
+
+        int okTasks = 5;
+        CountDownLatch done = new CountDownLatch(okTasks);
 
         pool.submit(() -> { throw new RuntimeException("Erro intencional"); });
 
-        for (int i = 0; i < 5; i++) {
-            pool.submit(sucesso::incrementAndGet);
+        for (int i = 0; i < okTasks; i++) {
+            pool.submit(done::countDown);
         }
 
         pool.shutdown();
         pool.awaitTermination();
-        assertEquals(5, sucesso.get(), "Workers morreram após exceção");
+
+        assertEquals(0, done.getCount(), "Workers morreram após exceção");
     }
 }

@@ -134,7 +134,6 @@ public class ServicoEventos implements IServicoEventos {
                 callback
             );
 
-            // Aguardar notificação ou timeout (sem synchronized/wait/notify)
             waitLock.lock();
             try {
                 long deadline = System.currentTimeMillis() + 60000; // 60s
@@ -207,7 +206,6 @@ public class ServicoEventos implements IServicoEventos {
                 callback
             );
 
-            // Aguardar notificação (sem synchronized/wait/notify)
             waitLock.lock();
             try {
                 long deadline = System.currentTimeMillis() + 60000;
