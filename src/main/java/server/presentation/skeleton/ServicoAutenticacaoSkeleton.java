@@ -1,9 +1,10 @@
 package server.presentation.skeleton;
 
-import static middleware.MessageTypes.*;
-
 import common.dto.RespostaDTO;
 import common.dto.UsuarioDTO;
+import static middleware.MessageTypes.AUTH_LOGIN;
+import static middleware.MessageTypes.AUTH_LOGIN_ADMIN;
+import static middleware.MessageTypes.AUTH_REGISTRAR;
 import server.business.services.ServicoAutenticacao;
 
 public class ServicoAutenticacaoSkeleton implements ISkeleton {
@@ -19,10 +20,15 @@ public class ServicoAutenticacaoSkeleton implements ISkeleton {
             switch (methodId) {
                 case AUTH_REGISTRAR:
                     return servico.registrar((UsuarioDTO) parametros);
+
                 case AUTH_LOGIN:
                     return servico.autenticar((UsuarioDTO) parametros);
+
                 case AUTH_LOGIN_ADMIN:
-                    return servico.autenticarAdmin((String) parametros);
+                    // Cliente envia UsuarioDTO("ADMIN", password)
+                    UsuarioDTO admin = (UsuarioDTO) parametros;
+                    return servico.autenticarAdmin(admin.getPassword());
+
                 default:
                     return RespostaDTO.erro("Método desconhecido: " + methodId);
             }

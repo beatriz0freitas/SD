@@ -13,9 +13,6 @@ import server.config.ServerConfig;
 import server.data.repository.IUsuarioRepository;
 import server.data.repository.RepositoryFactory;
 
-/**
- * Serviço de negócio para autenticação
- */
 public class ServicoAutenticacao implements IServicoAutenticacao {
     private final IUsuarioRepository usuarioRepository;
     private final PasswordHasher hasher;
@@ -49,24 +46,17 @@ public class ServicoAutenticacao implements IServicoAutenticacao {
             throw new AutenticacaoException("Credenciais inválidas");
         }
         System.out.println("Utilizador autenticado: " + dto.getUsername());
-        return RespostaDTO.sucesso("Autenticação bem-sucedida", dto.getUsername());
+        return RespostaDTO.sucesso("Autenticação bem-sucedida");
     }
 
     @Override
     public RespostaDTO autenticarAdmin(String password) throws AutenticacaoException {
-        if (password == null || password.isBlank()) {
-            throw new AutenticacaoException("Password inválida");
-        }
-        if (!ADMIN_PASSWORD.equals(password)) {
-            throw new AutenticacaoException("Senha de administrador inválida");
-        }
+        if (password == null || password.isBlank()) throw new AutenticacaoException("Password inválida");
+        if (!ADMIN_PASSWORD.equals(password)) throw new AutenticacaoException("Senha de administrador inválida");
         System.out.println("Administrador autenticado");
-        return RespostaDTO.sucesso("Login de administrador bem-sucedido", "ADMIN");
+        return RespostaDTO.sucesso("Login de administrador bem-sucedido");
     }
 
-
-    // =========== Validações ============
-    
     private void validarCredenciais(UsuarioDTO dto) throws AutenticacaoException {
         if (dto == null) throw new AutenticacaoException("Dados não fornecidos");
         validarCampo(dto.getUsername(), "Username");
@@ -82,13 +72,6 @@ public class ServicoAutenticacao implements IServicoAutenticacao {
             throw new AutenticacaoException(nomeCampo + " só pode conter letras e números");
     }
 
-
-
-    // =========== Hash de Senha ============
-
-    /**
-     * Hash interno de senhas
-     */
     private static class PasswordHasher {
         public String hash(String password) {
             try {

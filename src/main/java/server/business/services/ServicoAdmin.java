@@ -3,10 +3,10 @@ package server.business.services;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import common.PerformanceMetrics;
 import common.dto.RespostaDTO;
 import common.exceptions.AdminException;
 import common.interfaces.IServicoAdmin;
-import common.PerformanceMetrics;
 import server.business.domain.Usuario;
 import server.data.repository.IUsuarioRepository;
 import server.data.repository.RepositoryFactory;
@@ -88,11 +88,22 @@ public class ServicoAdmin implements IServicoAdmin {
     /**
      * Obtém métricas detalhadas (para monitorização)
      */
+    // substituir o método obterMetricas() por versão simples
+
     public RespostaDTO obterMetricas() throws AdminException {
         PerformanceMetrics.MetricsSnapshot snapshot = metrics.getSnapshot();
-        return RespostaDTO.sucesso("Métricas obtidas", snapshot);
-    }
     
+        String msg = "=== MÉTRICAS ===\n"
+                + "Requisições: " + snapshot.totalRequests + "\n"
+                + "Erros: " + snapshot.totalErrors + "\n"
+                + "Error rate: " + String.format("%.2f%%", snapshot.errorRate) + "\n"
+                + "Throughput: " + String.format("%.2f req/s", snapshot.throughput) + "\n"
+                + "Latência média: " + String.format("%.2fms", snapshot.avgLatencyMs) + "\n"
+                + "Latência min: " + String.format("%.2fms", snapshot.minLatencyMs) + "\n"
+                + "Latência max: " + String.format("%.2fms", snapshot.maxLatencyMs) + "\n";
+    
+        return RespostaDTO.sucesso(msg);
+    }
     /**
      * Remove utilizador (nova funcionalidade)
      */

@@ -9,24 +9,20 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import middleware.Message;
 import middleware.Protocolo;
-import middleware.ShutdownMessage;
 
-/**
- * Recebe respostas do servidor e acorda a thread que fez o pedido
- * Detecta mensagens de shutdown
- */
 public class Demultiplexer implements Runnable {
     private final DataInputStream entrada;
     private final Protocolo protocolo;
     private final ReentrantLock lock;
-    private final Map<Long, Object> respostas;
+    private final Map<Long, byte[]> respostas;
     private final Map<Long, Condition> threadsEspera;
-    
+
     private volatile boolean ativo;
     private volatile Exception erro;
     private volatile boolean serverShutdown;
+
     private final ClientShutdownHandler shutdownHandler;
-    
+
     public Demultiplexer(DataInputStream entrada, ClientShutdownHandler shutdownHandler) {
         this.entrada = entrada;
         this.protocolo = new Protocolo();
@@ -34,40 +30,35 @@ public class Demultiplexer implements Runnable {
         this.respostas = new HashMap<>();
         this.threadsEspera = new HashMap<>();
         this.ativo = true;
-        this.erro = null;
         this.serverShutdown = false;
         this.shutdownHandler = shutdownHandler;
     }
-    
+
     @Override
     public void run() {
         try {
             while (ativo && !serverShutdown) {
-                Message msg = (Message) protocolo.receber(entrada);
-                
-                if (msg.isResponse()) {
-                    Object payload = msg.getPayload();
-                    
-                    // Verificar se é mensagem de shutdown
-                    if (shutdownHandler != null && shutdownHandler.processMessage(payload)) {
-                        serverShutdown = true;
-                        acordarTodasThreads();
-                        break;
-                    }
-                    
-                    // Mensagem normal
-                    entregarResposta(msg.getTag(), payload);
-                } else {
+                Message msg = protocolo.receber(entrada);
+
+                if (!msg.isResponse()) {
                     System.err.println("Demux recebeu request (inesperado): " + msg);
+                    continue;
                 }
+
+                if (msg.getTag() == -1) {
+                    serverShutdown = true;
+                    if (shutdownHandler != null) shutdownHandler.onShutdown();
+                    acordarTodasThreads();
+                    break;
+                }
+
+                entregarResposta(msg.getTag(), msg.getPayload());
             }
-        } catch (IOException | ClassNotFoundException e) {
-            if (ativo && !serverShutdown) {
-                tratarErroConexao(e);
-            }
+        } catch (IOException e) {
+            if (ativo && !serverShutdown) tratarErroConexao(e);
         }
     }
-    
+
     public void parar() {
         lock.lock();
         try {
@@ -78,62 +69,42 @@ public class Demultiplexer implements Runnable {
         }
     }
 
-    public Object aguardar(long tag) throws Exception {
+    public byte[] aguardar(long tag) throws Exception {
         lock.lock();
         try {
             verificarErro();
-
-            if (serverShutdown) {
-                throw new IOException("Servidor encerrado");
-            }
-
-            if (!ativo) {
-                throw new IOException("Demultiplexer parado");
-            }
+            if (serverShutdown) throw new IOException("Servidor encerrado");
+            if (!ativo) throw new IOException("Demultiplexer parado");
 
             Condition condicao = lock.newCondition();
             threadsEspera.put(tag, condicao);
 
-            while (!respostas.containsKey(tag) && erro == null && 
-                   !serverShutdown && ativo) { 
+            while (!respostas.containsKey(tag) && erro == null && !serverShutdown && ativo) {
                 condicao.await();
             }
 
-            if (!ativo) {
-                throw new IOException("Demultiplexer parado durante espera");
-            }
-
-            if (serverShutdown) {
-                throw new IOException("Servidor encerrado durante espera");
-            }
-
+            if (!ativo) throw new IOException("Demultiplexer parado durante espera");
+            if (serverShutdown) throw new IOException("Servidor encerrado durante espera");
             verificarErro();
 
             threadsEspera.remove(tag);
             return respostas.remove(tag);
-
         } finally {
             lock.unlock();
         }
     }
-    
-    public boolean isServerShutdown() {
-        return serverShutdown;
-    }
-    
-    private void entregarResposta(long tag, Object resposta) {
+
+    private void entregarResposta(long tag, byte[] respostaBytes) {
         lock.lock();
         try {
-            respostas.put(tag, resposta);
+            respostas.put(tag, respostaBytes);
             Condition condicao = threadsEspera.get(tag);
-            if (condicao != null) {
-                condicao.signal();
-            }
+            if (condicao != null) condicao.signal();
         } finally {
             lock.unlock();
         }
     }
-    
+
     private void tratarErroConexao(Exception e) {
         lock.lock();
         try {
@@ -143,21 +114,17 @@ public class Demultiplexer implements Runnable {
             lock.unlock();
         }
     }
-    
+
     private void acordarTodasThreads() {
         lock.lock();
         try {
-            for (Condition condicao : threadsEspera.values()) {
-                condicao.signalAll();
-            }
+            for (Condition condicao : threadsEspera.values()) condicao.signalAll();
         } finally {
             lock.unlock();
         }
     }
-    
+
     private void verificarErro() throws Exception {
-        if (erro != null) {
-            throw erro;
-        }
+        if (erro != null) throw erro;
     }
 }

@@ -8,7 +8,8 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
-import common.concurrency.*;
+import common.concurrency.ThreadPool;
+import common.concurrency.ThreadPoolImpl;
 import middleware.ServerShutdownHandler;
 import server.config.ServerConfig;
 import server.presentation.handlers.ClientHandler;
@@ -104,10 +105,7 @@ public class Server {
         System.out.println("  ENCERRANDO SERVIDOR");
         System.out.println("=".repeat(50));
         
-        // 0: Notificar clientes sobre shutdown
-        System.out.println("\n[0/4] Notificando clientes...");
-        shutdownHandler.notificarClientes("Servidor sendo encerrado");
-        
+
         // Para de aceitar novas conexões
         ativo = false;
         fecharServerSocket();
