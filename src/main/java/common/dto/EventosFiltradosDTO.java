@@ -1,7 +1,15 @@
 package common.dto;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * DTO para resposta de eventos filtrados
@@ -13,17 +21,16 @@ import java.util.List;
  * Com compactação (agrupamento):
  *   {1: [{qtd:5,preco:20}, {qtd:3,preco:22}], 2: [{qtd:2,preco:50}]}
  */
-public class EventosFiltradosDTO implements Serializable {
+class EventosFiltradosDTO implements Serializable {
     private static final long serialVersionUID = 1L;
     
-    // Map: produtoID -> lista de eventos desse produto - Evita repetir produtoID em cada evento
-    private java.util.Map<Integer, List<EventoCompacto>> eventosPorProduto;
+    private Map<Integer, List<EventoCompacto>> eventosPorProduto;
     private int dia;
     private int totalEventos;
     
     public EventosFiltradosDTO() {}
     
-    public EventosFiltradosDTO(java.util.Map<Integer, List<EventoCompacto>> eventos, int dia) {
+    public EventosFiltradosDTO(Map<Integer, List<EventoCompacto>> eventos, int dia) {
         this.eventosPorProduto = eventos;
         this.dia = dia;
         this.totalEventos = eventos.values().stream()
@@ -31,16 +38,71 @@ public class EventosFiltradosDTO implements Serializable {
             .sum();
     }
     
-    public java.util.Map<Integer, List<EventoCompacto>> getEventosPorProduto() {
-        return eventosPorProduto;
+    public byte[] serialize() throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        DataOutputStream out = new DataOutputStream(baos);
+        
+        out.writeInt(dia);
+        out.writeInt(totalEventos);
+        
+        if (eventosPorProduto != null) {
+            out.writeInt(eventosPorProduto.size());
+            for (Map.Entry<Integer, List<EventoCompacto>> entry : eventosPorProduto.entrySet()) {
+                out.writeInt(entry.getKey()); // produtoID
+                
+                List<EventoCompacto> eventos = entry.getValue();
+                out.writeInt(eventos.size());
+                for (EventoCompacto evento : eventos) {
+                    byte[] eventoBytes = evento.serialize();
+                    out.write(eventoBytes);
+                }
+            }
+        } else {
+            out.writeInt(0);
+        }
+        
+        out.flush();
+        return baos.toByteArray();
     }
     
-    public int getDia() {
-        return dia;
+    public static EventosFiltradosDTO deserialize(byte[] data) throws IOException {
+        ByteArrayInputStream bais = new ByteArrayInputStream(data);
+        DataInputStream in = new DataInputStream(bais);
+        
+        EventosFiltradosDTO dto = new EventosFiltradosDTO();
+        dto.dia = in.readInt();
+        dto.totalEventos = in.readInt();
+        
+        int numProdutos = in.readInt();
+        dto.eventosPorProduto = new HashMap<>();
+        
+        for (int i = 0; i < numProdutos; i++) {
+            int produtoID = in.readInt();
+            int numEventos = in.readInt();
+            
+            List<EventoCompacto> eventos = new ArrayList<>();
+            for (int j = 0; j < numEventos; j++) {
+                // Ler bytes do evento compacto (int + double = 4 + 8 = 12 bytes)
+                byte[] eventoBytes = new byte[12];
+                in.readFully(eventoBytes);
+                EventoCompacto evento = EventoCompacto.deserialize(eventoBytes);
+                eventos.add(evento);
+            }
+            
+            dto.eventosPorProduto.put(produtoID, eventos);
+        }
+        
+        return dto;
     }
     
-    public int getTotalEventos() {
-        return totalEventos;
+    public Map<Integer, List<EventoCompacto>> getEventosPorProduto() { return eventosPorProduto; }
+    public int getDia() { return dia; }
+    public int getTotalEventos() { return totalEventos; }
+    
+    @Override
+    public String toString() {
+        return String.format("EventosFiltrados{dia=%d, produtos=%d, eventos=%d}",
+            dia, eventosPorProduto.size(), totalEventos);
     }
     
     /**
@@ -60,23 +122,34 @@ public class EventosFiltradosDTO implements Serializable {
             this.preco = preco;
         }
         
-        public int getQuantidade() {
-            return quantidade;
+        public byte[] serialize() throws IOException {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            DataOutputStream out = new DataOutputStream(baos);
+            
+            out.writeInt(quantidade);
+            out.writeDouble(preco);
+            
+            out.flush();
+            return baos.toByteArray();
         }
         
-        public double getPreco() {
-            return preco;
+        public static EventoCompacto deserialize(byte[] data) throws IOException {
+            ByteArrayInputStream bais = new ByteArrayInputStream(data);
+            DataInputStream in = new DataInputStream(bais);
+            
+            EventoCompacto evento = new EventoCompacto();
+            evento.quantidade = in.readInt();
+            evento.preco = in.readDouble();
+            
+            return evento;
         }
+        
+        public int getQuantidade() { return quantidade; }
+        public double getPreco() { return preco; }
         
         @Override
         public String toString() {
             return String.format("Qtd:%d Preço:%.2f€", quantidade, preco);
         }
-    }
-    
-    @Override
-    public String toString() {
-        return String.format("EventosFiltrados{dia=%d, produtos=%d, eventos=%d}",
-            dia, eventosPorProduto.size(), totalEventos);
     }
 }
