@@ -1,22 +1,69 @@
-# Objetivos do Projeto
+# Sistema Distribuído (SD)
 
-Este projeto tem como foco o desenvolvimento de um sistema distribuído, conforme as orientações e diretrizes especificadas no documento `trab-sd-2026.pdf`. Abaixo estão resumidos os principais objetivos e informações relevantes:
+## Descrição do Projeto
 
-### Objetivos Principais
-- Projetar e implementar um sistema distribuído que atenda aos requisitos técnicos propostos em `trab-sd-2026.pdf`.
-- Utilizar boas práticas de programação e arquitetura de software.
-- Garantir escalabilidade, eficiência e confiabilidade no sistema desenvolvido.
+Este projeto consiste na implementação de um sistema distribuído para a gestão de eventos de vendas de produtos no tempo. A solução foi desenhada para suportar carga elevada de requisições, fornecendo ferramentas eficientes para registar eventos, consultar dados históricos, e realizar agregações sobre séries temporais.
 
-### Diretrizes
-- Consulte o arquivo `trab-sd-2026.pdf` para compreender detalhadamente as regras e especificações obrigatórias.
-- Certifique-se de que todos os módulos estejam devidamente documentados e testados.
-- Siga a estrutura sugerida para os repositórios e a organização do código.
-
-### Como começar
-1. Leia o documento `trab-sd-2026.pdf`.
-2. Instale as dependências necessárias conforme descrito nos arquivos do projeto.
-3. Inicie o desenvolvimento seguindo as diretrizes especificadas.
+O projeto adota uma arquitetura cliente-servidor distribuída, estruturada em camadas, para assegurar modularidade e escalabilidade. Além disso, padrões como \textit{Stub/Skeleton}, \textit{Repository} e \textit{Service Layer} foram usados para promover um design sólido e de fácil manutenção.
 
 ---
 
-Este projeto é parte integrante da disciplina de Sistemas Distribuídos. Todos os colaboradores devem seguir as diretrizes estabelecidas para conclusão do trabalho com sucesso.
+## Principais Funcionalidades
+
+- **Registo de Eventos:** Permite o registo contínuo de eventos relacionados às vendas.
+- **Consultas Históricas:** Suporte a consultas eficientes sobre dados de vendas passadas.
+- **Agregações Estatísticas:** Cálculos como vendas totais ou médias em períodos arbitrários.
+- **Notificações Assíncronas:** Sistema de notificações baseado em condições específicas (ex.: vendas consecutivas).
+- **Gestão de Concorrência:** Implementação de um \textit{ThreadPool} personalizado para gerenciar múltiplas requisições.
+- **Cache Multi-Nível:** Utilização de políticas como LRU para otimizar leitura e escrita.
+
+---
+
+### Compilação
+- **Compilar o projeto:**
+  ```bash
+  make compile
+  ```
+  Este comando utiliza o Maven para realizar a compilação e limpeza do histórico.
+
+### Testes
+- **Executar todos os testes automatizados:**
+  ```bash
+  make test
+  ```
+
+- **Executar um teste específico:**
+  ```bash
+  make test-single TEST=NomeDoTeste
+  ```
+  Substitua `NomeDoTeste` pelo nome exato do teste (ex.: `ThreadPoolTest`).
+
+- **Resumo visual dos testes:**
+  ```bash
+  make test-summary
+  ```
+
+### Execução
+- **Iniciar o servidor:**
+  ```bash
+  make run-server
+  ```
+- **Iniciar o cliente:**
+  ```bash
+  make run-client
+  ```
+
+### Limpeza
+- **Limpar o histórico e os arquivos temporários do projeto:**
+  ```bash
+  make clean
+  ```
+
+---
+
+## Contribuidores
+
+- Ana Beatriz Freitas
+- Lucas André Dias Fernandes
+- João Azevedo
+- José Miguel Cação
