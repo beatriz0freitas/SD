@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -38,6 +37,10 @@ public class ServicoEventos implements IServicoEventos {
     // Estado para vendas consecutivas
     private int lastProductID = -1;
     private int consecutiveCount = 0;
+
+    private final ReentrantLock esperaLock = new ReentrantLock();
+    private final List<EsperaHandle> threadsEmEspera = new ArrayList<>();
+    private boolean shuttingDown = false;
 
     public ServicoEventos(IEventoRepository eventoRepository, CacheManager cacheManager, int D) {
         this.eventoRepository = eventoRepository;
@@ -98,6 +101,10 @@ public class ServicoEventos implements IServicoEventos {
         int produtoID1 = notificacao.getArg1();
         int produtoID2 = notificacao.getArg2();
 
+        if (isShuttingDown()) {
+            return RespostaDTO.erro("Servidor a encerrar");
+        }
+
         lock.readLock().lock();
         int diaSnapshot = diaAtual;
 
@@ -115,6 +122,7 @@ public class ServicoEventos implements IServicoEventos {
             final Condition done = waitLock.newCondition();
             final boolean[] notified = {false};
             final String[] message = {null};
+            final EsperaHandle handle = new EsperaHandle(waitLock, done);
 
             NotificationManager.NotificationCallback callback = msg -> {
                 waitLock.lock();
@@ -134,15 +142,14 @@ public class ServicoEventos implements IServicoEventos {
                 callback
             );
 
-            // Aguardar notificação ou timeout (sem synchronized/wait/notify)
+            registerWaiter(handle);
+
+            // Aguardar notificação (sem synchronized/wait/notify)
             waitLock.lock();
             try {
-                long deadline = System.currentTimeMillis() + 60000; // 60s
-
                 while (!notified[0]) {
-                    long remaining = deadline - System.currentTimeMillis();
-                    if (remaining <= 0) {
-                        return RespostaDTO.erro("Timeout aguardando vendas específicas");
+                    if (isShuttingDown()) {
+                        return RespostaDTO.erro("Servidor a encerrar");
                     }
 
                     // Verificar se dia mudou
@@ -155,12 +162,13 @@ public class ServicoEventos implements IServicoEventos {
                         lock.readLock().unlock();
                     }
 
-                    done.await(Math.min(remaining, 1000), TimeUnit.MILLISECONDS);
+                    done.await();
                 }
 
                 return RespostaDTO.sucesso(message[0]);
             } finally {
                 waitLock.unlock();
+                unregisterWaiter(handle);
             }
 
         } catch (InterruptedException e) {
@@ -173,6 +181,10 @@ public class ServicoEventos implements IServicoEventos {
     public RespostaDTO notificarVendasConsecutivas(NotificacaoDTO notificacao) throws EventoException {
         int produtoID = notificacao.getArg1();
         int n = notificacao.getArg2();
+
+        if (isShuttingDown()) {
+            return RespostaDTO.erro("Servidor a encerrar");
+        }
 
         lock.readLock().lock();
         int diaSnapshot = diaAtual;
@@ -188,6 +200,7 @@ public class ServicoEventos implements IServicoEventos {
             final Condition done = waitLock.newCondition();
             final boolean[] notified = {false};
             final String[] message = {null};
+            final EsperaHandle handle = new EsperaHandle(waitLock, done);
 
             NotificationManager.NotificationCallback callback = msg -> {
                 waitLock.lock();
@@ -207,15 +220,14 @@ public class ServicoEventos implements IServicoEventos {
                 callback
             );
 
+            registerWaiter(handle);
+
             // Aguardar notificação (sem synchronized/wait/notify)
             waitLock.lock();
             try {
-                long deadline = System.currentTimeMillis() + 60000;
-
                 while (!notified[0]) {
-                    long remaining = deadline - System.currentTimeMillis();
-                    if (remaining <= 0) {
-                        return RespostaDTO.erro("Timeout aguardando vendas consecutivas");
+                    if (isShuttingDown()) {
+                        return RespostaDTO.erro("Servidor a encerrar");
                     }
 
                     // cancelar se o dia mudou
@@ -228,12 +240,13 @@ public class ServicoEventos implements IServicoEventos {
                         lock.readLock().unlock();
                     }
 
-                    done.await(Math.min(remaining, 1000), TimeUnit.MILLISECONDS);
+                    done.await();
                 }
 
                 return RespostaDTO.sucesso(message[0]);
             } finally {
                 waitLock.unlock();
+                unregisterWaiter(handle);
             }
 
         } catch (InterruptedException e) {
@@ -350,6 +363,7 @@ public class ServicoEventos implements IServicoEventos {
                 diaAtual++;
 
                 notificationManager.limparNotificacoesDia(diaAnterior);
+                signalAllWaiters();
 
                 if (cacheManager != null) {
                     int diaForaDaJanela = diaAtual - D - 1;
@@ -395,6 +409,13 @@ public class ServicoEventos implements IServicoEventos {
     }
 
     public void shutdown() {
+        esperaLock.lock();
+        try {
+            shuttingDown = true;
+        } finally {
+            esperaLock.unlock();
+        }
+        signalAllWaiters();
         notificationManager.shutdown();
     }
 
@@ -410,6 +431,62 @@ public class ServicoEventos implements IServicoEventos {
         }
         if (dto.getPreco() <= 0) {
             throw new EventoException("Preço deve ser positivo");
+        }
+    }
+
+    private boolean isShuttingDown() {
+        esperaLock.lock();
+        try {
+            return shuttingDown;
+        } finally {
+            esperaLock.unlock();
+        }
+    }
+
+    private void registerWaiter(EsperaHandle handle) {
+        esperaLock.lock();
+        try {
+            threadsEmEspera.add(handle);
+        } finally {
+            esperaLock.unlock();
+        }
+    }
+
+    private void unregisterWaiter(EsperaHandle handle) {
+        esperaLock.lock();
+        try {
+            threadsEmEspera.remove(handle);
+        } finally {
+            esperaLock.unlock();
+        }
+    }
+
+    private void signalAllWaiters() {
+        List<EsperaHandle> snapshot;
+        esperaLock.lock();
+        try {
+            snapshot = new ArrayList<>(threadsEmEspera);
+        } finally {
+            esperaLock.unlock();
+        }
+
+        for (EsperaHandle handle : snapshot) {
+            handle.lock.lock();
+            try {
+                handle.condition.signalAll();
+            } finally {
+                handle.lock.unlock();
+            }
+        }
+    }
+
+    private static class EsperaHandle {
+        final ReentrantLock lock;
+        final Condition condition;
+
+        EsperaHandle(ReentrantLock lock, Condition condition) {
+            this.lock = lock;
+            this.condition = condition;
         }
     }
 }
