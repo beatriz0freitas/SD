@@ -50,7 +50,6 @@ class IntegrationTest {
     @BeforeAll
     void iniciarServidor() throws InterruptedException {
         servidor = new Server(PORT, 30, 5);
-
         serverThread = new Thread(servidor::iniciar, "TestServer");
         serverThread.start();
 
@@ -154,8 +153,9 @@ class IntegrationTest {
             final int id = i;
 
             new Thread(() -> {
+                ClienteMiddleware middleware = null;
                 try {
-                    ClienteMiddleware middleware = new ClienteMiddleware(HOST, PORT);
+                    middleware = new ClienteMiddleware(HOST, PORT);
                     middleware.conectar();
 
                     StubFactory stubs = new StubFactory(middleware);
@@ -171,7 +171,7 @@ class IntegrationTest {
                     RespostaDTO login = auth.autenticar(user);
                     if (login.isSucesso()) {
                         for (int j = 0; j < 3; j++) {
-                            eventos.registrarEvento(new EventoDTO(id, 1, 10.0));
+                            eventos.registrarEvento(new EventoDTO(id + 1, 1, 10.0));
                         }
                         sucesso.incrementAndGet();
                     }
@@ -179,6 +179,7 @@ class IntegrationTest {
                     middleware.desconectar();
                 } catch (Exception ignored) {
                 } finally {
+                    try { if (middleware != null) middleware.desconectar(); } catch (Exception ignored) {}
                     latch.countDown();
                 }
             }, "Client-" + i).start();

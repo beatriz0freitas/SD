@@ -56,6 +56,15 @@ class ShutdownTest {
         Thread.sleep(200);
     }
 
+    private static boolean tentaInvocacaoFalhar(IServicoEventos eventos) {
+        try {
+            eventos.registrarEvento(new EventoDTO(1, 1, 10.0));
+            return false; // não falhou
+        } catch (Exception e) {
+            return true; // falhou como esperado
+        }
+    }
+
     @Test
     @Order(1)
     @Timeout(value = 15, unit = TimeUnit.SECONDS)
@@ -90,6 +99,7 @@ class ShutdownTest {
 
         assertTrue(falhou, "Após shutdown, invocação deve falhar");
 
+        // Pode ou não marcar desconectado — não exigimos, mas aceitamos.
         middleware.desconectar();
     }
 
@@ -141,6 +151,7 @@ class ShutdownTest {
         int numClientes = 10;
         CountDownLatch latchConectados = new CountDownLatch(numClientes);
         ClienteMiddleware[] middlewares = new ClienteMiddleware[numClientes];
+        IServicoEventos[] eventosStubs = new IServicoEventos[numClientes];
 
         for (int i = 0; i < numClientes; i++) {
             final int id = i;
@@ -151,8 +162,9 @@ class ShutdownTest {
 
                     StubFactory stubs = new StubFactory(middlewares[id]);
                     IServicoAutenticacao auth = stubs.criarStubAutenticacao();
+                    eventosStubs[id] = stubs.criarStubEventos();
 
-                    String username = "shutdown3_" + id + "_" + System.currentTimeMillis();
+                    String username = "shutdown3" + id + System.nanoTime();
                     UsuarioDTO user = new UsuarioDTO(username, "pass" + id);
                     auth.registrar(user);
                     auth.autenticar(user);
