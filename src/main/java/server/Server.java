@@ -29,6 +29,8 @@ public class Server {
     private volatile boolean ativo;
     private final RequestDispatcher dispatcher;
     private ServerShutdownHandler shutdownHandler;
+
+    private final DeadlockMonitor deadlockMonitor;
     
     public Server(int porta, int D, int S) {
         this.porta = porta;
@@ -48,6 +50,7 @@ public class Server {
         this.ativo = false;
         this.dispatcher = RequestDispatcher.criar(D, S);
         this.shutdownHandler = new ServerShutdownHandler(clientesAtivos, clientesLock);
+        this.deadlockMonitor = new DeadlockMonitor();
     }
     
     public void iniciar() {
@@ -57,6 +60,8 @@ public class Server {
             
             imprimirBanner();
             
+            deadlockMonitor.start(30);
+
             while (ativo) {
                 try {
                     Socket clientSocket = serverSocket.accept();
@@ -99,31 +104,49 @@ public class Server {
         System.out.println("  ENCERRANDO SERVIDOR");
         System.out.println("=".repeat(50));
         
-        // Passo 0: Notificar clientes sobre shutdown
+        // 0: Notificar clientes sobre shutdown
         System.out.println("\n[0/4] Notificando clientes...");
         shutdownHandler.notificarClientes("Servidor sendo encerrado");
         
-        // Passo 1: Para de aceitar novas conexões
+        // Para de aceitar novas conexões
         ativo = false;
         fecharServerSocket();
         
-        // Passo 2: Fecha sockets de clientes
+        // Fecha sockets de clientes
         System.out.println("\n[1/4] Fechando sockets de clientes...");
         fecharSocketsClientes();
         
-        // Passo 3: Encerra pool de client handlers
+        // Encerra pool de client handlers
         System.out.println("\n[2/4] Encerrando client handlers...");
         encerrarPoolComTimeout(clientHandlerPool, "Client Handler Pool", 5);
         
-        // Passo 4: Encerra pool de requests
-        System.out.println("\n[3/4] Encerrando request pool...");
-        encerrarPoolComTimeout(requestPool, "Request Pool", 10);
+        // Aguardar processamento de requests pendentes
+        System.out.println("\n[3/5] Processando requests pendentes...");
+        requestPool.shutdown(); // Não aceita novos
         
+        try {
+            if (!requestPool.awaitTermination(10, TimeUnit.SECONDS)) {
+                System.err.println("Timeout! Forçando encerramento de requests pendentes...");
+                requestPool.shutdownNow();
+                
+                if (!requestPool.awaitTermination(5, TimeUnit.SECONDS)) {
+                    System.err.println("Algumas requests podem não ter sido processadas!");
+                }
+            } else {
+                System.out.println("✓ Todas requests pendentes foram processadas.");
+            }
+        } catch (InterruptedException e) {
+            System.err.println("Interrompido durante shutdown!");
+            requestPool.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+
         System.out.println("\n[4/4] Cleanup concluído.");
         System.out.println("=".repeat(50));
         System.out.println("  SERVIDOR ENCERRADO COM SUCESSO");
         System.out.println("=".repeat(50) + "\n");
 
+        deadlockMonitor.stop();
         dispatcher.shutdown();
     }
     
@@ -243,6 +266,16 @@ public class Server {
         }
         if (args.length > 2) {
             S = parseIntOuPadrao(args[2], S, "S");
+        }
+        
+        if (D <= 0) {
+            System.err.println("ERRO: D (dias de histórico) deve ser positivo. Valor fornecido: " + D);
+            System.exit(1);
+        }
+        
+        if (S <= 0) {
+            System.err.println("ERRO: S (séries em memória) deve ser positivo. Valor fornecido: " + S);
+            System.exit(1);
         }
         
         if (S > D) {

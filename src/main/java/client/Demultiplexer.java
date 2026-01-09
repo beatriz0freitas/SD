@@ -68,39 +68,53 @@ public class Demultiplexer implements Runnable {
         }
     }
     
-    public Object aguardar(long tag) throws Exception {
+    public void parar() {
         lock.lock();
         try {
-            verificarErro();
-            
-            if (serverShutdown) {
-                throw new IOException("Servidor encerrado");
-            }
-            
-            Condition condicao = lock.newCondition();
-            threadsEspera.put(tag, condicao);
-            
-            while (!respostas.containsKey(tag) && erro == null && !serverShutdown) {
-                condicao.await();
-            }
-            
-            if (serverShutdown) {
-                throw new IOException("Servidor encerrado durante espera");
-            }
-            
-            verificarErro();
-            
-            threadsEspera.remove(tag);
-            return respostas.remove(tag);
-            
+            ativo = false;
+            acordarTodasThreads();
         } finally {
             lock.unlock();
         }
     }
-    
-    public void parar() {
-        ativo = false;
-        acordarTodasThreads();
+
+    public Object aguardar(long tag) throws Exception {
+        lock.lock();
+        try {
+            verificarErro();
+
+            if (serverShutdown) {
+                throw new IOException("Servidor encerrado");
+            }
+
+            if (!ativo) {
+                throw new IOException("Demultiplexer parado");
+            }
+
+            Condition condicao = lock.newCondition();
+            threadsEspera.put(tag, condicao);
+
+            while (!respostas.containsKey(tag) && erro == null && 
+                   !serverShutdown && ativo) { 
+                condicao.await();
+            }
+
+            if (!ativo) {
+                throw new IOException("Demultiplexer parado durante espera");
+            }
+
+            if (serverShutdown) {
+                throw new IOException("Servidor encerrado durante espera");
+            }
+
+            verificarErro();
+
+            threadsEspera.remove(tag);
+            return respostas.remove(tag);
+
+        } finally {
+            lock.unlock();
+        }
     }
     
     public boolean isServerShutdown() {
