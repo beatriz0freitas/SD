@@ -96,20 +96,20 @@ public class Server {
         System.out.println("  ENCERRANDO SERVIDOR");
         System.out.println("=".repeat(50));
 
-        // 1) Para de aceitar novas conexões
+    
         ativo = false;
         fecharServerSocket();
 
-        // 2) Fecha sockets de clientes (desbloqueia ClientHandlers)
+    
         System.out.println("\n[1/4] Fechando sockets de clientes...");
         fecharSocketsClientes();
 
-        // 3) Shutdown pools (sem timers)
+    
         System.out.println("\n[2/4] Encerrando pools...");
         clientHandlerPool.shutdownNow();   
         requestPool.shutdown();            
 
-        // 4) Espera até terminar (sem timeout)
+    
         System.out.println("\n[3/4] Aguardando término das threads...");
         try {
             clientHandlerPool.awaitTermination();
