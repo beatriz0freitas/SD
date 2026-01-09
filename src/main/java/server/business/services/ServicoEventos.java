@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -38,6 +37,10 @@ public class ServicoEventos implements IServicoEventos {
     // Estado para vendas consecutivas
     private int lastProductID = -1;
     private int consecutiveCount = 0;
+
+    private final ReentrantLock notificacaoLock = new ReentrantLock();
+    private final Condition notificacaoCond = notificacaoLock.newCondition();
+    private boolean shuttingDown = false;
 
     public ServicoEventos(IEventoRepository eventoRepository, CacheManager cacheManager, int D) {
         this.eventoRepository = eventoRepository;
@@ -98,6 +101,10 @@ public class ServicoEventos implements IServicoEventos {
         int produtoID1 = notificacao.getArg1();
         int produtoID2 = notificacao.getArg2();
 
+        if (isShuttingDown()) {
+            return RespostaDTO.erro("Servidor a encerrar");
+        }
+
         lock.readLock().lock();
         int diaSnapshot = diaAtual;
 
@@ -111,19 +118,17 @@ public class ServicoEventos implements IServicoEventos {
         }
 
         try {
-            final ReentrantLock waitLock = new ReentrantLock();
-            final Condition done = waitLock.newCondition();
             final boolean[] notified = {false};
             final String[] message = {null};
 
             NotificationManager.NotificationCallback callback = msg -> {
-                waitLock.lock();
+                notificacaoLock.lock();
                 try {
                     notified[0] = true;
                     message[0] = msg;
-                    done.signal(); // equivalente a notify()
+                    notificacaoCond.signalAll();
                 } finally {
-                    waitLock.unlock();
+                    notificacaoLock.unlock();
                 }
             };
 
@@ -134,37 +139,27 @@ public class ServicoEventos implements IServicoEventos {
                 callback
             );
 
-            waitLock.lock();
+            // Aguardar notificação (sem synchronized/wait/notify)
+            notificacaoLock.lock();
             try {
-                long deadline = System.currentTimeMillis() + 60000; // 60s
-
                 while (!notified[0]) {
-                    long remaining = deadline - System.currentTimeMillis();
-                    if (remaining <= 0) {
-                        return RespostaDTO.erro("Timeout aguardando vendas específicas");
+                    if (shuttingDown) {
+                        return RespostaDTO.erro("Servidor a encerrar");
                     }
-
-                    // Verificar se dia mudou
-                    lock.readLock().lock();
-                    try {
-                        if (diaAtual != diaSnapshot) {
-                            return RespostaDTO.erro("Dia avançou, notificação cancelada");
-                        }
-                    } finally {
-                        lock.readLock().unlock();
+                    if (diaAtual != diaSnapshot) {
+                        return RespostaDTO.erro("Dia avançou, notificação cancelada");
                     }
-
-                    done.await(Math.min(remaining, 1000), TimeUnit.MILLISECONDS);
+                    notificacaoCond.await();
                 }
 
                 return RespostaDTO.sucesso(message[0]);
             } finally {
-                waitLock.unlock();
+                notificacaoLock.unlock();
             }
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new EventoException("Espera interrompida", e);
+            return RespostaDTO.erro("Espera interrompida");
         }
     }
 
@@ -172,6 +167,10 @@ public class ServicoEventos implements IServicoEventos {
     public RespostaDTO notificarVendasConsecutivas(NotificacaoDTO notificacao) throws EventoException {
         int produtoID = notificacao.getArg1();
         int n = notificacao.getArg2();
+
+        if (isShuttingDown()) {
+            return RespostaDTO.erro("Servidor a encerrar");
+        }
 
         lock.readLock().lock();
         int diaSnapshot = diaAtual;
@@ -183,19 +182,17 @@ public class ServicoEventos implements IServicoEventos {
         }
 
         try {
-            final ReentrantLock waitLock = new ReentrantLock();
-            final Condition done = waitLock.newCondition();
             final boolean[] notified = {false};
             final String[] message = {null};
 
             NotificationManager.NotificationCallback callback = msg -> {
-                waitLock.lock();
+                notificacaoLock.lock();
                 try {
                     notified[0] = true;
                     message[0] = msg;
-                    done.signal();
+                    notificacaoCond.signalAll();
                 } finally {
-                    waitLock.unlock();
+                    notificacaoLock.unlock();
                 }
             };
 
@@ -206,37 +203,27 @@ public class ServicoEventos implements IServicoEventos {
                 callback
             );
 
-            waitLock.lock();
+            // Aguardar notificação (sem synchronized/wait/notify)
+            notificacaoLock.lock();
             try {
-                long deadline = System.currentTimeMillis() + 60000;
-
                 while (!notified[0]) {
-                    long remaining = deadline - System.currentTimeMillis();
-                    if (remaining <= 0) {
-                        return RespostaDTO.erro("Timeout aguardando vendas consecutivas");
+                    if (shuttingDown) {
+                        return RespostaDTO.erro("Servidor a encerrar");
                     }
-
-                    // cancelar se o dia mudou
-                    lock.readLock().lock();
-                    try {
-                        if (diaAtual != diaSnapshot) {
-                            return RespostaDTO.erro("Dia avançou, notificação cancelada");
-                        }
-                    } finally {
-                        lock.readLock().unlock();
+                    if (diaAtual != diaSnapshot) {
+                        return RespostaDTO.erro("Dia avançou, notificação cancelada");
                     }
-
-                    done.await(Math.min(remaining, 1000), TimeUnit.MILLISECONDS);
+                    notificacaoCond.await();
                 }
 
                 return RespostaDTO.sucesso(message[0]);
             } finally {
-                waitLock.unlock();
+                notificacaoLock.unlock();
             }
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new EventoException("Espera interrompida", e);
+            return RespostaDTO.erro("Espera interrompida");
         }
     }
 
@@ -345,9 +332,15 @@ public class ServicoEventos implements IServicoEventos {
                     System.out.println("Eventos do dia " + diaAnterior + " persistidos");
                 }
 
-                diaAtual++;
+                notificacaoLock.lock();
+                try {
+                    diaAtual++;
+                } finally {
+                    notificacaoLock.unlock();
+                }
 
                 notificationManager.limparNotificacoesDia(diaAnterior);
+                signalAllNotificacoes();
 
                 if (cacheManager != null) {
                     int diaForaDaJanela = diaAtual - D - 1;
@@ -393,6 +386,13 @@ public class ServicoEventos implements IServicoEventos {
     }
 
     public void shutdown() {
+        notificacaoLock.lock();
+        try {
+            shuttingDown = true;
+            notificacaoCond.signalAll();
+        } finally {
+            notificacaoLock.unlock();
+        }
         notificationManager.shutdown();
     }
 
@@ -408,6 +408,23 @@ public class ServicoEventos implements IServicoEventos {
         }
         if (dto.getPreco() <= 0) {
             throw new EventoException("Preço deve ser positivo");
+        }
+    }
+
+    private boolean isShuttingDown() {
+        notificacaoLock.lock();
+        try {
+            return shuttingDown;
+        } finally {
+            notificacaoLock.unlock();
+        }
+    }
+    private void signalAllNotificacoes() {
+        notificacaoLock.lock();
+        try {
+            notificacaoCond.signalAll();
+        } finally {
+            notificacaoLock.unlock();
         }
     }
 }
