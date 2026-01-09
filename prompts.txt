@@ -1,0 +1,123 @@
+# prompts.txt — Prompts usados para gerar/ajustar os testes 
+# Data: 2026-01-09
+# Objetivo: documentar como ferramentas de IA foram usadas para apoiar a criação de testes concorrentes,
+# workloads, escalabilidade e robustez. Os prompts abaixo foram depois validados e ajustados manualmente.
+
+===============================================================================
+1) ThreadPool — testes unitários (submissão, rejeição, shutdown, exceções)
+===============================================================================
+PROMPT:
+"Cria um conjunto de testes JUnit 5 para um ThreadPool custom (ThreadPoolImpl). Preciso de testar:
+(1) execução de tarefas simples, (2) rejeição quando a fila está cheia, (3) concorrência com muitas tasks,
+(4) shutdown processa tasks pendentes, (5) shutdownNow descarta tasks pendentes, (6) workers são reutilizados,
+(7) workers sobrevivem a exceções em tasks. Usa CountDownLatch para sincronização. Evita sleeps longos."
+
+VALIDAÇÃO/NOTAS:
+- Confirmado que os testes terminam sempre.
+- Ajustado para evitar dependência de timing (apenas latch quando necessário).
+
+===============================================================================
+2) ConnectionPool — testes unitários com servidor mock
+===============================================================================
+PROMPT:
+"Cria um conjunto de testes JUnit 5 para um ConnectionPool (cliente) que gere sockets reutilizáveis. Preciso:
+(1) teste básico (getConnection retorna válida), (2) reutilização (mesma ligação volta ao pool),
+(3) maxConnections bloqueia até libertar, (4) concorrência com 50 threads, (5) conexão inválida força recriação,
+(6) close impede novas ligações (deve lançar IOException). Cria um mock server com ServerSocket que faz echo de int."
+
+VALIDAÇÃO/NOTAS:
+- Confirmado que o servidor mock encerra no fim.
+- Ajustado timeout para evitar flakiness.
+
+===============================================================================
+3) Repositórios (UsuarioFileRepository / EventoFileRepository) — testes
+===============================================================================
+PROMPT:
+"Escreve testes JUnit 5 para validar persistência em repositórios file-based. Para utilizadores:
+salvar+carregar, existe(), listarTodos(). Inclui teste de concorrência com múltiplas threads a gravar e ler.
+Para eventos: criar um diretório de teste isolado e limpar no setup/teardown."
+
+VALIDAÇÃO/NOTAS:
+- Garantido isolamento em diretórios de teste (para eventos).
+- Para utilizadores, evitou-se assumir repositório vazio; usa 'baseline' antes de inserir.
+
+===============================================================================
+4) Integração (Cliente -> Middleware -> Servidor) — autenticação, eventos, agregações
+===============================================================================
+PROMPT:
+"Cria testes de integração JUnit 5 que iniciem o servidor numa porta local e usem o ClienteMiddleware e stubs:
+(1) registo+login, (2) registo de 5 eventos, (3) agregações após novoDia,
+(4) 10 clientes concorrentes a registar e autenticar e enviar eventos, (5) filtro de eventos com validação
+pela mensagem, (6) notificação de venda específica com latch. Usa timeouts e encerra o servidor no fim."
+
+VALIDAÇÃO/NOTAS:
+- Ajustes para timeouts realistas.
+- Mensagens validadas como "resumo" (não IDs), conforme comportamento observado no servidor.
+
+===============================================================================
+5) Stress test — carga, throughput, latência, carga sustentada
+===============================================================================
+PROMPT:
+"Cria testes JUnit 5 de stress/performance para um servidor: (1) 50 clientes simultâneos (registo+login+10 eventos),
+(2) throughput com 1000 requests em 10 threads, (3) latência média com 100 requests, (4) carga sustentada 30s
+com 20 threads. Usa métricas e assert de thresholds razoáveis (ex.: taxa sucesso >= 80%, throughput > 50 req/s,
+latência média < 100ms, sucesso > 95% na carga sustentada)."
+
+VALIDAÇÃO/NOTAS:
+- Ajustado para usernames sem underscore e com System.nanoTime() para evitar colisões.
+- Thresholds revistos para reduzir falsos negativos (ambiente pode variar).
+
+===============================================================================
+6) Escalabilidade — 10/25/50/100 clientes + tabela comparativa (observacional)
+===============================================================================
+PROMPT:
+"Cria um teste JUnit 5 de escalabilidade que arranca o servidor e executa séries com 10, 25, 50 e 100 clientes.
+Cada cliente faz registo+login+10 eventos. Mede tempo total e calcula throughput (ops/s) assumindo 12 operações por cliente
+bem-sucedido. No fim imprime tabela comparativa e análise de degradação. Evita AtomicInteger/AtomicLong e synchronized
+(se necessário, usa arrays por thread e agrega no fim)."
+
+VALIDAÇÃO/NOTAS:
+- Implementação baseada em boolean[] por cliente para medir sucesso sem contadores partilhados.
+- Os asserts foram ajustados para serem "observacionais" em 100 clientes (pode haver degradação).
+
+===============================================================================
+7) Workloads (Cargas de trabalho) — write-heavy, read-heavy, mixed concorrente
+===============================================================================
+PROMPT:
+"Cria testes JUnit 5 para workloads: (1) write-heavy com ~500 registos de evento, (2) read-heavy com ~500 consultas
+de agregações após pré-carga e novoDia, (3) mixed concorrente com 20 clientes onde cada um faz escrita+leitura,
+e apenas uma minoria faz filtro e notificação. Usa timeouts e thresholds realistas para evitar flakiness."
+
+VALIDAÇÃO/NOTAS:
+- No mixed, limitou-se filtro/notificação a subset de clientes para evitar explosão de filas/estado global.
+- O mixed evita novoDia concorrente por ser operação global (pode gerar instabilidade).
+
+===============================================================================
+8) Robustez — cliente que não consome respostas ("bad client")
+===============================================================================
+PROMPT:
+"Cria um teste de robustez JUnit 5: inicia servidor, cria um cliente 'mau' via Socket que envia pedidos em loop por 5s
+mas não lê respostas, mantendo o socket aberto mais 5s. Em paralelo, cria 10 clientes normais que fazem registo+login+5 eventos.
+O teste deve ser observacional: não exigir taxa alta, apenas que não há deadlock global e que pelo menos 1 cliente completa.
+Usa CountDownLatch e timeouts."
+
+VALIDAÇÃO/NOTAS:
+- Critério de sucesso definido como 'progresso' (>=1 sucesso) e ausência de bloqueio (latch termina).
+- Logs usados para relatório (sucessos/falhas/duração).
+
+===============================================================================
+9) Remoção de Atomic* e synchronized (pedido do docente/enunciado)
+===============================================================================
+PROMPT:
+"Remove AtomicInteger/AtomicLong e synchronized de testes concorrentes. Usa padrões sem partilha:
+- arrays por thread/cliente (ok[]), e contagem final na thread principal;
+- CountDownLatch para sincronização;
+- para medições, calcular no fim com base em resultados agregados."
+
+VALIDAÇÃO/NOTAS:
+- Aplicado a testes de escalabilidade e robustez.
+- Onde era necessário medir contagens, substituiu-se por arrays/contagem pós-latch.
+
+===============================================================================
+FIM
+===============================================================================
