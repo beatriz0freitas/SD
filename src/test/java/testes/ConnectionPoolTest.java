@@ -1,8 +1,8 @@
 package testes;
 
-import org.junit.jupiter.api.*;
-
-import java.io.*;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -11,10 +11,18 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.junit.jupiter.api.AfterAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.Timeout;
+
 import client.connection.ConnectionPool;
 import client.connection.PooledConnection;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Testes para ConnectionPool
@@ -36,10 +44,8 @@ class ConnectionPoolTest {
                     Socket client = mockServer.accept();
 
                     new Thread(() -> {
-                        try (DataInputStream in =
-                                     new DataInputStream(client.getInputStream());
-                             DataOutputStream out =
-                                     new DataOutputStream(client.getOutputStream())) {
+                        try (DataInputStream in = new DataInputStream(client.getInputStream());
+                             DataOutputStream out = new DataOutputStream(client.getOutputStream())) {
 
                             while (!client.isClosed()) {
                                 int data = in.readInt();
@@ -59,7 +65,7 @@ class ConnectionPoolTest {
         serverThread.start();
 
         try {
-            Thread.sleep(100); // garantir servidor ativo
+            Thread.sleep(100);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -67,12 +73,8 @@ class ConnectionPoolTest {
 
     @AfterAll
     void pararMockServer() throws Exception {
-        if (mockServer != null && !mockServer.isClosed()) {
-            mockServer.close();
-        }
-        if (serverThread != null) {
-            serverThread.join(1000);
-        }
+        if (mockServer != null && !mockServer.isClosed()) mockServer.close();
+        if (serverThread != null) serverThread.join(1000);
     }
 
     @Test
@@ -88,21 +90,21 @@ class ConnectionPoolTest {
     }
 
     @Test
-    void testeReutilizacao() throws Exception {
-        ConnectionPool pool = new ConnectionPool("localhost", TEST_PORT, 2);
+void testeReutilizacao() throws Exception {
+    ConnectionPool pool = new ConnectionPool("localhost", TEST_PORT, 2);
 
-        PooledConnection conn1 = pool.getConnection();
-        String addr1 = conn1.getRemoteAddress();
-        conn1.close();
+    PooledConnection conn1 = pool.getConnection();
+    String id1 = conn1.getConnectionId();
+    conn1.close(); // devolve ao pool
 
-        PooledConnection conn2 = pool.getConnection();
-        String addr2 = conn2.getRemoteAddress();
-        conn2.close();
+    PooledConnection conn2 = pool.getConnection();
+    String id2 = conn2.getConnectionId();
+    conn2.close();
 
-        pool.close();
+    pool.close();
 
-        assertEquals(addr1, addr2, "A conexão deveria ser reutilizada");
-    }
+    assertEquals(id1, id2, "A mesma ligação (socket) deveria ser reutilizada");
+}
 
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
@@ -120,10 +122,10 @@ class ConnectionPoolTest {
 
         Thread t = new Thread(() -> {
             try {
-                estado.set(1); // vai bloquear
+                estado.set(1);
                 bloqueio.countDown();
                 PooledConnection conn = pool.getConnection();
-                estado.set(2); // desbloqueou
+                estado.set(2);
                 conn.close();
                 desbloqueio.countDown();
             } catch (Exception ignored) {
@@ -136,7 +138,7 @@ class ConnectionPoolTest {
         Thread.sleep(300);
         assertEquals(1, estado.get(), "Thread deveria estar bloqueada");
 
-        connections.get(0).close(); // libertar uma ligação
+        connections.get(0).close();
 
         assertTrue(desbloqueio.await(2, TimeUnit.SECONDS));
         assertEquals(2, estado.get(), "Thread deveria desbloquear");
@@ -163,9 +165,7 @@ class ConnectionPoolTest {
                     out.flush();
 
                     int response = in.readInt();
-                    if (response == 42) {
-                        sucesso.incrementAndGet();
-                    }
+                    if (response == 42) sucesso.incrementAndGet();
 
                     Thread.sleep(10);
                     conn.close();

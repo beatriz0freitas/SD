@@ -1,7 +1,5 @@
 package common.concurrency;
 
-import java.util.concurrent.TimeUnit;
-
 /**
  * Abstração de um Thread Pool para execução concorrente de tarefas.
  * Implementações concretas são responsáveis pela gestão de threads e filas.
@@ -26,11 +24,7 @@ public interface ThreadPool {
      */
     int getActiveThreads();
 
-    /**
-     * Espera até terminar após shutdown.
-     * @return true se terminou dentro do timeout; false se expirou.
-     */
-    boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException;
+    void awaitTermination() throws InterruptedException;
 
     /**
      * Inicia o encerramento do pool.

@@ -17,7 +17,6 @@ common/dto/EventosFiltradosDTO.class
 server/presentation/skeleton/ISkeleton.class
 server/business/services/NotificationManager$NotificationHandler.class
 server/presentation/skeleton/ServicoEventosSkeleton.class
-middleware/ServerShutdownHandler.class
 common/interfaces/IServicoAgregacoes.class
 server/business/services/NotificationManager$NotificationCallback.class
 client/stub/ServicoEventosStub.class
@@ -48,7 +47,6 @@ middleware/MessageTypes.class
 server/business/services/ServicoAdmin.class
 server/data/cache/CacheManager.class
 common/Logger.class
-middleware/ShutdownMessage.class
 server/business/services/NotificationManager.class
 middleware/Message.class
 server/config/ServerConfig.class

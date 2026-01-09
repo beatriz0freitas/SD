@@ -1,6 +1,9 @@
 package server.business.services;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -119,10 +122,6 @@ public class NotificationManager {
                 }
             }
 
-            // ===== VENDAS CONSECUTIVAS =====
-            if (lastProductID != produtoID) {
-                return; // Não é consecutiva, sair
-            }
 
             List<String> keysVendasConsecutivas = new ArrayList<>();
 
@@ -185,75 +184,6 @@ public class NotificationManager {
         }
     }
     
-    // === Métodos Privados ===
-    
-    private void verificarVendasEspecificas(int produtoID, int diaAtual, Map<Integer, List<?>> eventosDia) {
-        // Procurar todas as chaves que envolvem este produto
-        List<String> keysParaNotificar = new ArrayList<>();
-        
-        for (String key : vendasEspecificas.keySet()) {
-            if (!key.endsWith(":" + diaAtual)) continue;
-            
-            String[] parts = key.split(":");
-            int p1 = Integer.parseInt(parts[0]);
-            int p2 = Integer.parseInt(parts[1]);
-            
-            // Se este evento completa a condição (ambos produtos vendidos)
-            if ((produtoID == p1 || produtoID == p2) && 
-                eventosDia.containsKey(p1) && eventosDia.containsKey(p2)) {
-                keysParaNotificar.add(key);
-            }
-        }
-        
-        // Notificar handlers
-        for (String key : keysParaNotificar) {
-            notificarHandlers(vendasEspecificas.get(key), 
-                            "Produtos vendidos no dia " + diaAtual);
-            vendasEspecificas.remove(key);
-        }
-    }
-    
-    private void verificarVendasConsecutivas(int produtoID, int lastProductID, int consecutiveCount, int diaAtual) {
-        if (lastProductID != produtoID) return;
-        
-        List<String> keysParaNotificar = new ArrayList<>();
-        
-        for (String key : vendasConsecutivas.keySet()) {
-            if (!key.endsWith(":" + diaAtual)) continue;
-            
-            String[] parts = key.split(":");
-            int pid = Integer.parseInt(parts[0]);
-            int n = Integer.parseInt(parts[1]);
-            
-            // Se atingiu o número de vendas consecutivas
-            if (pid == produtoID && consecutiveCount >= n) {
-                keysParaNotificar.add(key);
-            }
-        }
-        
-        // Notificar handlers
-        for (String key : keysParaNotificar) {
-            notificarHandlers(vendasConsecutivas.get(key),
-                            "Produto " + produtoID + " atingiu " + consecutiveCount + 
-                            " vendas consecutivas");
-            vendasConsecutivas.remove(key);
-        }
-    }
-    
-    private void notificarHandlers(List<NotificationHandler> handlers, String mensagem) {
-        if (handlers == null || handlers.isEmpty()) return;
-        
-        for (NotificationHandler handler : handlers) {
-            // Processar notificação de forma assíncrona
-            notificationPool.submit(() -> {
-                try {
-                    handler.callback.onNotification(mensagem);
-                } catch (Exception e) {
-                    System.err.println("Erro ao processar callback: " + e.getMessage());
-                }
-            });
-        }
-    }
     
     private String criarChaveVendaEspecifica(int p1, int p2, int dia) {
         // Normalizar ordem para evitar duplicatas
