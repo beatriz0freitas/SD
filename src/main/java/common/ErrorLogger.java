@@ -45,19 +45,20 @@ public class ErrorLogger {
         try {
             String timestamp = LocalDateTime.now().format(FORMATTER);
             
-            errorLog.append("[ERRO] ").append(timestamp)
-                   .append(" - ").append(contexto).append("\n");
-            errorLog.append("  Exceção: ").append(erro.getClass().getName())
-                   .append(": ").append(erro.getMessage()).append("\n");
-            
+            StringBuilder entry = new StringBuilder();
+            entry.append("[ERRO] ").append(timestamp)
+                 .append(" - ").append(contexto).append("\n");
+            entry.append("  Exceção: ").append(erro.getClass().getName())
+                 .append(": ").append(erro.getMessage()).append("\n");
+
             // Stack trace
             StringWriter sw = new StringWriter();
             erro.printStackTrace(new PrintWriter(sw));
-            errorLog.append(sw.toString()).append("\n");
+            entry.append(sw.toString()).append("\n");
+
+            errorLog.append(entry);
             
-            // Log também para console (apenas últimas linhas)
-            String lastLines = getLastNCharacters(errorLog.toString(), 500);
-            System.err.println("\n" + lastLines);
+            System.err.print(entry.toString());
             
         } finally {
             lock.writeLock().unlock();
@@ -106,11 +107,5 @@ public class ErrorLogger {
             lock.writeLock().unlock();
         }
     }
-    
-    private String getLastNCharacters(String str, int n) {
-        if (str.length() <= n) {
-            return str;
-        }
-        return str.substring(str.length() - n);
-    }
+
 }
