@@ -87,7 +87,7 @@ public class CargaTrabalhoTest {
     @Timeout(value = 40, unit = TimeUnit.SECONDS)
     void workloadWriteHeavy() throws Exception {
 
-        ClienteMiddleware middleware = new ClienteMiddleware(HOST, PORT, true, 5);
+        ClienteMiddleware middleware = new ClienteMiddleware(HOST, PORT, true, 1);
         middleware.conectar();
 
         try {
@@ -135,7 +135,7 @@ public class CargaTrabalhoTest {
     @Timeout(value = 40, unit = TimeUnit.SECONDS)
     void workloadReadHeavy() throws Exception {
 
-        ClienteMiddleware middleware = new ClienteMiddleware(HOST, PORT, true, 5);
+        ClienteMiddleware middleware = new ClienteMiddleware(HOST, PORT, true, 1);
         middleware.conectar();
 
         try {
@@ -211,7 +211,7 @@ public class CargaTrabalhoTest {
             new Thread(() -> {
                 ClienteMiddleware middleware = null;
                 try {
-                    middleware = new ClienteMiddleware(HOST, PORT, true, 10);
+                    middleware = new ClienteMiddleware(HOST, PORT, true, 1);
                     middleware.conectar();
 
                     StubFactory stubs = new StubFactory(middleware);

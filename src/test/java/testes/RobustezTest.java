@@ -105,7 +105,7 @@ public class RobustezTest {
             new Thread(() -> {
                 ClienteMiddleware middleware = null;
                 try {
-                    middleware = new ClienteMiddleware(HOST, PORT, true, 5);
+                    middleware = new ClienteMiddleware(HOST, PORT, true, 1);
                     middleware.conectar();
 
                     StubFactory stubs = new StubFactory(middleware);

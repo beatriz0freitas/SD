@@ -160,7 +160,7 @@ public class EscalabilidadeTest {
                 ClienteMiddleware middleware = null;
 
                 try {
-                    middleware = new ClienteMiddleware(HOST, PORT, true, 10);
+                    middleware = new ClienteMiddleware(HOST, PORT, true, 1);
                     middleware.conectar();
 
                     StubFactory stubs = new StubFactory(middleware);

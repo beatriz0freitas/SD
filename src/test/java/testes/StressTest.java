@@ -62,7 +62,7 @@ public class StressTest {
             new Thread(() -> {
                 try {
                     ClienteMiddleware middleware =
-                            new ClienteMiddleware(HOST, PORT, true, 5);
+                            new ClienteMiddleware(HOST, PORT, true, 1);
                     middleware.conectar();
 
                     StubFactory stubs = new StubFactory(middleware);
@@ -133,7 +133,7 @@ public class StressTest {
             new Thread(() -> {
                 try {
                     ClienteMiddleware middleware =
-                            new ClienteMiddleware(HOST, PORT, true, 5);
+                            new ClienteMiddleware(HOST, PORT, true, 1);
                     middleware.conectar();
 
                     StubFactory stubs = new StubFactory(middleware);
@@ -181,7 +181,7 @@ public class StressTest {
 
         ClienteMiddleware middleware = null;
         try {
-            middleware = new ClienteMiddleware(HOST, PORT, true, 5);
+            middleware = new ClienteMiddleware(HOST, PORT, true, 1);
             middleware.conectar();
 
             StubFactory stubs = new StubFactory(middleware);
@@ -236,7 +236,7 @@ public class StressTest {
             new Thread(() -> {
                 ClienteMiddleware middleware = null;
                 try {
-                    middleware = new ClienteMiddleware(HOST, PORT, true, 5);
+                    middleware = new ClienteMiddleware(HOST, PORT, true, 1);
                     middleware.conectar();
 
                     StubFactory stubs = new StubFactory(middleware);

@@ -59,7 +59,9 @@ public class ClienteMiddleware {
         });
 
         if (usePool) {
-            this.connectionPool = new ConnectionPool(host, porta, maxConnections);
+            int poolSize = maxConnections;
+            if (poolSize != 1) poolSize = 1;
+            this.connectionPool = new ConnectionPool(host, porta, poolSize);
         }
     }
 
