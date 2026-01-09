@@ -1,48 +1,22 @@
-# SD
+# Objetivos do Projeto
 
-## Project Overview
-"SD" is a groundbreaking project designed to revolutionize the industry by offering innovative solutions. This repository contains the source code, resources, and information needed to explore, install, and contribute to the project. The goal is to simplify complex workflows and improve productivity through a user-friendly interface and powerful functionality.
+Este projeto tem como foco o desenvolvimento de um sistema distribuído, conforme as orientações e diretrizes especificadas no documento `trab-sd-2026.pdf`. Abaixo estão resumidos os principais objetivos e informações relevantes:
 
-## Installation Instructions
-Follow these steps to get started with "SD":
+### Objetivos Principais
+- Projetar e implementar um sistema distribuído que atenda aos requisitos técnicos propostos em `trab-sd-2026.pdf`.
+- Utilizar boas práticas de programação e arquitetura de software.
+- Garantir escalabilidade, eficiência e confiabilidade no sistema desenvolvido.
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/beatriz0freitas/SD.git
-   ```
-2. Navigate to the project directory:
-   ```bash
-   cd SD
-   ```
-3. Install required dependencies (if applicable):
-   ```bash
-   # Replace `install-command` with the appropriate command for your setup.
-   install-command
-   ```
+### Diretrizes
+- Consulte o arquivo `trab-sd-2026.pdf` para compreender detalhadamente as regras e especificações obrigatórias.
+- Certifique-se de que todos os módulos estejam devidamente documentados e testados.
+- Siga a estrutura sugerida para os repositórios e a organização do código.
 
-## Usage Examples
-Here are a few examples to help you make the most out of "SD":
+### Como começar
+1. Leia o documento `trab-sd-2026.pdf`.
+2. Instale as dependências necessárias conforme descrito nos arquivos do projeto.
+3. Inicie o desenvolvimento seguindo as diretrizes especificadas.
 
-```bash
-# Run the main application
-run-command
+---
 
-# Execute a specific feature
-run-specific-feature-command
-```
-
-Please refer to the documentation for more details on available commands and their functionalities.
-
-## Main Features
-- **Feature 1**: Provide a description of the first key feature.
-- **Feature 2**: Highlight another major feature that stands out.
-- **Feature 3**: Mention additional features that users will find valuable.
-
-This list is a work in progress. Stay tuned for updates!
-
-## Contributors
-We welcome and appreciate contributions from the community! This project is maintained by:
-
-- **Beatriz Freitas** ([@beatriz0freitas](https://github.com/beatriz0freitas))
-
-Feel free to open issues, propose changes, or get involved in any way you can. Together, we can drive this project forward and make it even better.
+Este projeto é parte integrante da disciplina de Sistemas Distribuídos. Todos os colaboradores devem seguir as diretrizes estabelecidas para conclusão do trabalho com sucesso.
