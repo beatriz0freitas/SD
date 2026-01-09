@@ -1,9 +1,11 @@
 # SD
 
 ## Project Overview
+
 "SD" is a groundbreaking project designed to revolutionize the industry by offering innovative solutions. This repository contains the source code, resources, and information needed to explore, install, and contribute to the project. The goal is to simplify complex workflows and improve productivity through a user-friendly interface and powerful functionality.
 
 ## Installation Instructions
+
 Follow these steps to get started with "SD":
 
 1. Clone the repository:
@@ -21,6 +23,7 @@ Follow these steps to get started with "SD":
    ```
 
 ## Usage Examples
+
 Here are a few examples to help you make the most out of "SD":
 
 ```bash
@@ -34,6 +37,7 @@ run-specific-feature-command
 Please refer to the documentation for more details on available commands and their functionalities.
 
 ## Main Features
+
 - **Feature 1**: Provide a description of the first key feature.
 - **Feature 2**: Highlight another major feature that stands out.
 - **Feature 3**: Mention additional features that users will find valuable.
@@ -41,6 +45,7 @@ Please refer to the documentation for more details on available commands and the
 This list is a work in progress. Stay tuned for updates!
 
 ## Contributors
+
 We welcome and appreciate contributions from the community! This project is maintained by:
 
 - **Beatriz Freitas** ([@beatriz0freitas](https://github.com/beatriz0freitas))
