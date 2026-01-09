@@ -17,9 +17,9 @@ public class Demultiplexer implements Runnable {
     private final Map<Long, byte[]> respostas;
     private final Map<Long, Condition> threadsEspera;
 
-    private volatile boolean ativo;
-    private volatile Exception erro;
-    private volatile boolean serverShutdown;
+    private boolean ativo;
+    private Exception erro;
+    private boolean serverShutdown;
 
     private final ClientShutdownHandler shutdownHandler;
 
@@ -37,7 +37,7 @@ public class Demultiplexer implements Runnable {
     @Override
     public void run() {
         try {
-            while (ativo && !serverShutdown) {
+            while (shouldRun()) {
                 Message msg = protocolo.receber(entrada);
 
                 if (!msg.isResponse()) {
@@ -46,7 +46,7 @@ public class Demultiplexer implements Runnable {
                 }
 
                 if (msg.getTag() == -1) {
-                    serverShutdown = true;
+                    setServerShutdown(true);
                     if (shutdownHandler != null) shutdownHandler.onShutdown();
                     acordarTodasThreads();
                     break;
@@ -55,7 +55,7 @@ public class Demultiplexer implements Runnable {
                 entregarResposta(msg.getTag(), msg.getPayload());
             }
         } catch (IOException e) {
-            if (ativo && !serverShutdown) tratarErroConexao(e);
+            if (shouldRun()) tratarErroConexao(e);
         }
     }
 
@@ -126,5 +126,23 @@ public class Demultiplexer implements Runnable {
 
     private void verificarErro() throws Exception {
         if (erro != null) throw erro;
+    }
+
+    private boolean shouldRun() {
+        lock.lock();
+        try {
+            return ativo && !serverShutdown;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private void setServerShutdown(boolean value) {
+        lock.lock();
+        try {
+            serverShutdown = value;
+        } finally {
+            lock.unlock();
+        }
     }
 }

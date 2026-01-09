@@ -39,8 +39,9 @@ public class ClienteMiddleware {
 
     private final ClientShutdownHandler shutdownHandler;
 
-    private volatile boolean conectado;
-    private volatile boolean serverShutdown;
+    private final ReentrantLock stateLock = new ReentrantLock();
+    private boolean conectado;
+    private boolean serverShutdown;
 
     public ClienteMiddleware(String host, int porta) {
         this(host, porta, false, 1);
@@ -53,8 +54,8 @@ public class ClienteMiddleware {
         this.usePool = usePool;
 
         this.shutdownHandler = new ClientShutdownHandler(() -> {
-            serverShutdown = true;
-            conectado = false;
+            setServerShutdown(true);
+            setConectado(false);
         });
 
         if (usePool) {
@@ -74,8 +75,8 @@ public class ClienteMiddleware {
     public void conectar() throws IOException {
         lockEscrita.lock();
         try {
-            if (conectado) return;
-            if (serverShutdown) throw new IOException("Servidor foi encerrado. Não é possível reconectar.");
+            if (isConectado()) return;
+            if (isServerShutdown()) throw new IOException("Servidor foi encerrado. Não é possível reconectar.");
 
             if (usePool) {
                 if (connectionPool == null) {
@@ -90,7 +91,7 @@ public class ClienteMiddleware {
                 threadDemux.start();
             }
 
-            conectado = true;
+            setConectado(true);
         } finally {
             lockEscrita.unlock();
         }
@@ -99,7 +100,7 @@ public class ClienteMiddleware {
     public void desconectar() {
         lockEscrita.lock();
         try {
-            conectado = false;
+            setConectado(false);
 
             if (usePool) {
                 if (connectionPool != null) connectionPool.close();
@@ -113,7 +114,7 @@ public class ClienteMiddleware {
     }
 
     public RespostaDTO invocar(byte serviceId, byte methodId, Object parametros) throws IOException {
-        if (serverShutdown) throw new IOException("Servidor foi encerrado. Operação não disponível.");
+        if (isServerShutdown()) throw new IOException("Servidor foi encerrado. Operação não disponível.");
 
         garantirConexao();
 
@@ -124,7 +125,7 @@ public class ClienteMiddleware {
         try {
             return usePool ? invocarComPool(pedido) : invocarDedicado(pedido);
         } catch (Exception e) {
-            if (serverShutdown) throw new IOException("Servidor encerrado: " + e.getMessage(), e);
+            if (isServerShutdown()) throw new IOException("Servidor encerrado: " + e.getMessage(), e);
             throw new IOException("Erro ao invocar: " + e.getMessage(), e);
         }
     }
@@ -162,8 +163,8 @@ public class ClienteMiddleware {
             }
 
             if (resposta.getTag() == -1) {
-                serverShutdown = true;
-                conectado = false;
+                setServerShutdown(true);
+                setConectado(false);
                 shutdownHandler.onShutdown();
                 throw new IOException("Servidor encerrado");
             }
@@ -207,7 +208,7 @@ public class ClienteMiddleware {
     }
 
     private void garantirConexao() throws IOException {
-        if (serverShutdown) throw new IOException("Servidor foi encerrado");
+        if (isServerShutdown()) throw new IOException("Servidor foi encerrado");
 
         if (!isConectado()) {
             lockEscrita.lock();
@@ -223,6 +224,38 @@ public class ClienteMiddleware {
     }
 
     public boolean isConectado() {
-        return conectado && !serverShutdown;
+        stateLock.lock();
+        try {
+            return conectado && !serverShutdown;
+        } finally {
+            stateLock.unlock();
+        }
+    }
+
+    private boolean isServerShutdown() {
+        stateLock.lock();
+        try {
+            return serverShutdown;
+        } finally {
+            stateLock.unlock();
+        }
+    }
+
+    private void setServerShutdown(boolean value) {
+        stateLock.lock();
+        try {
+            serverShutdown = value;
+        } finally {
+            stateLock.unlock();
+        }
+    }
+
+    private void setConectado(boolean value) {
+        stateLock.lock();
+        try {
+            conectado = value;
+        } finally {
+            stateLock.unlock();
+        }
     }
 }

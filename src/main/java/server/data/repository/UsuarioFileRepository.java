@@ -28,9 +28,15 @@ public class UsuarioFileRepository implements IUsuarioRepository {
         
         // Persistir ao encerrar JVM
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            if (modificado) {
-                System.out.println("Persistindo utilizadores antes de encerrar...");
-                persistirTodos();
+            writeLock.lock();
+            try {
+                if (modificado) {
+                    System.out.println("Persistindo utilizadores antes de encerrar...");
+                    persistirTodos();
+                    modificado = false;
+                }
+            } finally {
+                writeLock.unlock();
             }
         }));
     }
