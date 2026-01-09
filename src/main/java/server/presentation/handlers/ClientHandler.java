@@ -17,6 +17,9 @@ import common.concurrency.ThreadPool;
 import common.dto.RespostaDTO;
 import middleware.Message;
 import middleware.Protocolo;
+import static middleware.MessageTypes.AUTH_LOGIN;
+import static middleware.MessageTypes.AUTH_LOGIN_ADMIN;
+import static middleware.MessageTypes.SERVICO_AUTENTICACAO;
 import server.presentation.skeleton.RequestDispatcher;
 
 public class ClientHandler implements Runnable {
@@ -26,6 +29,8 @@ public class ClientHandler implements Runnable {
     private final ThreadPool requestExecutor;
     private final Lock writeLock;
     private final Consumer<Socket> onClientDisconnect;
+    private final Lock authLock;
+    private boolean autenticado;
 
     public ClientHandler(Socket socket, RequestDispatcher dispatcher,
                          ThreadPool requestExecutor, Consumer<Socket> onClientDisconnect) {
@@ -35,6 +40,8 @@ public class ClientHandler implements Runnable {
         this.requestExecutor = requestExecutor;
         this.writeLock = new ReentrantLock();
         this.onClientDisconnect = onClientDisconnect;
+        this.authLock = new ReentrantLock();
+        this.autenticado = false;
     }
 
     @Override
@@ -102,7 +109,13 @@ public class ClientHandler implements Runnable {
 
     private void processarPedido(Message msg, DataOutputStream out) {
         try {
+            if (!isAutenticado() && msg.getServiceId() != SERVICO_AUTENTICACAO) {
+                enviarErro(msg.getTag(), "Cliente não autenticado", out);
+                return;
+            }
+
             RespostaDTO resp = dispatcher.despachar(msg);
+            atualizarAutenticacao(msg, resp);
             Message response = Message.response(msg.getTag(), resp.serialize());
             enviarResposta(response, out);
 
@@ -143,6 +156,33 @@ public class ClientHandler implements Runnable {
         } catch (IOException ignored) {}
 
         if (onClientDisconnect != null) onClientDisconnect.accept(socket);
+    }
+
+    private boolean isAutenticado() {
+        authLock.lock();
+        try {
+            return autenticado;
+        } finally {
+            authLock.unlock();
+        }
+    }
+
+    private void setAutenticado(boolean value) {
+        authLock.lock();
+        try {
+            autenticado = value;
+        } finally {
+            authLock.unlock();
+        }
+    }
+
+    private void atualizarAutenticacao(Message msg, RespostaDTO resp) {
+        if (resp == null || !resp.isSucesso()) return;
+        if (msg.getServiceId() != SERVICO_AUTENTICACAO) return;
+        byte method = msg.getMethodId();
+        if (method == AUTH_LOGIN || method == AUTH_LOGIN_ADMIN) {
+            setAutenticado(true);
+        }
     }
 
     private byte safeService(Message msg) {
