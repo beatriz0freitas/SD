@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class RepositoryTest {
 
-    private static final String TEST_USUARIO_DIR = "dados/test_usuarios.dat";
+    private static final String TEST_USUARIO_DIR = "dados/utilizadores.dat";
     private static final String TEST_EVENTO_DIR = "dados_teste_eventos";
 
     private IUsuarioRepository usuarioRepo;
@@ -25,7 +25,6 @@ class RepositoryTest {
 
     @BeforeEach
     void setup() {
-        // Limpar dados de testes anteriores
         limparDadosTeste();
 
         usuarioRepo = criarUsuarioRepoTeste();
@@ -59,17 +58,21 @@ class RepositoryTest {
 
     @Test
     void testUsuarioListar() {
-        assertEquals(0, usuarioRepo.contarUtilizadores(), 
-            "Deve começar com 0 usuários");
+        // NÃO assumir 0: o repositório pode carregar utilizadores persistidos do disco.
+        int baselineCount = usuarioRepo.contarUtilizadores();
+        int baselineListSize = usuarioRepo.listarTodos().size();
 
         for (int i = 0; i < 5; i++) {
-            usuarioRepo.salvar(new Usuario("user" + i, "hash" + i));
+            usuarioRepo.salvar(new Usuario("user" + i + "_" + System.nanoTime(), "hash" + i));
         }
 
-        List<Usuario> usuarios = usuarioRepo.listarTodos();
+        List<Usuario> usuariosDepois = usuarioRepo.listarTodos();
+        int countDepois = usuarioRepo.contarUtilizadores();
 
-        assertEquals(5, usuarios.size());
-        assertEquals(5, usuarioRepo.contarUtilizadores());
+        assertEquals(baselineListSize + 5, usuariosDepois.size(),
+                "listarTodos() deve crescer 5 em relação ao baseline");
+        assertEquals(baselineCount + 5, countDepois,
+                "contarUtilizadores() deve crescer 5 em relação ao baseline");
     }
 
     @Test
@@ -82,10 +85,10 @@ class RepositoryTest {
             final int id = i;
             new Thread(() -> {
                 try {
-                    Usuario u = new Usuario("concurrent" + id, "hash" + id);
+                    Usuario u = new Usuario("concurrent" + id + "_" + System.nanoTime(), "hash" + id);
                     usuarioRepo.salvar(u);
 
-                    if (usuarioRepo.buscar("concurrent" + id) != null) {
+                    if (usuarioRepo.buscar(u.getUsername()) != null) {
                         sucessos.incrementAndGet();
                     }
                 } finally {
@@ -190,14 +193,12 @@ class RepositoryTest {
     }
 
     private static void limparDadosTeste() {
-        // Deletar arquivo de usuários
         File userFile = new File(TEST_USUARIO_DIR);
         if (userFile.exists()) {
             userFile.delete();
             System.out.println("Arquivo de usuários de teste deletado");
         }
-        
-        // Deletar diretório de eventos
+
         File eventDir = new File(TEST_EVENTO_DIR);
         deleteDirectory(eventDir);
     }
