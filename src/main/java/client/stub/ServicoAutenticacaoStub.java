@@ -41,15 +41,16 @@ public class ServicoAutenticacaoStub implements IServicoAutenticacao {
     }
 
     @Override
-    public RespostaDTO autenticarAdmin(String password) throws AutenticacaoException {
-        try {
-            return middleware.invocar(
-                MessageTypes.SERVICO_AUTENTICACAO,
-                MessageTypes.AUTH_LOGIN_ADMIN,
-                password
-            );
-        } catch (Exception e) {
-            throw new AutenticacaoException("Erro ao autenticar admin: " + e.getMessage(), e);
-        }
+public RespostaDTO autenticarAdmin(String password) throws AutenticacaoException {
+    try {
+        UsuarioDTO adminDto = new UsuarioDTO("ADMIN", password);
+        return middleware.invocar(
+            MessageTypes.SERVICO_AUTENTICACAO,
+            MessageTypes.AUTH_LOGIN_ADMIN,
+            adminDto
+        );
+    } catch (Exception e) {
+        throw new AutenticacaoException("Erro ao autenticar admin: " + e.getMessage(), e);
     }
+}
 }

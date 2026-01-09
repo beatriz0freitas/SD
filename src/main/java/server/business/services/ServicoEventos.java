@@ -1,10 +1,18 @@
 package server.business.services;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import common.ErrorLogger;
-import common.dto.*;
+import common.dto.EventoDTO;
+import common.dto.EventosFiltradosDTO;
+import common.dto.FiltrarEventosDTO;
+import common.dto.NotificacaoDTO;
+import common.dto.RespostaDTO;
 import common.exceptions.EventoException;
 import common.interfaces.IServicoEventos;
 import server.business.domain.Evento;
@@ -259,12 +267,10 @@ public class ServicoEventos implements IServicoEventos {
             }
         }
         
-        EventosFiltradosDTO resposta = new EventosFiltradosDTO(resultado, diaAlvo);
         
-        return RespostaDTO.sucesso(
-            "Eventos filtrados do dia " + diaAlvo, 
-            resposta
-        );
+        EventosFiltradosDTO resposta = new EventosFiltradosDTO(resultado, diaAlvo);
+
+        return RespostaDTO.sucesso("Eventos filtrados do dia " + diaAlvo + ": " + resposta.toString());
     }
     
     @Override

@@ -1,261 +1,214 @@
 package client;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.util.concurrent.locks.ReentrantLock;
+
 import client.connection.ConnectionPool;
 import client.connection.PooledConnection;
+import common.dto.AgregacaoDTO;
+import common.dto.AgregacaoRequestDTO;
+import common.dto.EventoDTO;
+import common.dto.EventosFiltradosDTO;
+import common.dto.FiltrarEventosDTO;
+import common.dto.NotificacaoDTO;
 import common.dto.RespostaDTO;
+import common.dto.UsuarioDTO;
 import middleware.Message;
 import middleware.Protocolo;
 
-import java.io.*;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.ReentrantLock;
-
-/**
- * Middleware do cliente com suporte a pool de conexões e shutdown gracioso
- */
 public class ClienteMiddleware {
     private final String host;
     private final int porta;
     private final Protocolo protocolo;
-    private final ReentrantLock lockEscrita;
-    private final AtomicLong contadorPedidos;
-    
-    // Pool de conexões compartilhado
+
+    // Lock de estado + escrita no socket dedicado (mantém simples)
+    private final ReentrantLock lockEscrita = new ReentrantLock();
+
+    // Lock para gerar tags sem Atomic
+    private final ReentrantLock lockTags = new ReentrantLock();
+    private long contadorPedidos = 0;
+
     private ConnectionPool connectionPool;
-    private boolean usePool;
-    
-    // Conexão dedicada (modo antigo, sem pool)
+    private final boolean usePool;
+
     private PooledConnection dedicatedConnection;
     private Demultiplexer demux;
     private Thread threadDemux;
-    private ClientShutdownHandler shutdownHandler;
-    
+
+    private final ClientShutdownHandler shutdownHandler;
+
     private volatile boolean conectado;
     private volatile boolean serverShutdown;
-    
-    /**
-     * Construtor padrão (sem pool)
-     */
+
     public ClienteMiddleware(String host, int porta) {
         this(host, porta, false, 1);
     }
-    
-    /**
-     * Construtor com opção de usar pool
-     * @param usePool se true, usa ConnectionPool; se false, usa conexão dedicada
-     * @param maxConnections número máximo de conexões no pool (ignorado se usePool=false)
-     */
+
     public ClienteMiddleware(String host, int porta, boolean usePool, int maxConnections) {
         this.host = host;
         this.porta = porta;
         this.protocolo = new Protocolo();
-        this.lockEscrita = new ReentrantLock();
-        this.contadorPedidos = new AtomicLong(0);
-        this.conectado = false;
-        this.serverShutdown = false;
         this.usePool = usePool;
-        
-        // Criar shutdown handler
+
         this.shutdownHandler = new ClientShutdownHandler(() -> {
             serverShutdown = true;
             conectado = false;
         });
-        
+
         if (usePool) {
             this.connectionPool = new ConnectionPool(host, porta, maxConnections);
-            System.out.println("ClienteMiddleware configurado com ConnectionPool (max=" + maxConnections + ")");
-        } else {
-            System.out.println("ClienteMiddleware configurado com conexão dedicada");
         }
     }
-    
+
+    private long nextTag() {
+        lockTags.lock();
+        try {
+            return ++contadorPedidos;
+        } finally {
+            lockTags.unlock();
+        }
+    }
+
     public void conectar() throws IOException {
         lockEscrita.lock();
         try {
             if (conectado) return;
-            
-            if (serverShutdown) {
-                throw new IOException("Servidor foi encerrado. Não é possível reconectar.");
-            }
-            
-            if (!usePool) {
-                // Modo antigo: conexão dedicada com demultiplexer
-                conectarDedicado();
+            if (serverShutdown) throw new IOException("Servidor foi encerrado. Não é possível reconectar.");
+
+            if (usePool) {
+                if (connectionPool == null) {
+                    throw new IOException("ConnectionPool não inicializado");
+                }
             } else {
-                // Modo pool: conexões são obtidas sob demanda
-                conectado = true;
-                System.out.println("ConnectionPool pronto para uso");
+                dedicatedConnection = new PooledConnection(host, porta, null);
+                DataInputStream entrada = dedicatedConnection.getInputStream();
+
+                demux = new Demultiplexer(entrada, shutdownHandler);
+                threadDemux = new Thread(demux, "Demux-" + host + ":" + porta);
+                threadDemux.start();
             }
-            
+
+            conectado = true;
         } finally {
             lockEscrita.unlock();
         }
     }
-    
-    private void conectarDedicado() throws IOException {
-        try {
-            dedicatedConnection = new PooledConnection(host, porta, null);
-            DataInputStream entrada = dedicatedConnection.getInputStream();
-            
-            demux = new Demultiplexer(entrada, shutdownHandler);
-            threadDemux = new Thread(demux, "Demux-" + host + ":" + porta);
-            threadDemux.start();
-            
-            conectado = true;
-            System.out.println("Conectado ao servidor " + host + ":" + porta + " (dedicado)");
-            
-        } catch (IOException e) {
-            if (dedicatedConnection != null) {
-                dedicatedConnection.closePhysical();
-            }
-            throw e;
-        }
-    }
-    
+
     public void desconectar() {
         lockEscrita.lock();
         try {
             conectado = false;
-            
+
             if (usePool) {
-                if (connectionPool != null) {
-                    connectionPool.close();
-                    System.out.println("ConnectionPool fechado");
-                }
+                if (connectionPool != null) connectionPool.close();
             } else {
-                if (demux != null) {
-                    demux.parar();
-                }
-                if (dedicatedConnection != null) {
-                    dedicatedConnection.closePhysical();
-                }
+                if (demux != null) demux.parar();
+                if (dedicatedConnection != null) dedicatedConnection.closePhysical();
             }
-            
-            System.out.println("Desconectado do servidor");
-            
         } finally {
             lockEscrita.unlock();
         }
     }
-    
+
     public RespostaDTO invocar(byte serviceId, byte methodId, Object parametros) throws IOException {
-        if (serverShutdown) {
-            throw new IOException("Servidor foi encerrado. Operação não disponível.");
-        }
-        
+        if (serverShutdown) throw new IOException("Servidor foi encerrado. Operação não disponível.");
+
         garantirConexao();
-        
+
+        long tag = nextTag();
+        byte[] payload = encodeParametros(parametros);
+        Message pedido = Message.request(tag, serviceId, methodId, payload);
+
         try {
-            long tag = contadorPedidos.incrementAndGet();
-            Message pedido = Message.request(tag, serviceId, methodId, parametros);
-            
-            if (usePool) {
-                return invocarComPool(pedido);
-            } else {
-                return invocarDedicado(pedido);
-            }
-            
+            return usePool ? invocarComPool(pedido) : invocarDedicado(pedido);
         } catch (Exception e) {
-            if (serverShutdown) {
-                throw new IOException("Servidor encerrado: " + e.getMessage(), e);
-            }
+            if (serverShutdown) throw new IOException("Servidor encerrado: " + e.getMessage(), e);
             throw new IOException("Erro ao invocar: " + e.getMessage(), e);
         }
     }
-    
-    /**
-     * Invocação usando pool de conexões
-     */
+
+    private byte[] encodeParametros(Object parametros) throws IOException {
+        if (parametros == null) return null;
+
+        if (parametros instanceof UsuarioDTO) return ((UsuarioDTO) parametros).serialize();
+        if (parametros instanceof EventoDTO) return ((EventoDTO) parametros).serialize();
+        if (parametros instanceof NotificacaoDTO) return ((NotificacaoDTO) parametros).serialize();
+        if (parametros instanceof FiltrarEventosDTO) return ((FiltrarEventosDTO) parametros).serialize();
+        if (parametros instanceof EventosFiltradosDTO) return ((EventosFiltradosDTO) parametros).serialize();
+        if (parametros instanceof AgregacaoRequestDTO) return ((AgregacaoRequestDTO) parametros).serialize();
+        if (parametros instanceof AgregacaoDTO) return ((AgregacaoDTO) parametros).serialize();
+
+        throw new IOException("Tipo de parâmetros não suportado (use um DTO): " +
+                parametros.getClass().getName());
+    }
+
     private RespostaDTO invocarComPool(Message pedido) throws IOException, InterruptedException {
+        if (connectionPool == null) throw new IOException("Pool não inicializado");
+
         PooledConnection conn = null;
         try {
             conn = connectionPool.getConnection();
-            
+
             DataOutputStream out = conn.getOutputStream();
-            lockEscrita.lock();
-            try {
-                protocolo.enviar(pedido, out);
-                out.flush();
-            } finally {
-                lockEscrita.unlock();
-            }
-            
+            protocolo.enviar(pedido, out);
+
             DataInputStream in = conn.getInputStream();
-            Message resposta = (Message) protocolo.receber(in);
-            
+            Message resposta = protocolo.receber(in);
+
             if (!resposta.isResponse() || resposta.getTag() != pedido.getTag()) {
-                throw new IOException("Resposta inválida recebida");
+                throw new IOException("Resposta inválida recebida (tag mismatch)");
             }
-            
-            // Verificar se é mensagem de shutdown
-            Object payload = resposta.getPayload();
-            if (shutdownHandler.processMessage(payload)) {
+
+            if (resposta.getTag() == -1) {
+                serverShutdown = true;
+                conectado = false;
+                shutdownHandler.onShutdown();
                 throw new IOException("Servidor encerrado");
             }
-            
-            return (RespostaDTO) payload;
-            
-        } catch (ClassNotFoundException e) {
-            throw new IOException("Erro ao deserializar resposta", e);
+
+            byte[] payload = resposta.getPayload();
+            if (payload == null) throw new IOException("Resposta sem payload (esperado RespostaDTO)");
+
+            return RespostaDTO.deserialize(payload);
+
         } catch (IOException e) {
-            if (conn != null) {
-                conn.invalidate();
-            }
+            if (conn != null) conn.invalidate();
             throw e;
         } finally {
-            if (conn != null) {
-                conn.close();
-            }
+            if (conn != null) conn.close();
         }
     }
-    
-    /**
-     * Invocação usando conexão dedicada
-     */
+
     private RespostaDTO invocarDedicado(Message pedido) throws IOException {
+        if (dedicatedConnection == null) throw new IOException("Conexão dedicada não inicializada");
+        if (demux == null) throw new IOException("Demultiplexer não inicializado");
+
         try {
             DataOutputStream out = dedicatedConnection.getOutputStream();
+
+            // DEDICADO: lock obrigatório
             lockEscrita.lock();
             try {
                 protocolo.enviar(pedido, out);
-                out.flush();
             } finally {
                 lockEscrita.unlock();
             }
-            
-            Object resposta = demux.aguardar(pedido.getTag());
-            return (RespostaDTO) resposta;
-            
+
+            byte[] respostaBytes = demux.aguardar(pedido.getTag());
+            if (respostaBytes == null) throw new IOException("Resposta vazia recebida (payload null)");
+
+            return RespostaDTO.deserialize(respostaBytes);
+
         } catch (Exception e) {
             throw new IOException("Erro ao invocar: " + e.getMessage(), e);
         }
     }
-    
-    public boolean isConectado() {
-        return conectado && !serverShutdown;
-    }
-    
-    public boolean isServerShutdown() {
-        return serverShutdown;
-    }
-    
-    public boolean isUsePool() {
-        return usePool;
-    }
-    
-    public String getConnectionStats() {
-        if (usePool && connectionPool != null) {
-            return connectionPool.getStats();
-        } else {
-            return "Conexão dedicada: " + (dedicatedConnection != null ? "ativa" : "inativa");
-        }
-    }
-    
+
     private void garantirConexao() throws IOException {
-        if (serverShutdown) {
-            throw new IOException("Servidor foi encerrado");
-        }
-        
+        if (serverShutdown) throw new IOException("Servidor foi encerrado");
+
         if (!isConectado()) {
             lockEscrita.lock();
             try {
@@ -267,5 +220,9 @@ public class ClienteMiddleware {
                 lockEscrita.unlock();
             }
         }
+    }
+
+    public boolean isConectado() {
+        return conectado && !serverShutdown;
     }
 }

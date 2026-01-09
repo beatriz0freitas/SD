@@ -1,12 +1,13 @@
 package server.presentation.skeleton;
 
-import static middleware.MessageTypes.*;
-
 import common.dto.RespostaDTO;
+import static middleware.MessageTypes.ADMIN_ESTATISTICAS;
+import static middleware.MessageTypes.ADMIN_LISTAR_CLIENTES;
+import static middleware.MessageTypes.ADMIN_METRICAS;
 import server.business.services.ServicoAdmin;
 
 public class ServicoAdminSkeleton implements ISkeleton {
-    private final ServicoAdmin servico; 
+    private final ServicoAdmin servico;
 
     public ServicoAdminSkeleton(ServicoAdmin servico) {
         this.servico = servico;

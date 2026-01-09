@@ -1,53 +1,34 @@
 package middleware;
 
-import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.Serializable;
 
 /**
- * Handler do protocolo de comunicação
- * Formato: [tamanho:int][dados:bytes]
- * 
- * Agora usa métodos serialize() dos DTOs
+ * Framing:
+ *   [len:int][messageBytes...]
+ * messageBytes = Message.serialize()
  */
 public class Protocolo {
-    
-    public void enviar(Object obj, DataOutputStream out) throws IOException {
-        byte[] dados;
-        
-        if (obj instanceof Serializable) {
-            // Chama método serialize() do objeto
-            try {
-                java.lang.reflect.Method serializeMethod = obj.getClass().getMethod("serialize");
-                dados = (byte[]) serializeMethod.invoke(obj);
-            } catch (Exception e) {
-                throw new IOException("Erro ao serializar objeto: " + e.getMessage(), e);
-            }
-        } else {
-            throw new IOException("Objeto não é serializável: " + obj.getClass().getName());
+    private static final int MAX_TAMANHO = 10_000_000;
+
+    public void enviar(Message msg, DataOutputStream out) throws IOException {
+        byte[] data = msg.serialize();
+        if (data.length <= 0 || data.length > MAX_TAMANHO) {
+            throw new IOException("Tamanho inválido: " + data.length);
         }
-        
-        out.writeInt(dados.length);
-        out.write(dados);
+        out.writeInt(data.length);
+        out.write(data);
         out.flush();
     }
-    
-    public Object receber(DataInputStream in) throws IOException, ClassNotFoundException {
-        int tamanho = in.readInt();
-        if (tamanho <= 0 || tamanho > 10_000_000) {
-            throw new IOException("Tamanho inválido: " + tamanho);
+
+    public Message receber(DataInputStream in) throws IOException {
+        int len = in.readInt();
+        if (len <= 0 || len > MAX_TAMANHO) {
+            throw new IOException("Tamanho inválido: " + len);
         }
-        
-        byte[] dados = new byte[tamanho];
-        in.readFully(dados);
-        
-        // Fallback para deserialização Java padrão
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(dados);
-             ObjectInputStream ois = new ObjectInputStream(bais)) {
-            return ois.readObject();
-        }
+        byte[] data = new byte[len];
+        in.readFully(data);
+        return Message.deserialize(data);
     }
 }
