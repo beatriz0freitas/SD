@@ -68,7 +68,8 @@ class RepositoryTest {
             usuarioRepo.salvar(new Usuario("user" + i + "_" + System.nanoTime(), "hash" + i));
         }
 
-        List<Usuario> usuarios = usuarioRepo.listarTodos();
+        List<Usuario> usuariosDepois = usuarioRepo.listarTodos();
+        int countDepois = usuarioRepo.contarUtilizadores();
 
         assertTrue(usuarios.size() >= baseline + 5, "Deve ter pelo menos +5 utilizadores");
         assertEquals(baseline + 5, usuarioRepo.contarUtilizadores(),
