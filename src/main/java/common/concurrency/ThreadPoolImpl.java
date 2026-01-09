@@ -61,7 +61,7 @@ public class ThreadPoolImpl implements ThreadPool {
 
         lock.lock();
         try {
-            if (shutdown) {
+            if (shutdown || shutdownNow) {
                 return false;
             }
 
@@ -76,7 +76,7 @@ public class ThreadPoolImpl implements ThreadPool {
             } else {
                 notEmpty.signal();
             }
-            
+
             return true;
         } finally {
             lock.unlock();

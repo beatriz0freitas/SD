@@ -10,22 +10,11 @@ test:
 	@echo "==> Executar TODOS os testes"
 	mvn test
 
-# Testes rápidos (exclui stress e integração)
-test-fast:
-	@echo "==> Executar testes rápidos (sem Stress/Integration)"
-	mvn test -DskipStressTests=stress
-
 # Executar um teste específico
 # uso: make test-single TEST=ThreadPoolTest
 test-single:
 	@echo "==> Executar teste: $(TEST)"
 	mvn -Dtest=$(TEST) test
-
-#todo: confirmar divisao
-# Executar apenas testes de stress
-test-stress:
-	@echo "==> Executar testes de stress"
-	mvn -Dtest=StressTest test
 
 # Executar testes com resumo visual
 test-summary:

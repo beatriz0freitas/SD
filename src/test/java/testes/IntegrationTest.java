@@ -8,6 +8,9 @@ import server.Server;
 
 import org.junit.jupiter.api.*;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -179,6 +182,49 @@ class IntegrationTest {
         assertEquals(10, sucesso.get(), 
             "Todos os clientes devem completar com sucesso. Sucessos: " + 
             sucesso.get());
+    }
+
+    @Test
+    @Order(5)
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
+    @DisplayName("Teste completo de filtro de eventos")
+    void testeFiltrarEventosCompleto() throws Exception {
+        ClienteMiddleware middleware = new ClienteMiddleware(HOST, PORT);
+        middleware.conectar();
+
+        StubFactory stubs = new StubFactory(middleware);
+        IServicoAutenticacao auth = stubs.criarStubAutenticacao();
+        IServicoEventos eventos = stubs.criarStubEventos();
+
+        String username = "filtrotest" + System.currentTimeMillis();
+        UsuarioDTO user = new UsuarioDTO(username, "pass123");
+        auth.registrar(user);
+        auth.autenticar(user);
+
+        // Registar eventos de múltiplos produtos
+        eventos.registrarEvento(new EventoDTO(1, 10, 50.0));
+        eventos.registrarEvento(new EventoDTO(2, 20, 60.0));
+        eventos.registrarEvento(new EventoDTO(3, 30, 70.0));
+        eventos.registrarEvento(new EventoDTO(4, 40, 80.0));
+
+        // Avançar dia
+        eventos.novoDia();
+
+        // Filtrar apenas produtos 1 e 3
+        Set<Integer> produtosFiltro = new HashSet<>(Arrays.asList(1, 3));
+        FiltrarEventosDTO filtro = new FiltrarEventosDTO(produtosFiltro, 1);
+
+        RespostaDTO resposta = eventos.filtrarEventos(filtro);
+        assertTrue(resposta.isSucesso());
+
+        EventosFiltradosDTO resultado = (EventosFiltradosDTO) resposta.getDados();
+        assertEquals(2, resultado.getEventosPorProduto().size());
+        assertTrue(resultado.getEventosPorProduto().containsKey(1));
+        assertTrue(resultado.getEventosPorProduto().containsKey(3));
+        assertFalse(resultado.getEventosPorProduto().containsKey(2));
+        assertFalse(resultado.getEventosPorProduto().containsKey(4));
+
+        middleware.desconectar();
     }
     
     @Test

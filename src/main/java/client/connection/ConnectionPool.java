@@ -5,6 +5,7 @@ import java.util.ArrayDeque;
 import java.util.HashSet;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -53,7 +54,8 @@ public class ConnectionPool {
     public PooledConnection getConnection() throws IOException, InterruptedException {
         lock.lock();
         try {
-            // Loop até obter conexão
+            long deadline = System.currentTimeMillis() + connectionTimeout;
+
             while (true) {
                 if (closed) {
                     throw new IOException("Pool fechado");
@@ -80,9 +82,13 @@ public class ConnectionPool {
                     return newConn;
                 }
                 
-                // 3. Aguardar conexão ficar disponível
-                available.await();
-            }
+                // 3. Aguardar com timeout
+                long remaining = deadline - System.currentTimeMillis();
+                if (remaining <= 0) {
+                    throw new IOException("Timeout aguardando conexão disponível (" + connectionTimeout + "ms)");
+                }
+                available.await(remaining, TimeUnit.MILLISECONDS);
+                }
             
         } finally {
             lock.unlock();
