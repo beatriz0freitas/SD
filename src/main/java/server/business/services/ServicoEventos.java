@@ -5,6 +5,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import common.ErrorLogger;
@@ -27,31 +30,31 @@ public class ServicoEventos implements IServicoEventos {
     private final CacheManager cacheManager;
     private final NotificationManager notificationManager;
     private final int D;
-    
+
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private int diaAtual;
     private final Map<Integer, List<Evento>> eventosDiaAtual = new HashMap<>();
-    
+
     // Estado para vendas consecutivas
     private int lastProductID = -1;
     private int consecutiveCount = 0;
-    
+
     public ServicoEventos(IEventoRepository eventoRepository, CacheManager cacheManager, int D) {
         this.eventoRepository = eventoRepository;
         this.cacheManager = cacheManager;
         this.notificationManager = new NotificationManager();
         this.D = D;
         this.diaAtual = eventoRepository.obterUltimoDia() + 1;
-        
+
         System.out.println("ServicoEventos iniciado no dia: " + diaAtual + " (Janela D=" + D + ")");
     }
-    
+
     @Override
     public RespostaDTO registrarEvento(EventoDTO dto) throws EventoException {
         validarEvento(dto);
-        
+
         Evento evento = new Evento(dto.getProdutoID(), dto.getQuantidade(), dto.getPreco());
-        
+
         lock.writeLock().lock();
         try {
             // Adicionar evento ao dia atual
@@ -59,7 +62,7 @@ public class ServicoEventos implements IServicoEventos {
                 dto.getProdutoID(), k -> new ArrayList<>()
             );
             lista.add(evento);
-            
+
             // Atualizar contadores de vendas consecutivas
             if (lastProductID == dto.getProdutoID()) {
                 consecutiveCount++;
@@ -67,75 +70,81 @@ public class ServicoEventos implements IServicoEventos {
                 lastProductID = dto.getProdutoID();
                 consecutiveCount = 1;
             }
-            
+
             // Notificar sistema de notificações
             Map<Integer, List<?>> eventosDiaGenerico = new HashMap<>(eventosDiaAtual);
             notificationManager.notificarEvento(
-                dto.getProdutoID(), 
-                diaAtual, 
+                dto.getProdutoID(),
+                diaAtual,
                 eventosDiaGenerico,
-                lastProductID, 
+                lastProductID,
                 consecutiveCount
             );
-            
+
         } finally {
             lock.writeLock().unlock();
         }
-        
+
         System.out.println(String.format(
             "Evento registrado: Produto=%d, Qtd=%d, Preço=%.2f (Dia %d)",
             dto.getProdutoID(), dto.getQuantidade(), dto.getPreco(), diaAtual
         ));
-        
+
         return RespostaDTO.sucesso("Evento registado com sucesso");
     }
-    
+
     @Override
     public RespostaDTO notificarVendaEspecifica(NotificacaoDTO notificacao) throws EventoException {
         int produtoID1 = notificacao.getArg1();
         int produtoID2 = notificacao.getArg2();
-        
+
         lock.readLock().lock();
         int diaSnapshot = diaAtual;
-        
+
         // Verificar se já foi satisfeita
-        boolean jaSatisfeita = eventosDiaAtual.containsKey(produtoID1) && 
+        boolean jaSatisfeita = eventosDiaAtual.containsKey(produtoID1) &&
                                eventosDiaAtual.containsKey(produtoID2);
         lock.readLock().unlock();
-        
+
         if (jaSatisfeita) {
             return RespostaDTO.sucesso("Produtos já vendidos no dia atual!");
         }
-        
+
         try {
+            final ReentrantLock waitLock = new ReentrantLock();
+            final Condition done = waitLock.newCondition();
             final boolean[] notified = {false};
             final String[] message = {null};
-            
+
             NotificationManager.NotificationCallback callback = msg -> {
-                synchronized (notified) {
+                waitLock.lock();
+                try {
                     notified[0] = true;
                     message[0] = msg;
-                    notified.notify();
+                    done.signal(); // equivalente a notify()
+                } finally {
+                    waitLock.unlock();
                 }
             };
-            
+
             notificationManager.registarVendaEspecifica(
-                produtoID1, 
-                produtoID2, 
+                produtoID1,
+                produtoID2,
                 diaSnapshot,
                 callback
             );
-            
-            // Aguardar notificação ou timeout
-            synchronized (notified) {
-                long timeout = System.currentTimeMillis() + 60000; // 60s
-                
+
+            // Aguardar notificação ou timeout (sem synchronized/wait/notify)
+            waitLock.lock();
+            try {
+                long deadline = System.currentTimeMillis() + 60000; // 60s
+
                 while (!notified[0]) {
-                    long remaining = timeout - System.currentTimeMillis();
+                    long remaining = deadline - System.currentTimeMillis();
                     if (remaining <= 0) {
                         return RespostaDTO.erro("Timeout aguardando vendas específicas");
                     }
-                    
+
                     // Verificar se dia mudou
                     lock.readLock().lock();
                     try {
@@ -145,62 +154,71 @@ public class ServicoEventos implements IServicoEventos {
                     } finally {
                         lock.readLock().unlock();
                     }
-                    
-                    notified.wait(Math.min(remaining, 1000));
+
+                    done.await(Math.min(remaining, 1000), TimeUnit.MILLISECONDS);
                 }
+
+                return RespostaDTO.sucesso(message[0]);
+            } finally {
+                waitLock.unlock();
             }
-            
-            return RespostaDTO.sucesso(message[0]);
-            
+
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new EventoException("Espera interrompida", e);
         }
     }
-    
+
     @Override
     public RespostaDTO notificarVendasConsecutivas(NotificacaoDTO notificacao) throws EventoException {
         int produtoID = notificacao.getArg1();
         int n = notificacao.getArg2();
-        
+
         lock.readLock().lock();
         int diaSnapshot = diaAtual;
         boolean jaAtingiu = lastProductID == produtoID && consecutiveCount >= n;
         lock.readLock().unlock();
-        
+
         if (jaAtingiu) {
             return RespostaDTO.sucesso("Produto já atingiu " + n + " vendas consecutivas!");
         }
-        
+
         try {
+            final ReentrantLock waitLock = new ReentrantLock();
+            final Condition done = waitLock.newCondition();
             final boolean[] notified = {false};
             final String[] message = {null};
-            
+
             NotificationManager.NotificationCallback callback = msg -> {
-                synchronized (notified) {
+                waitLock.lock();
+                try {
                     notified[0] = true;
                     message[0] = msg;
-                    notified.notify();
+                    done.signal();
+                } finally {
+                    waitLock.unlock();
                 }
             };
-            
+
             notificationManager.registarVendasConsecutivas(
-                produtoID, 
-                n, 
+                produtoID,
+                n,
                 diaSnapshot,
                 callback
             );
-            
-            // Aguardar notificação
-            synchronized (notified) {
-                long timeout = System.currentTimeMillis() + 60000;
-                
+
+            // Aguardar notificação (sem synchronized/wait/notify)
+            waitLock.lock();
+            try {
+                long deadline = System.currentTimeMillis() + 60000;
+
                 while (!notified[0]) {
-                    long remaining = timeout - System.currentTimeMillis();
+                    long remaining = deadline - System.currentTimeMillis();
                     if (remaining <= 0) {
                         return RespostaDTO.erro("Timeout aguardando vendas consecutivas");
                     }
-                    
+
+                    // cancelar se o dia mudou
                     lock.readLock().lock();
                     try {
                         if (diaAtual != diaSnapshot) {
@@ -209,28 +227,30 @@ public class ServicoEventos implements IServicoEventos {
                     } finally {
                         lock.readLock().unlock();
                     }
-                    
-                    notified.wait(Math.min(remaining, 1000));
+
+                    done.await(Math.min(remaining, 1000), TimeUnit.MILLISECONDS);
                 }
+
+                return RespostaDTO.sucesso(message[0]);
+            } finally {
+                waitLock.unlock();
             }
-            
-            return RespostaDTO.sucesso(message[0]);
-            
+
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new EventoException("Espera interrompida", e);
         }
     }
-    
+
     @Override
     public RespostaDTO filtrarEventos(FiltrarEventosDTO filtro) throws EventoException {
         if (filtro == null) {
             throw new EventoException("Filtro não fornecido");
         }
-        
+
         Set<Integer> produtosIDs = filtro.getProdutosIDs();
         int diaAnterior = filtro.getDiaAnterior();
-        
+
         // Validar
         if (produtosIDs == null || produtosIDs.isEmpty()) {
             throw new EventoException("Conjunto de produtos vazio");
@@ -238,41 +258,40 @@ public class ServicoEventos implements IServicoEventos {
         if (diaAnterior < 1 || diaAnterior > D) {
             throw new EventoException("Dia anterior inválido (deve estar entre 1 e " + D + ")");
         }
-        
+
         lock.readLock().lock();
         int diaAlvo = diaAtual - diaAnterior;
         lock.readLock().unlock();
-        
+
         if (diaAlvo < 0) {
             throw new EventoException("Dia anterior excede histórico disponível");
         }
-        
+
         // Carregar eventos do dia
         Map<Integer, List<Evento>> eventosDia = eventoRepository.carregarEventosDia(diaAlvo);
-        
+
         // Filtrar apenas produtos do conjunto
         Map<Integer, List<EventosFiltradosDTO.EventoCompacto>> resultado = new HashMap<>();
-        
+
         for (int produtoID : produtosIDs) {
             List<Evento> eventos = eventosDia.get(produtoID);
             if (eventos != null && !eventos.isEmpty()) {
                 List<EventosFiltradosDTO.EventoCompacto> compactos = new ArrayList<>();
                 for (Evento e : eventos) {
                     compactos.add(new EventosFiltradosDTO.EventoCompacto(
-                        e.getQuantidade(), 
+                        e.getQuantidade(),
                         e.getPreco()
                     ));
                 }
                 resultado.put(produtoID, compactos);
             }
         }
-        
-        
+
         EventosFiltradosDTO resposta = new EventosFiltradosDTO(resultado, diaAlvo);
 
         return RespostaDTO.sucesso("Eventos filtrados do dia " + diaAlvo + ": " + resposta.toString());
     }
-    
+
     @Override
     public RespostaDTO listarEventosDiaAtual() throws EventoException {
         lock.readLock().lock();
@@ -282,16 +301,16 @@ public class ServicoEventos implements IServicoEventos {
                     "=== EVENTOS DO DIA " + diaAtual + " ===\n\n(sem eventos)\n"
                 );
             }
-            
+
             StringBuilder sb = new StringBuilder();
             sb.append("=== EVENTOS DO DIA ").append(diaAtual).append(" ===\n\n");
-            
+
             int totalEventos = 0;
-            
+
             for (var entry : eventosDiaAtual.entrySet()) {
                 sb.append("Produto ").append(entry.getKey())
                   .append(" (").append(entry.getValue().size()).append(" eventos):\n");
-                
+
                 int i = 1;
                 for (Evento e : entry.getValue()) {
                     sb.append(String.format(
@@ -302,16 +321,16 @@ public class ServicoEventos implements IServicoEventos {
                 }
                 sb.append("\n");
             }
-            
+
             sb.append("Total: ").append(totalEventos).append(" eventos\n");
-            
+
             return RespostaDTO.sucesso(sb.toString());
-            
+
         } finally {
             lock.readLock().unlock();
         }
     }
-    
+
     @Override
     public RespostaDTO novoDia() throws EventoException {
         lock.writeLock().lock();
@@ -321,21 +340,17 @@ public class ServicoEventos implements IServicoEventos {
             for (Map.Entry<Integer, List<Evento>> entry : eventosDiaAtual.entrySet()) {
                 backup.put(entry.getKey(), new ArrayList<>(entry.getValue()));
             }
-            
+
             try {
-                // 1. Persistir eventos do dia anterior
                 if (!eventosDiaAtual.isEmpty()) {
                     eventoRepository.salvarEventosDia(diaAnterior, eventosDiaAtual);
                     System.out.println("Eventos do dia " + diaAnterior + " persistidos");
                 }
-                
-                // 2. Avançar dia
+
                 diaAtual++;
-                
-                // 3. Limpar notificações do dia anterior
+
                 notificationManager.limparNotificacoesDia(diaAnterior);
-                
-                // 4. Limpar agregações fora da janela
+
                 if (cacheManager != null) {
                     int diaForaDaJanela = diaAtual - D - 1;
                     if (diaForaDaJanela >= 0) {
@@ -344,18 +359,17 @@ public class ServicoEventos implements IServicoEventos {
                         System.out.println("Dia " + diaForaDaJanela + " saiu da janela");
                     }
                 }
-                
-                // 5. Resetar estado
+
                 eventosDiaAtual.clear();
                 lastProductID = -1;
                 consecutiveCount = 0;
-                
+
                 System.out.println("========================================");
                 System.out.println("Novo dia iniciado: " + diaAtual);
                 System.out.println("========================================");
-                
+
                 return RespostaDTO.sucesso("Novo dia iniciado: " + diaAtual);
-                
+
             } catch (Exception e) {
                 diaAtual = diaAnterior;
                 eventosDiaAtual.clear();
@@ -370,7 +384,7 @@ public class ServicoEventos implements IServicoEventos {
             lock.writeLock().unlock();
         }
     }
-    
+
     public int getDiaAtual() {
         lock.readLock().lock();
         try {
@@ -379,11 +393,11 @@ public class ServicoEventos implements IServicoEventos {
             lock.readLock().unlock();
         }
     }
-    
+
     public void shutdown() {
         notificationManager.shutdown();
     }
-    
+
     private void validarEvento(EventoDTO dto) throws EventoException {
         if (dto == null) {
             throw new EventoException("Dados do evento não fornecidos");

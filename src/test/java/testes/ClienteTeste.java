@@ -2,19 +2,19 @@ package testes;
 
 import client.ClienteMiddleware;
 import client.stub.StubFactory;
-import common.concurrency.*;
+import common.concurrency.ThreadPool;
+import common.concurrency.ThreadPoolImpl;
 import common.dto.*;
 import common.interfaces.*;
 
 import java.util.Random;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ClienteTeste {
     private static final int NUM_CLIENTES_DEFAULT = 10;
     private static final int THREADS_POR_CLIENTE = 5;
     private static final int OPERACOES_POR_THREAD = 5;
-    private static final int TIMEOUT_MINUTOS = 10;
 
     private static final String HOST_DEFAULT = "localhost";
     private static final int PORTA_DEFAULT = 5001;
@@ -68,12 +68,10 @@ public class ClienteTeste {
         System.out.println("=========================\n");
     }
 
+    // FIX: sem timers/timeouts no ThreadPool
     private static void aguardarTerminacao(ThreadPool pool) {
         try {
-            if (!pool.awaitTermination(5, TimeUnit.SECONDS)) {
-                System.err.println("Timeout atingido! Forçando shutdown...");
-                pool.shutdownNow();
-            }
+            pool.awaitTermination();
         } catch (InterruptedException e) {
             System.err.println("Interrompido! Forçando shutdown...");
             pool.shutdownNow();
@@ -101,9 +99,7 @@ public class ClienteTeste {
             IServicoEventos servicoEventos = stubs.criarStubEventos();
             IServicoAgregacoes servicoAgregacoes = stubs.criarStubAgregacoes();
 
-            if (!autenticarCliente(clienteId, servicoAuth)) {
-                return;
-            }
+            if (!autenticarCliente(clienteId, servicoAuth)) return;
 
             executarOperacoesConcorrentes(clienteId, servicoEventos, servicoAgregacoes);
 
@@ -112,9 +108,7 @@ public class ClienteTeste {
         } catch (Exception e) {
             logErro(clienteId, "Erro na execução: " + e.getMessage());
         } finally {
-            if (middleware != null) {
-                middleware.desconectar();
-            }
+            if (middleware != null) middleware.desconectar();
         }
     }
 
@@ -123,10 +117,7 @@ public class ClienteTeste {
         String password = "pass" + clienteId;
         UsuarioDTO usuario = new UsuarioDTO(username, password);
 
-        try {
-            servicoAuth.registrar(usuario);
-        } catch (Exception ignored) {
-        }
+        try { servicoAuth.registrar(usuario); } catch (Exception ignored) {}
 
         RespostaDTO login = servicoAuth.autenticar(usuario);
         if (!login.isSucesso()) {
@@ -143,15 +134,26 @@ public class ClienteTeste {
                                                       IServicoAgregacoes servicoAgregacoes) throws InterruptedException {
         ThreadPool threadPool = new ThreadPoolImpl(THREADS_POR_CLIENTE);
 
+        CountDownLatch latch = new CountDownLatch(THREADS_POR_CLIENTE);
+
         for (int t = 0; t < THREADS_POR_CLIENTE; t++) {
             final int threadId = t;
-            if (!threadPool.submit(() -> executarThread(clienteId, threadId, servicoEventos, servicoAgregacoes))) {
-                logErro(clienteId, threadId, "Não foi possível submeter a thread. Fila cheia ou shutdown...");
+            if (!threadPool.submit(() -> {
+                try {
+                    executarThread(clienteId, threadId, servicoEventos, servicoAgregacoes);
+                } finally {
+                    latch.countDown();
+                }
+            })) {
+                logErro(clienteId, threadId, "Não foi possível submeter a thread.");
+                latch.countDown();
             }
         }
 
+        latch.await();
+
         threadPool.shutdown();
-        threadPool.awaitTermination(TIMEOUT_MINUTOS, TimeUnit.MINUTES);
+        threadPool.awaitTermination();
     }
 
     private static void executarThread(int clienteId, int threadId,
@@ -191,11 +193,9 @@ public class ClienteTeste {
                 break;
             case 3:
                 resposta = notificarVendaEspecifica(servicoEventos);
-                if (resposta.isSucesso()) eventosRegistados.incrementAndGet();
                 break;
             case 4:
                 resposta = notificarVendasConsecutivas(servicoEventos);
-                if (resposta.isSucesso()) eventosRegistados.incrementAndGet();
                 break;
             default:
                 throw new IllegalStateException("Operação inválida: " + operacao);
@@ -209,7 +209,9 @@ public class ClienteTeste {
         int produtoId = random.nextInt(NUM_PRODUTOS) + 1;
         int quantidade = random.nextInt(MAX_QUANTIDADE) + 1;
         double preco = PRECO_MIN + random.nextDouble() * (PRECO_MAX - PRECO_MIN);
-        return servicoEventos.registrarEvento(new EventoDTO(produtoId, quantidade, preco));
+
+        EventoDTO evento = new EventoDTO(produtoId, quantidade, preco);
+        return servicoEventos.registrarEvento(evento);
     }
 
     private static RespostaDTO consultarQuantidade(IServicoAgregacoes servicoAgregacoes) throws Exception {

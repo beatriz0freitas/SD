@@ -28,10 +28,24 @@ public class PooledConnection implements AutoCloseable {
     public DataInputStream getInputStream() { updateLastUsed(); return input; }
     public DataOutputStream getOutputStream() { updateLastUsed(); return output; }
 
+    //ID da conexão (não expõe Socket, mas identifica a ligação)
+    public String getConnectionId() {
+        String local = socket.getLocalSocketAddress() != null
+                ? socket.getLocalSocketAddress().toString()
+                : "unknown-local";
+        String remote = socket.getRemoteSocketAddress() != null
+                ? socket.getRemoteSocketAddress().toString()
+                : "unknown-remote";
+        return local + "->" + remote;
+    }
+
     public boolean isValid() {
         if (!valid) return false;
         try {
-            return socket.isConnected() && !socket.isClosed() && !socket.isInputShutdown() && !socket.isOutputShutdown();
+            return socket.isConnected()
+                    && !socket.isClosed()
+                    && !socket.isInputShutdown()
+                    && !socket.isOutputShutdown();
         } catch (Exception e) {
             valid = false;
             return false;
@@ -43,7 +57,7 @@ public class PooledConnection implements AutoCloseable {
     @Override
     public void close() {
         if (pool != null) pool.releaseConnection(this);
-        else closePhysical(); // dedicado
+        else closePhysical();
     }
 
     public void closePhysical() {

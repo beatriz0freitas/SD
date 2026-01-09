@@ -5,12 +5,10 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 import common.concurrency.ThreadPool;
 import common.concurrency.ThreadPoolImpl;
-import middleware.ServerShutdownHandler;
 import server.config.ServerConfig;
 import server.presentation.handlers.ClientHandler;
 import server.presentation.skeleton.RequestDispatcher;
@@ -20,123 +18,108 @@ public class Server {
     private final int D;
     private final int S;
     private ServerSocket serverSocket;
-    
+
     private final ReentrantLock clientesLock = new ReentrantLock();
     private final Set<Socket> clientesAtivos = new HashSet<>();
-    
+
     private final ThreadPool clientHandlerPool;
     private final ThreadPool requestPool;
-    
+
     private volatile boolean ativo;
     private final RequestDispatcher dispatcher;
-    private ServerShutdownHandler shutdownHandler;
 
     private final DeadlockMonitor deadlockMonitor;
-    
+
     public Server(int porta, int D, int S) {
         this.porta = porta;
         this.D = D;
         this.S = S;
-        
+
         this.clientHandlerPool = new ThreadPoolImpl(
-            ServerConfig.N_CLIENT_HANDLERS,
-            ServerConfig.N_CLIENT_HANDLERS
+                ServerConfig.N_CLIENT_HANDLERS,
+                ServerConfig.N_CLIENT_HANDLERS
         );
-        
+
         this.requestPool = new ThreadPoolImpl(
-            ServerConfig.N_WORKERS_SERVER,
-            ServerConfig.REQUEST_QUEUE_SIZE
+                ServerConfig.N_WORKERS_SERVER,
+                ServerConfig.REQUEST_QUEUE_SIZE
         );
-        
+
         this.ativo = false;
         this.dispatcher = RequestDispatcher.criar(D, S);
-        this.shutdownHandler = new ServerShutdownHandler(clientesAtivos, clientesLock);
         this.deadlockMonitor = new DeadlockMonitor();
     }
-    
+
     public void iniciar() {
         try {
             serverSocket = new ServerSocket(porta);
             ativo = true;
-            
+
             imprimirBanner();
-            
             deadlockMonitor.start(30);
 
             while (ativo) {
                 try {
                     Socket clientSocket = serverSocket.accept();
-                    
+
                     adicionarCliente(clientSocket);
-                    
+
                     ClientHandler handler = new ClientHandler(
-                        clientSocket,
-                        dispatcher,
-                        requestPool,
-                        this::removerCliente
+                            clientSocket,
+                            dispatcher,
+                            requestPool,
+                            this::removerCliente
                     );
-                    
+
                     if (!clientHandlerPool.submit(handler)) {
-                        System.err.println("Pool de handlers cheia! Rejeitando cliente " + 
-                                         clientSocket.getInetAddress());
-                        
-                        try {
-                            clientSocket.close();
-                        } catch (IOException e) {
-                            // Ignora
-                        }
+                        System.err.println("Pool de handlers cheia! Rejeitando cliente " +
+                                clientSocket.getInetAddress());
+
+                        try { clientSocket.close(); } catch (IOException ignored) {}
                         removerCliente(clientSocket);
                     }
-                    
+
                 } catch (IOException e) {
                     if (ativo) {
                         System.err.println("Erro ao aceitar conexão: " + e.getMessage());
                     }
                 }
             }
-            
+
         } catch (IOException e) {
             System.err.println("Erro ao iniciar servidor: " + e.getMessage());
         }
     }
-    
+
     public void parar() {
         System.out.println("\n" + "=".repeat(50));
         System.out.println("  ENCERRANDO SERVIDOR");
         System.out.println("=".repeat(50));
-        
 
-        // Para de aceitar novas conexões
+        // 1) Para de aceitar novas conexões
         ativo = false;
         fecharServerSocket();
-        
-        // Fecha sockets de clientes
+
+        // 2) Fecha sockets de clientes (desbloqueia ClientHandlers)
         System.out.println("\n[1/4] Fechando sockets de clientes...");
         fecharSocketsClientes();
-        
-        // Encerra pool de client handlers
-        System.out.println("\n[2/4] Encerrando client handlers...");
-        encerrarPoolComTimeout(clientHandlerPool, "Client Handler Pool", 5);
-        
-        // Aguardar processamento de requests pendentes
-        System.out.println("\n[3/5] Processando requests pendentes...");
-        requestPool.shutdown(); // Não aceita novos
-        
+
+        // 3) Shutdown pools (sem timers)
+        System.out.println("\n[2/4] Encerrando pools...");
+        clientHandlerPool.shutdownNow();   
+        requestPool.shutdown();            
+
+        // 4) Espera até terminar (sem timeout)
+        System.out.println("\n[3/4] Aguardando término das threads...");
         try {
-            if (!requestPool.awaitTermination(10, TimeUnit.SECONDS)) {
-                System.err.println("Timeout! Forçando encerramento de requests pendentes...");
-                requestPool.shutdownNow();
-                
-                if (!requestPool.awaitTermination(5, TimeUnit.SECONDS)) {
-                    System.err.println("Algumas requests podem não ter sido processadas!");
-                }
-            } else {
-                System.out.println("✓ Todas requests pendentes foram processadas.");
-            }
+            clientHandlerPool.awaitTermination();
+            requestPool.awaitTermination();
+            System.out.println("✓ Pools encerradas.");
         } catch (InterruptedException e) {
-            System.err.println("Interrompido durante shutdown!");
-            requestPool.shutdownNow();
+            System.err.println("Interrompido durante shutdown. Forçando encerramento...");
             Thread.currentThread().interrupt();
+            clientHandlerPool.shutdownNow();
+            requestPool.shutdownNow();
         }
 
         System.out.println("\n[4/4] Cleanup concluído.");
@@ -147,7 +130,7 @@ public class Server {
         deadlockMonitor.stop();
         dispatcher.shutdown();
     }
-    
+
     private void imprimirBanner() {
         System.out.println("=".repeat(50));
         System.out.println("  SERVIÇO DE GESTÃO DE VENDAS");
@@ -162,30 +145,30 @@ public class Server {
         System.out.println("=".repeat(50));
         System.out.println("Aguardando conexões...\n");
     }
-    
+
     private void adicionarCliente(Socket socket) {
         clientesLock.lock();
         try {
             clientesAtivos.add(socket);
-            System.out.println("[Server] Cliente conectado: " + socket.getInetAddress() + 
-                             " (Total: " + clientesAtivos.size() + ")");
+            System.out.println("[Server] Cliente conectado: " + socket.getInetAddress() +
+                    " (Total: " + clientesAtivos.size() + ")");
         } finally {
             clientesLock.unlock();
         }
     }
-    
+
     private void removerCliente(Socket socket) {
         clientesLock.lock();
         try {
             if (clientesAtivos.remove(socket)) {
-                System.out.println("[Server] Cliente removido: " + socket.getInetAddress() + 
-                                 " (Restantes: " + clientesAtivos.size() + ")");
+                System.out.println("[Server] Cliente removido: " + socket.getInetAddress() +
+                        " (Restantes: " + clientesAtivos.size() + ")");
             }
         } finally {
             clientesLock.unlock();
         }
     }
-    
+
     private void fecharServerSocket() {
         try {
             if (serverSocket != null && !serverSocket.isClosed()) {
@@ -196,7 +179,7 @@ public class Server {
             System.err.println("Erro ao fechar ServerSocket: " + e.getMessage());
         }
     }
-    
+
     private void fecharSocketsClientes() {
         clientesLock.lock();
         try {
@@ -211,85 +194,47 @@ public class Server {
                     System.err.println("Erro ao fechar socket: " + e.getMessage());
                 }
             }
-            
-            if (count > 0) {
-                System.out.println("Fechados " + count + " socket(s) de cliente(s).");
-            } else {
-                System.out.println("Nenhum socket de cliente para fechar.");
-            }
-            
+
+            if (count > 0) System.out.println("Fechados " + count + " socket(s) de cliente(s).");
+            else System.out.println("Nenhum socket de cliente para fechar.");
+
             clientesAtivos.clear();
         } finally {
             clientesLock.unlock();
         }
     }
-    
-    private void encerrarPoolComTimeout(ThreadPool pool, String nome, int timeoutSegundos) {
-        System.out.println("  Chamando shutdown em " + nome + "...");
-        pool.shutdown();
-        
-        try {
-            System.out.println("  Aguardando término de " + nome + 
-                             " (timeout: " + timeoutSegundos + "s)...");
-            
-            if (pool.awaitTermination(timeoutSegundos, TimeUnit.SECONDS)) {
-                System.out.println("  ✓ " + nome + " encerrada com sucesso.");
-            } else {
-                System.err.println("  ✗ " + nome + " não terminou a tempo. Forçando...");
-                pool.shutdownNow();
-                
-                if (pool.awaitTermination(5, TimeUnit.SECONDS)) {
-                    System.out.println("  ✓ " + nome + " forçadamente encerrada.");
-                } else {
-                    System.err.println("  ✗ " + nome + " ainda tem threads ativas!");
-                }
-            }
-        } catch (InterruptedException e) {
-            System.err.println("  ✗ Interrompido ao esperar " + nome);
-            pool.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
-    }
-    
+
     public static void main(String[] args) {
         int porta = ServerConfig.DEFAULT_PORT;
         int D = ServerConfig.DEFAULT_D;
         int S = ServerConfig.DEFAULT_S;
-        
-        if (args.length > 0) {
-            porta = parseIntOuPadrao(args[0], porta, "Porta");
-        }
-        if (args.length > 1) {
-            D = parseIntOuPadrao(args[1], D, "D");
-        }
-        if (args.length > 2) {
-            S = parseIntOuPadrao(args[2], S, "S");
-        }
-        
+
+        if (args.length > 0) porta = parseIntOuPadrao(args[0], porta, "Porta");
+        if (args.length > 1) D = parseIntOuPadrao(args[1], D, "D");
+        if (args.length > 2) S = parseIntOuPadrao(args[2], S, "S");
+
         if (D <= 0) {
-            System.err.println("ERRO: D (dias de histórico) deve ser positivo. Valor fornecido: " + D);
+            System.err.println("ERRO: D deve ser positivo. Valor: " + D);
             System.exit(1);
         }
-        
+
         if (S <= 0) {
-            System.err.println("ERRO: S (séries em memória) deve ser positivo. Valor fornecido: " + S);
+            System.err.println("ERRO: S deve ser positivo. Valor: " + S);
             System.exit(1);
         }
-        
+
         if (S > D) {
-            System.err.println("AVISO: S (" + S + ") > D (" + D + "), ajustando S = D");
+            System.out.println("AVISO: S (" + S + ") > D (" + D + "), ajustando S = D");
             S = D;
         }
-        
+
         Server servidor = new Server(porta, D, S);
-        
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            servidor.parar();
-        }, "Shutdown-Hook"));
-        
+
+        Runtime.getRuntime().addShutdownHook(new Thread(servidor::parar, "Shutdown-Hook"));
+
         servidor.iniciar();
     }
-    
+
     private static int parseIntOuPadrao(String valor, int padrao, String nome) {
         try {
             int parsed = Integer.parseInt(valor);

@@ -1,13 +1,5 @@
 package testes;
 
-import client.ClienteMiddleware;
-import client.stub.StubFactory;
-import common.dto.*;
-import common.interfaces.*;
-import server.Server;
-
-import org.junit.jupiter.api.*;
-
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -15,11 +7,35 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.AfterAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.Timeout;
+
+import client.ClienteMiddleware;
+import client.stub.StubFactory;
+import common.dto.EventoDTO;
+import common.dto.FiltrarEventosDTO;
+import common.dto.NotificacaoDTO;
+import common.dto.RespostaDTO;
+import common.dto.UsuarioDTO;
+import common.interfaces.IServicoAgregacoes;
+import common.interfaces.IServicoAutenticacao;
+import common.interfaces.IServicoEventos;
+import server.Server;
 
 /**
  * Testes de integração do sistema completo
  * Cliente -> Middleware -> Servidor
+ *
+ * Adaptado para RespostaDTO com dados em byte[] (opção simples: validar mensagem).
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -36,6 +52,7 @@ class IntegrationTest {
         servidor = new Server(PORT, 30, 5);
         serverThread = new Thread(servidor::iniciar, "TestServer");
         serverThread.start();
+
         Thread.sleep(1500);
     }
 
@@ -114,11 +131,12 @@ class IntegrationTest {
         eventos.novoDia();
 
         RespostaDTO resp = aggs.obterQuantidadeVendas(2, 1);
-        assertTrue(resp.isSucesso());
+        assertTrue(resp.isSucesso(), resp.getMensagem());
 
-        // Servidor devolve string na mensagem
-        assertTrue(resp.getMensagem().contains("15"),
-            "Mensagem deve conter a quantidade 15. Msg: " + resp.getMensagem());
+        assertTrue(
+                resp.getMensagem().contains("15"),
+                "Mensagem deve conter o resultado esperado (15). Mensagem: " + resp.getMensagem()
+        );
 
         middleware.desconectar();
     }
@@ -157,8 +175,9 @@ class IntegrationTest {
                         }
                         sucesso.incrementAndGet();
                     }
-                } catch (Exception e) {
-                    System.err.println("Cliente " + id + " exceção: " + e.getMessage());
+
+                    middleware.desconectar();
+                } catch (Exception ignored) {
                 } finally {
                     try { if (middleware != null) middleware.desconectar(); } catch (Exception ignored) {}
                     latch.countDown();
@@ -167,14 +186,13 @@ class IntegrationTest {
         }
 
         assertTrue(latch.await(15, TimeUnit.SECONDS));
-        assertEquals(10, sucesso.get(),
-            "Todos os clientes devem completar com sucesso. Sucessos: " + sucesso.get());
+        assertEquals(10, sucesso.get(), "Todos os clientes devem completar com sucesso.");
     }
 
     @Test
     @Order(5)
     @Timeout(value = 10, unit = TimeUnit.SECONDS)
-    @DisplayName("Teste completo de filtro de eventos")
+    @DisplayName("Teste completo de filtro de eventos (validar mensagem de resumo)")
     void testeFiltrarEventosCompleto() throws Exception {
         ClienteMiddleware middleware = new ClienteMiddleware(HOST, PORT);
         middleware.conectar();
@@ -188,23 +206,26 @@ class IntegrationTest {
         auth.registrar(user);
         auth.autenticar(user);
 
+        // Registar eventos (dia atual)
         eventos.registrarEvento(new EventoDTO(1, 10, 50.0));
         eventos.registrarEvento(new EventoDTO(2, 20, 60.0));
         eventos.registrarEvento(new EventoDTO(3, 30, 70.0));
         eventos.registrarEvento(new EventoDTO(4, 40, 80.0));
 
+        // Avançar dia (os eventos ficam no dia anterior)
         eventos.novoDia();
 
         Set<Integer> produtosFiltro = new HashSet<>(Arrays.asList(1, 3));
         FiltrarEventosDTO filtro = new FiltrarEventosDTO(produtosFiltro, 1);
 
         RespostaDTO resposta = eventos.filtrarEventos(filtro);
-        assertTrue(resposta.isSucesso());
+        assertTrue(resposta.isSucesso(), resposta.getMensagem());
 
-        // Servidor devolve string (não EventosFiltradosDTO no dados)
-        assertNotNull(resposta.getMensagem());
-        assertTrue(resposta.getMensagem().contains("Eventos filtrados"),
-            "Mensagem deve indicar sucesso do filtro. Msg: " + resposta.getMensagem());
+        // ✅ No teu servidor atual a mensagem é um resumo (não lista IDs).
+        // Ex: "Eventos filtrados do dia 15: EventosFiltrados{dia=15, produtos=2, eventos=8}"
+        String msg = resposta.getMensagem();
+        assertTrue(msg.contains("Eventos filtrados"), "Mensagem deve indicar filtro. Msg: " + msg);
+        assertTrue(msg.contains("produtos=2"), "Mensagem deve indicar 2 produtos filtrados. Msg: " + msg);
 
         middleware.desconectar();
     }
@@ -232,8 +253,7 @@ class IntegrationTest {
             try {
                 RespostaDTO r = eventos.notificarVendaEspecifica(new NotificacaoDTO(10, 11));
                 if (r.isSucesso()) notificado.set(1);
-            } catch (Exception e) {
-                System.err.println("Erro na notificação: " + e.getMessage());
+            } catch (Exception ignored) {
             } finally {
                 latch.countDown();
             }
