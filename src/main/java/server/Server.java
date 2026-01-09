@@ -25,7 +25,8 @@ public class Server {
     private final ThreadPool clientHandlerPool;
     private final ThreadPool requestPool;
 
-    private volatile boolean ativo;
+    private final ReentrantLock stateLock = new ReentrantLock();
+    private boolean ativo;
     private final RequestDispatcher dispatcher;
 
     private final DeadlockMonitor deadlockMonitor;
@@ -53,12 +54,12 @@ public class Server {
     public void iniciar() {
         try {
             serverSocket = new ServerSocket(porta);
-            ativo = true;
+            setAtivo(true);
 
             imprimirBanner();
             deadlockMonitor.start(30);
 
-            while (ativo) {
+            while (isAtivo()) {
                 try {
                     Socket clientSocket = serverSocket.accept();
 
@@ -80,7 +81,7 @@ public class Server {
                     }
 
                 } catch (IOException e) {
-                    if (ativo) {
+                    if (isAtivo()) {
                         System.err.println("Erro ao aceitar conexão: " + e.getMessage());
                     }
                 }
@@ -96,20 +97,20 @@ public class Server {
         System.out.println("  ENCERRANDO SERVIDOR");
         System.out.println("=".repeat(50));
 
-        // 1) Para de aceitar novas conexões
-        ativo = false;
+    
+        setAtivo(false);
         fecharServerSocket();
 
-        // 2) Fecha sockets de clientes (desbloqueia ClientHandlers)
+    
         System.out.println("\n[1/4] Fechando sockets de clientes...");
         fecharSocketsClientes();
 
-        // 3) Shutdown pools (sem timers)
+    
         System.out.println("\n[2/4] Encerrando pools...");
         clientHandlerPool.shutdownNow();   
         requestPool.shutdown();            
 
-        // 4) Espera até terminar (sem timeout)
+    
         System.out.println("\n[3/4] Aguardando término das threads...");
         try {
             clientHandlerPool.awaitTermination();
@@ -144,6 +145,24 @@ public class Server {
         System.out.println("  - Request Workers: " + requestPool.getMaxThreads() + " threads");
         System.out.println("=".repeat(50));
         System.out.println("Aguardando conexões...\n");
+    }
+
+    private boolean isAtivo() {
+        stateLock.lock();
+        try {
+            return ativo;
+        } finally {
+            stateLock.unlock();
+        }
+    }
+
+    private void setAtivo(boolean value) {
+        stateLock.lock();
+        try {
+            ativo = value;
+        } finally {
+            stateLock.unlock();
+        }
     }
 
     private void adicionarCliente(Socket socket) {

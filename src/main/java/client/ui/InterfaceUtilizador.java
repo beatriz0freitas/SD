@@ -6,6 +6,7 @@ import common.dto.*;
 import common.interfaces.*;
 
 import java.util.Scanner;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Interface de utilizador do cliente - Versão refatorada
@@ -30,7 +31,8 @@ public class InterfaceUtilizador {
     private boolean autenticado;
     private String username;
     private boolean isAdmin;
-    private volatile boolean executando;
+    private final ReentrantLock stateLock = new ReentrantLock();
+    private boolean executando;
     private final boolean clearScreenEnabled = true;
     
     public InterfaceUtilizador(ClienteMiddleware middleware, StubFactory stubFactory) {
@@ -53,7 +55,7 @@ public class InterfaceUtilizador {
         try {
             mostrarHeader();
             
-            while (executando) {
+            while (isExecutando()) {
                 if (!autenticado) {
                     mostrarMenuAutenticacao();
                     processarMenuAutenticacao();
@@ -64,7 +66,7 @@ public class InterfaceUtilizador {
             }
             
         } catch (Exception e) {
-            if (executando) {
+            if (isExecutando()) {
                 System.err.println("\nErro fatal na interface: " + e.getMessage());
                 e.printStackTrace();
             }
@@ -74,7 +76,7 @@ public class InterfaceUtilizador {
     }
     
     public void encerrar() {
-        executando = false;
+        setExecutando(false);
         try {
             if (scanner != null) {
                 scanner.close();
@@ -99,6 +101,24 @@ public class InterfaceUtilizador {
         System.out.println("3. Login Administrador");
         System.out.println("0. Sair");
         System.out.print("Escolha uma opção: ");
+    }
+
+    private boolean isExecutando() {
+        stateLock.lock();
+        try {
+            return executando;
+        } finally {
+            stateLock.unlock();
+        }
+    }
+
+    private void setExecutando(boolean value) {
+        stateLock.lock();
+        try {
+            executando = value;
+        } finally {
+            stateLock.unlock();
+        }
     }
     
     private void mostrarMenuPrincipal() {
@@ -139,12 +159,12 @@ public class InterfaceUtilizador {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             System.out.println("\nOperação cancelada.");
-            executando = false;
+            setExecutando(false);
         } catch (Exception e) {
             System.err.println("Erro: " + e.getMessage());
         }
         
-        if (executando) esperarEnter();
+        if (isExecutando()) esperarEnter();
     }
     
     private void processarMenuPrincipal() {
@@ -159,12 +179,12 @@ public class InterfaceUtilizador {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             System.out.println("\nOperação cancelada.");
-            executando = false;
+            setExecutando(false);
         } catch (Exception e) {
             System.err.println("Erro: " + e.getMessage());
         }
         
-        if (executando) esperarEnter();
+        if (isExecutando()) esperarEnter();
     }
     
     private void processarMenuAdmin(int opcao) throws Exception {
@@ -388,7 +408,7 @@ public class InterfaceUtilizador {
     
     private void sair() {
         System.out.println("\nA encerrar aplicação...");
-        executando = false;
+        setExecutando(false);
     }
     
     // === UTILITÁRIOS ===
@@ -405,7 +425,7 @@ public class InterfaceUtilizador {
     }
     
     private void esperarEnter() {
-        if (!executando) return;
+        if (!isExecutando()) return;
         
         try {
             System.out.println("\nPressione ENTER para continuar...");
@@ -414,7 +434,7 @@ public class InterfaceUtilizador {
             }
             scanner.nextLine();
         } catch (Exception e) {
-            if (executando) {
+            if (isExecutando()) {
                 System.err.println("Erro ao ler input: " + e.getMessage());
             }
         }
@@ -426,7 +446,7 @@ public class InterfaceUtilizador {
     
     private String lerString() {
         try {
-            if (!executando || Thread.currentThread().isInterrupted()) {
+            if (!isExecutando() || Thread.currentThread().isInterrupted()) {
                 return "";
             }
             if (scanner.hasNextLine()) {
@@ -440,7 +460,7 @@ public class InterfaceUtilizador {
     }
     
     private int lerInteiro() {
-        while (executando && !Thread.currentThread().isInterrupted()) {
+        while (isExecutando() && !Thread.currentThread().isInterrupted()) {
             try {
                 String input = lerString();
                 if (input.isEmpty()) return 0;
@@ -453,7 +473,7 @@ public class InterfaceUtilizador {
     }
     
     private Integer lerInteiroOpt() {
-        while (executando && !Thread.currentThread().isInterrupted()) {
+        while (isExecutando() && !Thread.currentThread().isInterrupted()) {
             try {
                 String input = lerString();
                 if (input.isEmpty()) return null;
@@ -466,7 +486,7 @@ public class InterfaceUtilizador {
     }
     
     private Double lerDoubleOpt() {
-        while (executando && !Thread.currentThread().isInterrupted()) {
+        while (isExecutando() && !Thread.currentThread().isInterrupted()) {
             try {
                 String input = lerString();
                 if (input.isEmpty()) return null;

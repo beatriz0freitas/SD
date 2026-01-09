@@ -69,11 +69,11 @@ class RepositoryTest {
         }
 
         List<Usuario> usuariosDepois = usuarioRepo.listarTodos();
-        int countDepois = usuarioRepo.contarUtilizadores();
+int countDepois = usuarioRepo.contarUtilizadores();
 
-        assertTrue(usuarios.size() >= baseline + 5, "Deve ter pelo menos +5 utilizadores");
-        assertEquals(baseline + 5, usuarioRepo.contarUtilizadores(),
-                "Contador deve aumentar exatamente 5 a partir do baseline");
+assertTrue(usuariosDepois.size() >= baseline + 5, "Deve ter pelo menos +5 utilizadores");
+assertEquals(baseline + 5, usuarioRepo.contarUtilizadores(),
+        "Contador deve aumentar exatamente 5 a partir do baseline");
     }
 
     @Test

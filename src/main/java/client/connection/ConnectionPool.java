@@ -19,7 +19,7 @@ public class ConnectionPool {
     private final String host;
     private final int porta;
     private final int maxConnections;
-    private final long connectionTimeout; // millis
+    private final long connectionTimeout; 
     
     private final ReentrantLock lock = new ReentrantLock();
     private final Condition available = lock.newCondition();

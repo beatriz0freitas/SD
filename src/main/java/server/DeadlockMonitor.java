@@ -6,13 +6,15 @@ import java.lang.management.ThreadMXBean;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 import common.ErrorLogger;
 
 public class DeadlockMonitor {
     private final ThreadMXBean threadBean;
     private final ScheduledExecutorService scheduler;
-    private volatile boolean running;
+    private final ReentrantLock stateLock = new ReentrantLock();
+    private boolean running;
     
     public DeadlockMonitor() {
         this.threadBean = ManagementFactory.getThreadMXBean();
@@ -25,9 +27,14 @@ public class DeadlockMonitor {
     }
     
     public void start(long intervalSeconds) {
-        if (running) return;
-        
-        running = true;
+        stateLock.lock();
+        try {
+            if (running) return;
+            running = true;
+        } finally {
+            stateLock.unlock();
+        }
+
         scheduler.scheduleAtFixedRate(
             this::checkForDeadlocks,
             intervalSeconds,
@@ -39,9 +46,14 @@ public class DeadlockMonitor {
     }
     
     public void stop() {
-        if (!running) return;
-        
-        running = false;
+        stateLock.lock();
+        try {
+            if (!running) return;
+            running = false;
+        } finally {
+            stateLock.unlock();
+        }
+
         scheduler.shutdown();
         try {
             scheduler.awaitTermination(5, TimeUnit.SECONDS);

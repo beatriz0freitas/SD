@@ -1,10 +1,13 @@
 package client;
 
+import java.util.concurrent.locks.ReentrantLock;
+
 /**
  * Shutdown é detectado por tag == -1 no Demultiplexer.
  */
 public class ClientShutdownHandler {
-    private volatile boolean serverShutdown = false;
+    private final ReentrantLock lock = new ReentrantLock();
+    private boolean serverShutdown = false;
     private final Runnable onShutdownCallback;
 
     public ClientShutdownHandler(Runnable onShutdownCallback) {
@@ -12,11 +15,21 @@ public class ClientShutdownHandler {
     }
 
     public void onShutdown() {
-        serverShutdown = true;
+        lock.lock();
+        try {
+            serverShutdown = true;
+        } finally {
+            lock.unlock();
+        }
         if (onShutdownCallback != null) onShutdownCallback.run();
     }
 
     public boolean isServerShutdown() {
-        return serverShutdown;
+        lock.lock();
+        try {
+            return serverShutdown;
+        } finally {
+            lock.unlock();
+        }
     }
 }

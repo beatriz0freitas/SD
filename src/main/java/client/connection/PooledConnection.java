@@ -6,6 +6,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class PooledConnection implements AutoCloseable {
     private final Socket socket;
@@ -13,7 +14,8 @@ public class PooledConnection implements AutoCloseable {
     private final DataOutputStream output;
     private final ConnectionPool pool;
 
-    private volatile boolean valid;
+    private final ReentrantLock stateLock = new ReentrantLock();
+    private boolean valid;
     private long lastUsed;
 
     public PooledConnection(String host, int porta, ConnectionPool pool) throws IOException {
@@ -40,19 +42,33 @@ public class PooledConnection implements AutoCloseable {
     }
 
     public boolean isValid() {
-        if (!valid) return false;
+        stateLock.lock();
         try {
-            return socket.isConnected()
-                    && !socket.isClosed()
-                    && !socket.isInputShutdown()
-                    && !socket.isOutputShutdown();
-        } catch (Exception e) {
-            valid = false;
-            return false;
+            if (!valid) return false;
+            try {
+                boolean ok = socket.isConnected()
+                        && !socket.isClosed()
+                        && !socket.isInputShutdown()
+                        && !socket.isOutputShutdown();
+                if (!ok) valid = false;
+                return ok;
+            } catch (Exception e) {
+                valid = false;
+                return false;
+            }
+        } finally {
+            stateLock.unlock();
         }
     }
 
-    public void invalidate() { valid = false; }
+    public void invalidate() {
+        stateLock.lock();
+        try {
+            valid = false;
+        } finally {
+            stateLock.unlock();
+        }
+    }
 
     @Override
     public void close() {
@@ -61,11 +77,23 @@ public class PooledConnection implements AutoCloseable {
     }
 
     public void closePhysical() {
-        valid = false;
+        stateLock.lock();
+        try {
+            valid = false;
+        } finally {
+            stateLock.unlock();
+        }
         try { input.close(); } catch (IOException ignored) {}
         try { output.close(); } catch (IOException ignored) {}
         try { if (!socket.isClosed()) socket.close(); } catch (IOException ignored) {}
     }
 
-    private void updateLastUsed() { lastUsed = System.currentTimeMillis(); }
+    private void updateLastUsed() {
+        stateLock.lock();
+        try {
+            lastUsed = System.currentTimeMillis();
+        } finally {
+            stateLock.unlock();
+        }
+    }
 }
