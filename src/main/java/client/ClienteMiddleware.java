@@ -26,7 +26,7 @@ public class ClienteMiddleware {
     // Lock de estado + escrita no socket dedicado (mantém simples)
     private final ReentrantLock lockEscrita = new ReentrantLock();
 
-    // Lock para gerar tags sem Atomic
+   
     private final ReentrantLock lockTags = new ReentrantLock();
     private long contadorPedidos = 0;
 

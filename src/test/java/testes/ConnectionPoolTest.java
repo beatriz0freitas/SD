@@ -1,8 +1,8 @@
 package testes;
 
-import org.junit.jupiter.api.*;
-
-import java.io.*;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -11,10 +11,18 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.junit.jupiter.api.AfterAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.Timeout;
+
 import client.connection.ConnectionPool;
 import client.connection.PooledConnection;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Testes para ConnectionPool
@@ -65,12 +73,8 @@ class ConnectionPoolTest {
 
     @AfterAll
     void pararMockServer() throws Exception {
-        if (mockServer != null && !mockServer.isClosed()) {
-            mockServer.close();
-        }
-        if (serverThread != null) {
-            serverThread.join(1000);
-        }
+        if (mockServer != null && !mockServer.isClosed()) mockServer.close();
+        if (serverThread != null) serverThread.join(1000);
     }
 
     @Test
@@ -86,25 +90,21 @@ class ConnectionPoolTest {
     }
 
     @Test
-    void testeReutilizacao() throws Exception {
-        ConnectionPool pool = new ConnectionPool("localhost", TEST_PORT, 2);
+void testeReutilizacao() throws Exception {
+    ConnectionPool pool = new ConnectionPool("localhost", TEST_PORT, 2);
 
-        PooledConnection conn1 = pool.getConnection();
-        assertNotNull(conn1);
-        conn1.close();
+    PooledConnection conn1 = pool.getConnection();
+    String id1 = conn1.getConnectionId();
+    conn1.close(); // devolve ao pool
 
-        PooledConnection conn2 = pool.getConnection();
-        assertNotNull(conn2);
-        conn2.close();
+    PooledConnection conn2 = pool.getConnection();
+    String id2 = conn2.getConnectionId();
+    conn2.close();
 
-        pool.close();
+    pool.close();
 
-        // A API atual não expõe getRemoteAddress(), por isso este teste apenas garante:
-        // - obter duas conexões em sequência funciona
-        // - ambas eram válidas no momento em que foram obtidas
-        // (a reutilização interna é detalhe de implementação)
-        assertTrue(true);
-    }
+    assertEquals(id1, id2, "A mesma ligação (socket) deveria ser reutilizada");
+}
 
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
@@ -165,9 +165,7 @@ class ConnectionPoolTest {
                     out.flush();
 
                     int response = in.readInt();
-                    if (response == 42) {
-                        sucesso.incrementAndGet();
-                    }
+                    if (response == 42) sucesso.incrementAndGet();
 
                     Thread.sleep(10);
                     conn.close();

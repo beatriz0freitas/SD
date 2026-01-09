@@ -22,7 +22,6 @@
 /home/joao/Programação/uni/3ano/SD/SD/src/main/java/client/connection/PooledConnection.java
 /home/joao/Programação/uni/3ano/SD/SD/src/main/java/server/data/repository/RepositoryFactory.java
 /home/joao/Programação/uni/3ano/SD/SD/src/main/java/server/presentation/skeleton/ServicoAutenticacaoSkeleton.java
-/home/joao/Programação/uni/3ano/SD/SD/src/main/java/middleware/ServerShutdownHandler.java
 /home/joao/Programação/uni/3ano/SD/SD/src/main/java/server/data/cache/CacheManager.java
 /home/joao/Programação/uni/3ano/SD/SD/src/main/java/server/data/repository/IEventoRepository.java
 /home/joao/Programação/uni/3ano/SD/SD/src/main/java/common/exceptions/ServicoException.java
@@ -58,7 +57,6 @@
 /home/joao/Programação/uni/3ano/SD/SD/src/main/java/common/interfaces/IServicoAgregacoes.java
 /home/joao/Programação/uni/3ano/SD/SD/src/main/java/server/Server.java
 /home/joao/Programação/uni/3ano/SD/SD/src/main/java/server/data/repository/EventoFileRepository.java
-/home/joao/Programação/uni/3ano/SD/SD/src/main/java/middleware/ShutdownMessage.java
 /home/joao/Programação/uni/3ano/SD/SD/src/main/java/common/dto/RespostaDTO.java
 /home/joao/Programação/uni/3ano/SD/SD/src/main/java/server/data/repository/IUsuarioRepository.java
 /home/joao/Programação/uni/3ano/SD/SD/src/main/java/client/Demultiplexer.java
