@@ -4,12 +4,16 @@ import client.ClienteMiddleware;
 import client.stub.StubFactory;
 import common.concurrency.ThreadPool;
 import common.concurrency.ThreadPoolImpl;
-import common.dto.*;
-import common.interfaces.*;
+import common.dto.EventoDTO;
+import common.dto.NotificacaoDTO;
+import common.dto.RespostaDTO;
+import common.dto.UsuarioDTO;
+import common.interfaces.IServicoAgregacoes;
+import common.interfaces.IServicoAutenticacao;
+import common.interfaces.IServicoEventos;
 
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class ClienteTeste {
     private static final int NUM_CLIENTES_DEFAULT = 10;
@@ -26,14 +30,19 @@ public class ClienteTeste {
     private static final double PRECO_MAX = 100.0;
     private static final int DELAY_MAX_MS = 200;
 
-    private static final AtomicInteger eventosRegistados = new AtomicInteger(0);
-    private static final AtomicInteger consultasRealizadas = new AtomicInteger(0);
-    private static final AtomicInteger respostasRecebidas = new AtomicInteger(0);
+
+    private static int[] eventosRegistadosPorCliente;
+    private static int[] consultasRealizadasPorCliente;
+    private static int[] respostasRecebidasPorCliente;
 
     private static final Random random = new Random();
 
     public static void main(String[] args) {
         ConfigTeste config = parseArgs(args);
+
+        eventosRegistadosPorCliente = new int[config.numClientes + 1];
+        consultasRealizadasPorCliente = new int[config.numClientes + 1];
+        respostasRecebidasPorCliente = new int[config.numClientes + 1];
 
         mostrarHeader(config);
 
@@ -49,7 +58,7 @@ public class ClienteTeste {
         pool.shutdown();
         aguardarTerminacao(pool);
 
-        mostrarResultados();
+        mostrarResultados(config.numClientes);
     }
 
     private static ConfigTeste parseArgs(String[] args) {
@@ -68,7 +77,6 @@ public class ClienteTeste {
         System.out.println("=========================\n");
     }
 
-    // FIX: sem timers/timeouts no ThreadPool
     private static void aguardarTerminacao(ThreadPool pool) {
         try {
             pool.awaitTermination();
@@ -79,11 +87,21 @@ public class ClienteTeste {
         }
     }
 
-    private static void mostrarResultados() {
+    private static void mostrarResultados(int numClientes) {
+        int eventosRegistados = 0;
+        int consultasRealizadas = 0;
+        int respostasRecebidas = 0;
+
+        for (int i = 1; i <= numClientes; i++) {
+            eventosRegistados += eventosRegistadosPorCliente[i];
+            consultasRealizadas += consultasRealizadasPorCliente[i];
+            respostasRecebidas += respostasRecebidasPorCliente[i];
+        }
+
         System.out.println("\n=== RESULTADO FINAL ===");
-        System.out.println("Eventos registados: " + eventosRegistados.get());
-        System.out.println("Consultas realizadas: " + consultasRealizadas.get());
-        System.out.println("Total de respostas: " + respostasRecebidas.get());
+        System.out.println("Eventos registados: " + eventosRegistados);
+        System.out.println("Consultas realizadas: " + consultasRealizadas);
+        System.out.println("Total de respostas: " + respostasRecebidas);
     }
 
     private static void executarCliente(int clienteId, ConfigTeste config) {
@@ -117,7 +135,10 @@ public class ClienteTeste {
         String password = "pass" + clienteId;
         UsuarioDTO usuario = new UsuarioDTO(username, password);
 
-        try { servicoAuth.registrar(usuario); } catch (Exception ignored) {}
+        try {
+            servicoAuth.registrar(usuario);
+        } catch (Exception ignored) {
+        }
 
         RespostaDTO login = servicoAuth.autenticar(usuario);
         if (!login.isSucesso()) {
@@ -181,15 +202,15 @@ public class ClienteTeste {
         switch (operacao) {
             case 0:
                 resposta = registarEvento(servicoEventos);
-                if (resposta.isSucesso()) eventosRegistados.incrementAndGet();
+                if (resposta.isSucesso()) eventosRegistadosPorCliente[clienteId]++;
                 break;
             case 1:
                 resposta = consultarQuantidade(servicoAgregacoes);
-                if (resposta.isSucesso()) consultasRealizadas.incrementAndGet();
+                if (resposta.isSucesso()) consultasRealizadasPorCliente[clienteId]++;
                 break;
             case 2:
                 resposta = consultarVolume(servicoAgregacoes);
-                if (resposta.isSucesso()) consultasRealizadas.incrementAndGet();
+                if (resposta.isSucesso()) consultasRealizadasPorCliente[clienteId]++;
                 break;
             case 3:
                 resposta = notificarVendaEspecifica(servicoEventos);
@@ -201,7 +222,7 @@ public class ClienteTeste {
                 throw new IllegalStateException("Operação inválida: " + operacao);
         }
 
-        respostasRecebidas.incrementAndGet();
+        respostasRecebidasPorCliente[clienteId]++;
         log(clienteId, threadId, "Resposta: " + resposta.getMensagem());
     }
 

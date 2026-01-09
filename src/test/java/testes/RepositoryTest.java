@@ -4,13 +4,9 @@ import java.io.File;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.AfterEach;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -69,18 +65,19 @@ class RepositoryTest {
         }
 
         List<Usuario> usuariosDepois = usuarioRepo.listarTodos();
-int countDepois = usuarioRepo.contarUtilizadores();
+        int countDepois = usuarioRepo.contarUtilizadores();
 
-assertTrue(usuariosDepois.size() >= baseline + 5, "Deve ter pelo menos +5 utilizadores");
-assertEquals(baseline + 5, usuarioRepo.contarUtilizadores(),
-        "Contador deve aumentar exatamente 5 a partir do baseline");
+        assertTrue(usuariosDepois.size() >= baseline + 5, "Deve ter pelo menos +5 utilizadores");
+        assertEquals(baseline + 5, countDepois,
+                "Contador deve aumentar exatamente 5 a partir do baseline");
     }
 
     @Test
     void testUsuarioConcorrencia() throws InterruptedException {
         int numThreads = 20;
         CountDownLatch latch = new CountDownLatch(numThreads);
-        AtomicInteger sucessos = new AtomicInteger(0);
+
+        boolean[] ok = new boolean[numThreads];
 
         for (int i = 0; i < numThreads; i++) {
             final int id = i;
@@ -90,9 +87,7 @@ assertEquals(baseline + 5, usuarioRepo.contarUtilizadores(),
                     Usuario u = new Usuario(uname, "hash" + id);
                     usuarioRepo.salvar(u);
 
-                    if (usuarioRepo.buscar(uname) != null) {
-                        sucessos.incrementAndGet();
-                    }
+                    ok[id] = (usuarioRepo.buscar(uname) != null);
                 } finally {
                     latch.countDown();
                 }
@@ -100,7 +95,13 @@ assertEquals(baseline + 5, usuarioRepo.contarUtilizadores(),
         }
 
         assertTrue(latch.await(5, TimeUnit.SECONDS));
-        assertEquals(numThreads, sucessos.get());
+
+        int sucessos = 0;
+        for (int i = 0; i < numThreads; i++) {
+            if (ok[i]) sucessos++;
+        }
+
+        assertEquals(numThreads, sucessos);
     }
 
     // ===== eventos iguais ao teu teste atual =====

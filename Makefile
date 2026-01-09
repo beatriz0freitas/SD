@@ -21,6 +21,16 @@ test-summary:
 	@bash scripts/clean-test-data.sh
 	@bash scripts/test-summary.sh
 
+test-escalabilidade:
+	mvn -Dtest=EscalabilidadeTest test
+
+test-robustez:
+	mvn -Dtest=RobustezTest test
+
+test-carga:
+	mvn -Dtest=CargaTrabalhoTest test
+
+	
 run-server:
 	@echo "==> Iniciar servidor"
 	mvn -q exec:java -Dexec.mainClass="server.Server"

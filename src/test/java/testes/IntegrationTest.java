@@ -5,7 +5,6 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.AfterAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -33,9 +32,6 @@ import server.Server;
 
 /**
  * Testes de integração do sistema completo
- * Cliente -> Middleware -> Servidor
- *
- * Adaptado para RespostaDTO com dados em byte[] (opção simples: validar mensagem).
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -146,8 +142,9 @@ class IntegrationTest {
     @Timeout(value = 20, unit = TimeUnit.SECONDS)
     void testeClientesConcorrentes() throws InterruptedException {
         int clientes = 10;
-        AtomicInteger sucesso = new AtomicInteger(0);
         CountDownLatch latch = new CountDownLatch(clientes);
+
+        boolean[] ok = new boolean[clientes];
 
         for (int i = 0; i < clientes; i++) {
             final int id = i;
@@ -166,27 +163,33 @@ class IntegrationTest {
                     UsuarioDTO user = new UsuarioDTO(username, "pass" + id);
 
                     RespostaDTO reg = auth.registrar(user);
-                    if (!reg.isSucesso()) return;
+                    if (reg == null || !reg.isSucesso()) return;
 
                     RespostaDTO login = auth.autenticar(user);
-                    if (login.isSucesso()) {
+                    if (login != null && login.isSucesso()) {
                         for (int j = 0; j < 3; j++) {
                             eventos.registrarEvento(new EventoDTO(id + 1, 1, 10.0));
                         }
-                        sucesso.incrementAndGet();
+                        ok[id] = true;
                     }
 
-                    middleware.desconectar();
                 } catch (Exception ignored) {
                 } finally {
-                    try { if (middleware != null) middleware.desconectar(); } catch (Exception ignored) {}
+                    try {
+                        if (middleware != null) middleware.desconectar();
+                    } catch (Exception ignored) {
+                    }
                     latch.countDown();
                 }
             }, "Client-" + i).start();
         }
 
         assertTrue(latch.await(15, TimeUnit.SECONDS));
-        assertEquals(10, sucesso.get(), "Todos os clientes devem completar com sucesso.");
+
+        int sucessos = 0;
+        for (int i = 0; i < clientes; i++) if (ok[i]) sucessos++;
+
+        assertEquals(clientes, sucessos, "Todos os clientes devem completar com sucesso.");
     }
 
     @Test
@@ -221,8 +224,6 @@ class IntegrationTest {
         RespostaDTO resposta = eventos.filtrarEventos(filtro);
         assertTrue(resposta.isSucesso(), resposta.getMensagem());
 
-        // ✅ No teu servidor atual a mensagem é um resumo (não lista IDs).
-        // Ex: "Eventos filtrados do dia 15: EventosFiltrados{dia=15, produtos=2, eventos=8}"
         String msg = resposta.getMensagem();
         assertTrue(msg.contains("Eventos filtrados"), "Mensagem deve indicar filtro. Msg: " + msg);
         assertTrue(msg.contains("produtos=2"), "Mensagem deve indicar 2 produtos filtrados. Msg: " + msg);
@@ -246,14 +247,15 @@ class IntegrationTest {
         auth.registrar(user);
         auth.autenticar(user);
 
-        AtomicInteger notificado = new AtomicInteger(0);
+        final boolean[] notificado = new boolean[] { false };
         CountDownLatch latch = new CountDownLatch(1);
 
         Thread t = new Thread(() -> {
             try {
                 RespostaDTO r = eventos.notificarVendaEspecifica(new NotificacaoDTO(10, 11));
-                if (r.isSucesso()) notificado.set(1);
+                notificado[0] = (r != null && r.isSucesso());
             } catch (Exception ignored) {
+                notificado[0] = false;
             } finally {
                 latch.countDown();
             }
@@ -268,7 +270,7 @@ class IntegrationTest {
         eventos.registrarEvento(new EventoDTO(11, 1, 100.0));
 
         assertTrue(latch.await(8, TimeUnit.SECONDS), "Notificação deve ser recebida");
-        assertEquals(1, notificado.get(), "Notificação deve ter sucesso");
+        assertTrue(notificado[0], "Notificação deve ter sucesso");
 
         middleware.desconectar();
     }

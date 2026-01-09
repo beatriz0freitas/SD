@@ -9,13 +9,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -90,21 +86,21 @@ class ConnectionPoolTest {
     }
 
     @Test
-void testeReutilizacao() throws Exception {
-    ConnectionPool pool = new ConnectionPool("localhost", TEST_PORT, 2);
+    void testeReutilizacao() throws Exception {
+        ConnectionPool pool = new ConnectionPool("localhost", TEST_PORT, 2);
 
-    PooledConnection conn1 = pool.getConnection();
-    String id1 = conn1.getConnectionId();
-    conn1.close(); // devolve ao pool
+        PooledConnection conn1 = pool.getConnection();
+        String id1 = conn1.getConnectionId();
+        conn1.close(); // devolve ao pool
 
-    PooledConnection conn2 = pool.getConnection();
-    String id2 = conn2.getConnectionId();
-    conn2.close();
+        PooledConnection conn2 = pool.getConnection();
+        String id2 = conn2.getConnectionId();
+        conn2.close();
 
-    pool.close();
+        pool.close();
 
-    assertEquals(id1, id2, "A mesma ligação (socket) deveria ser reutilizada");
-}
+        assertEquals(id1, id2, "A mesma ligação (socket) deveria ser reutilizada");
+    }
 
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
@@ -118,15 +114,18 @@ void testeReutilizacao() throws Exception {
 
         CountDownLatch bloqueio = new CountDownLatch(1);
         CountDownLatch desbloqueio = new CountDownLatch(1);
-        AtomicInteger estado = new AtomicInteger(0);
+
+        int[] estado = new int[] {0};
 
         Thread t = new Thread(() -> {
             try {
-                estado.set(1);
+                estado[0] = 1;
                 bloqueio.countDown();
+
                 PooledConnection conn = pool.getConnection();
-                estado.set(2);
+                estado[0] = 2;
                 conn.close();
+
                 desbloqueio.countDown();
             } catch (Exception ignored) {
             }
@@ -136,12 +135,12 @@ void testeReutilizacao() throws Exception {
         assertTrue(bloqueio.await(1, TimeUnit.SECONDS));
 
         Thread.sleep(300);
-        assertEquals(1, estado.get(), "Thread deveria estar bloqueada");
+        assertEquals(1, estado[0], "Thread deveria estar bloqueada");
 
         connections.get(0).close();
 
         assertTrue(desbloqueio.await(2, TimeUnit.SECONDS));
-        assertEquals(2, estado.get(), "Thread deveria desbloquear");
+        assertEquals(2, estado[0], "Thread deveria desbloquear");
 
         pool.close();
     }
@@ -150,10 +149,14 @@ void testeReutilizacao() throws Exception {
     @Timeout(value = 15, unit = TimeUnit.SECONDS)
     void testeConcorrencia() throws Exception {
         ConnectionPool pool = new ConnectionPool("localhost", TEST_PORT, 10);
-        AtomicInteger sucesso = new AtomicInteger(0);
-        CountDownLatch latch = new CountDownLatch(50);
 
-        for (int i = 0; i < 50; i++) {
+        int threads = 50;
+        CountDownLatch latch = new CountDownLatch(threads);
+
+        boolean[] ok = new boolean[threads];
+
+        for (int i = 0; i < threads; i++) {
+            final int idx = i;
             new Thread(() -> {
                 try {
                     PooledConnection conn = pool.getConnection();
@@ -165,12 +168,13 @@ void testeReutilizacao() throws Exception {
                     out.flush();
 
                     int response = in.readInt();
-                    if (response == 42) sucesso.incrementAndGet();
+                    ok[idx] = (response == 42);
 
                     Thread.sleep(10);
                     conn.close();
 
                 } catch (Exception ignored) {
+                    ok[idx] = false;
                 } finally {
                     latch.countDown();
                 }
@@ -178,7 +182,11 @@ void testeReutilizacao() throws Exception {
         }
 
         assertTrue(latch.await(12, TimeUnit.SECONDS));
-        assertEquals(50, sucesso.get());
+
+        int sucessos = 0;
+        for (int i = 0; i < threads; i++) if (ok[i]) sucessos++;
+
+        assertEquals(threads, sucessos);
 
         pool.close();
     }
