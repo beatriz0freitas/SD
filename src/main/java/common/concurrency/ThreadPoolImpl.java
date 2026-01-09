@@ -51,7 +51,7 @@ public class ThreadPoolImpl implements ThreadPool {
 
             if (workerCount < maxThreads) startWorker();
 
-            // simples e seguro: acorda sempre alguém
+            
             notEmpty.signal();
             return true;
         } finally {
@@ -97,7 +97,7 @@ public class ThreadPoolImpl implements ThreadPool {
         lock.lock();
         try {
             while (!isTerminated()) {
-                termination.await(); // sem tempo
+                termination.await(); 
             }
         } finally {
             lock.unlock();
@@ -167,7 +167,7 @@ public class ThreadPoolImpl implements ThreadPool {
                 }
             }
         } catch (InterruptedException e) {
-            // esperado em shutdownNow
+            
         } finally {
             lock.lock();
             try {

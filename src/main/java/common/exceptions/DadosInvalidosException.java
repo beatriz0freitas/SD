@@ -1,8 +1,6 @@
 package common.exceptions;
 
-/**
- * Exceção lançada quando dados são inválidos
- */
+
 public class DadosInvalidosException extends ServicoException {
     private static final long serialVersionUID = 1L;
     

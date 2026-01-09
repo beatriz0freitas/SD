@@ -10,9 +10,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Suite completa de testes para NotificationManager
- */
+
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class NotificationManagerTest {
 

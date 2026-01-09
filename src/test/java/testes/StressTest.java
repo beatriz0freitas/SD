@@ -16,9 +16,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Testes de stress e performance (JUnit 5)
- */
+
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class StressTest {
 

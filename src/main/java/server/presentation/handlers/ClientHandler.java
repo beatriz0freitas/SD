@@ -67,11 +67,11 @@ public class ClientHandler implements Runnable {
             }
 
         } catch (EOFException e) {
-            // cliente fechou normalmente
+            
             System.out.println("Cliente desconectado: " + socket.getInetAddress());
 
         } catch (SocketException e) {
-            // Server.parar() fecha o socket enquanto estamos bloqueados a ler
+            
             String msg = e.getMessage();
             if (msg != null && msg.toLowerCase().contains("socket closed")) {
                 System.out.println("Conexão encerrada (shutdown): " + socket.getInetAddress());
@@ -81,7 +81,7 @@ public class ClientHandler implements Runnable {
             }
 
         } catch (IOException e) {
-            // I/O geral (pode ser desconexão abrupta)
+            
             System.out.println("I/O encerrado para cliente " + socket.getInetAddress() + ": " + e.getMessage());
 
         } catch (Exception e) {

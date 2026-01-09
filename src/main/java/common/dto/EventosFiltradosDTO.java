@@ -41,7 +41,7 @@ public class EventosFiltradosDTO implements Serializable {
                 out.writeInt(eventos.size());
                 for (EventoCompacto evento : eventos) {
                     byte[] eventoBytes = evento.serialize();
-                    out.write(eventoBytes); // 12 bytes por evento
+                    out.write(eventoBytes); 
                 }
             }
         } else {

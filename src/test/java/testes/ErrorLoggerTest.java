@@ -9,9 +9,7 @@ import common.ErrorLogger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Suite completa de testes para ErrorLogger
- */
+
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class ErrorLoggerTest {
@@ -188,7 +186,7 @@ class ErrorLoggerTest {
         int numThreads = 20;
         CountDownLatch latch = new CountDownLatch(numThreads);
 
-        // cada thread conta localmente e escreve no seu índice
+        
         int[] logsFeitos = new int[numThreads];
 
         for (int i = 0; i < numThreads; i++) {
@@ -242,7 +240,7 @@ class ErrorLoggerTest {
         int numThreads = 20;
         CountDownLatch latch = new CountDownLatch(numThreads);
 
-        // cada thread conta as suas leituras com sucesso
+        
         int[] leiturasOk = new int[numThreads];
 
         for (int i = 0; i < numThreads; i++) {

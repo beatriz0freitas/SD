@@ -2,28 +2,25 @@ package common;
 
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-/**
- * Sistema de métricas de performance
- * Thread-safe usando atomic variables e read-write locks
- */
+
 public class PerformanceMetrics {
     private static PerformanceMetrics instance;
     private static final ReentrantReadWriteLock instanceLock = new ReentrantReadWriteLock();
     
-    // Contadores protegidos por lock
+    
     private long totalRequests = 0;
     private long totalErrors = 0;
     private long totalCacheHits = 0;
     private long totalCacheMisses = 0;
     
-    // Latências (protegidas por locks)
+    
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private long totalLatencyNs = 0;
     private long minLatencyNs = Long.MAX_VALUE;
     private long maxLatencyNs = 0;
     private int latencySamples = 0;
     
-    // Timestamps
+    
     private final long startTime;
     
     private PerformanceMetrics() {
@@ -31,7 +28,7 @@ public class PerformanceMetrics {
     }
     
     public static PerformanceMetrics getInstance() {
-        // Double-checked locking com locks explícitos
+        
         if (instance == null) {
             instanceLock.writeLock().lock();
             try {
@@ -45,9 +42,7 @@ public class PerformanceMetrics {
         return instance;
     }
     
-    /**
-     * Registra uma requisição
-     */
+    
     public void recordRequest(boolean success, long latencyNs) {
         lock.writeLock().lock();
         try {
@@ -56,7 +51,7 @@ public class PerformanceMetrics {
                 totalErrors++;
             }
 
-            // Atualizar latências
+            
             totalLatencyNs += latencyNs;
             latencySamples++;
             
@@ -71,9 +66,7 @@ public class PerformanceMetrics {
         }
     }
     
-    /**
-     * Registra cache hit
-     */
+    
     public void recordCacheHit() {
         lock.writeLock().lock();
         try {
@@ -83,9 +76,7 @@ public class PerformanceMetrics {
         }
     }
     
-    /**
-     * Registra cache miss
-     */
+    
     public void recordCacheMiss() {
         lock.writeLock().lock();
         try {
@@ -95,9 +86,7 @@ public class PerformanceMetrics {
         }
     }
     
-    /**
-     * Obtém snapshot das métricas
-     */
+    
     public MetricsSnapshot getSnapshot() {
         lock.readLock().lock();
         try {
@@ -142,9 +131,7 @@ public class PerformanceMetrics {
         }
     }
     
-    /**
-     * Reseta todas as métricas
-     */
+    
     public void reset() {
         lock.writeLock().lock();
         try {
@@ -161,9 +148,7 @@ public class PerformanceMetrics {
         }
     }
     
-    /**
-     * Snapshot imutável das métricas
-     */
+    
     public static class MetricsSnapshot {
         public final long totalRequests;
         public final long totalErrors;

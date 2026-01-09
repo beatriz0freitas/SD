@@ -20,15 +20,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Teste de robustez (enunciado):
- * verificar o que acontece quando um cliente NÃO consome as respostas.
- *
- * Este teste é OBSERVACIONAL:
- * - não exige uma taxa mínima alta (pode degradar)
- * - exige que o sistema não bloqueie completamente e que haja algum progresso
- * - imprime métricas para o relatório
- */
+
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class RobustezTest {
@@ -36,8 +28,8 @@ public class RobustezTest {
     private static final String HOST = "localhost";
     private static final int PORT = 5564;
 
-    // Estes IDs funcionaram no teu teste (houve registos/autenticações a acontecer),
-    // por isso mantemos.
+    
+    
     private static final byte SVC_ID = 1;
     private static final byte MTD_ID = 1;
 
@@ -73,26 +65,26 @@ public class RobustezTest {
                 started.countDown();
 
                 long tag = 1;
-                long end = System.currentTimeMillis() + 5000; // 5s flood
+                long end = System.currentTimeMillis() + 5000; 
 
                 while (System.currentTimeMillis() < end) {
-                    // payload null para minimizar custo do cliente (o objetivo é encher respostas)
+                    
                     Message req = Message.request(tag++, SVC_ID, MTD_ID, null);
                     protocolo.enviar(req, out);
                 }
 
-                // manter socket aberto mais 5s sem ler nada
+                
                 try { Thread.sleep(5000); } catch (InterruptedException ignored) {}
 
             } catch (Exception ignored) {
-                // servidor pode fechar ligação: ok
+                
             }
         }, "BadClient-NoRead");
 
         badClient.start();
         assertTrue(started.await(2, TimeUnit.SECONDS), "Bad client não arrancou");
 
-        // Clientes normais
+        
         int normalClients = 10;
         CountDownLatch latch = new CountDownLatch(normalClients);
         boolean[] ok = new boolean[normalClients];
@@ -152,9 +144,9 @@ public class RobustezTest {
         System.out.println("  Taxa:     " + String.format("%.1f", taxa) + "%");
         System.out.println("  Duração:  " + duracao + " ms\n");
 
-        // Critério de "robustez" para PASSAR:
-        // - não bloqueou (já garantido pelo await)
-        // - houve pelo menos algum progresso
+        
+        
+        
         assertTrue(sucessos >= 1,
                 "Robustez fraca: nenhum cliente normal conseguiu completar (0/" + normalClients + "). " +
                 "Isto sugere bloqueio severo quando um cliente não consome respostas.");

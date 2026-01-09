@@ -30,9 +30,7 @@ import common.interfaces.IServicoAutenticacao;
 import common.interfaces.IServicoEventos;
 import server.Server;
 
-/**
- * Testes de integração do sistema completo
- */
+
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class IntegrationTest {
@@ -209,13 +207,13 @@ class IntegrationTest {
         auth.registrar(user);
         auth.autenticar(user);
 
-        // Registar eventos (dia atual)
+        
         eventos.registrarEvento(new EventoDTO(1, 10, 50.0));
         eventos.registrarEvento(new EventoDTO(2, 20, 60.0));
         eventos.registrarEvento(new EventoDTO(3, 30, 70.0));
         eventos.registrarEvento(new EventoDTO(4, 40, 80.0));
 
-        // Avançar dia (os eventos ficam no dia anterior)
+        
         eventos.novoDia();
 
         Set<Integer> produtosFiltro = new HashSet<>(Arrays.asList(1, 3));

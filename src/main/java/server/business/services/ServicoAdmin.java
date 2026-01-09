@@ -11,15 +11,13 @@ import server.business.domain.Usuario;
 import server.data.repository.IUsuarioRepository;
 import server.data.repository.RepositoryFactory;
 
-/**
- * Serviço administrativo expandido com métricas
- */
+
 public class ServicoAdmin implements IServicoAdmin {
     private final IUsuarioRepository usuarioRepository;
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private final PerformanceMetrics metrics;
     
-    // Estatísticas do servidor
+    
     private long startTime;
     
     public ServicoAdmin() {
@@ -56,7 +54,7 @@ public class ServicoAdmin implements IServicoAdmin {
             int totalUsuarios = usuarioRepository.contarUtilizadores();
             long uptime = (System.currentTimeMillis() - startTime) / 1000;
             
-            // Obter métricas de performance
+            
             PerformanceMetrics.MetricsSnapshot metricsSnapshot = metrics.getSnapshot();
             
             StringBuilder sb = new StringBuilder();
@@ -85,10 +83,8 @@ public class ServicoAdmin implements IServicoAdmin {
         }
     }
     
-    /**
-     * Obtém métricas detalhadas (para monitorização)
-     */
-    // substituir o método obterMetricas() por versão simples
+    
+    
 
     public RespostaDTO obterMetricas() throws AdminException {
         PerformanceMetrics.MetricsSnapshot snapshot = metrics.getSnapshot();
@@ -104,9 +100,7 @@ public class ServicoAdmin implements IServicoAdmin {
     
         return RespostaDTO.sucesso(msg);
     }
-    /**
-     * Remove utilizador (nova funcionalidade)
-     */
+    
     public RespostaDTO removerUtilizador(String username) throws AdminException {
         if (username == null || username.isBlank()) {
             throw new AdminException("Username inválido");
@@ -127,9 +121,7 @@ public class ServicoAdmin implements IServicoAdmin {
         }
     }
     
-    /**
-     * Limpa todos os utilizadores (exceto admin)
-     */
+    
     public RespostaDTO limparUtilizadores() throws AdminException {
         lock.writeLock().lock();
         try {
@@ -150,9 +142,7 @@ public class ServicoAdmin implements IServicoAdmin {
         }
     }
     
-    /**
-     * Reseta estatísticas
-     */
+    
     public RespostaDTO resetarEstatisticas() {
         lock.writeLock().lock();
         try {
@@ -166,14 +156,12 @@ public class ServicoAdmin implements IServicoAdmin {
         }
     }
     
-    /**
-     * Obtém informações detalhadas do sistema
-     */
+    
     public RespostaDTO obterInfoSistema() {
         lock.readLock().lock();
         try {
             Runtime runtime = Runtime.getRuntime();
-            long totalMemory = runtime.totalMemory() / (1024 * 1024); // MB
+            long totalMemory = runtime.totalMemory() / (1024 * 1024); 
             long freeMemory = runtime.freeMemory() / (1024 * 1024);
             long usedMemory = totalMemory - freeMemory;
             
@@ -192,7 +180,7 @@ public class ServicoAdmin implements IServicoAdmin {
         }
     }
     
-    // === Utilitários ===
+    
     
     private String formatUptime(long seconds) {
         long days = seconds / 86400;

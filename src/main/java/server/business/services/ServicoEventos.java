@@ -21,9 +21,7 @@ import server.business.domain.Evento;
 import server.data.cache.CacheManager;
 import server.data.repository.IEventoRepository;
 
-/**
- * Serviço de gestão de eventos com sistema de notificações assíncronas
- */
+
 public class ServicoEventos implements IServicoEventos {
     private final IEventoRepository eventoRepository;
     private final CacheManager cacheManager;
@@ -34,7 +32,7 @@ public class ServicoEventos implements IServicoEventos {
     private int diaAtual;
     private final Map<Integer, List<Evento>> eventosDiaAtual = new HashMap<>();
 
-    // Estado para vendas consecutivas
+    
     private int lastProductID = -1;
     private int consecutiveCount = 0;
 
@@ -60,13 +58,13 @@ public class ServicoEventos implements IServicoEventos {
 
         lock.writeLock().lock();
         try {
-            // Adicionar evento ao dia atual
+            
             List<Evento> lista = eventosDiaAtual.computeIfAbsent(
                 dto.getProdutoID(), k -> new ArrayList<>()
             );
             lista.add(evento);
 
-            // Atualizar contadores de vendas consecutivas
+            
             if (lastProductID == dto.getProdutoID()) {
                 consecutiveCount++;
             } else {
@@ -74,7 +72,7 @@ public class ServicoEventos implements IServicoEventos {
                 consecutiveCount = 1;
             }
 
-            // Notificar sistema de notificações
+            
             Map<Integer, List<?>> eventosDiaGenerico = new HashMap<>(eventosDiaAtual);
             notificationManager.notificarEvento(
                 dto.getProdutoID(),
@@ -108,7 +106,7 @@ public class ServicoEventos implements IServicoEventos {
         lock.readLock().lock();
         int diaSnapshot = diaAtual;
 
-        // Verificar se já foi satisfeita
+        
         boolean jaSatisfeita = eventosDiaAtual.containsKey(produtoID1) &&
                                eventosDiaAtual.containsKey(produtoID2);
         lock.readLock().unlock();
@@ -139,7 +137,7 @@ public class ServicoEventos implements IServicoEventos {
                 callback
             );
 
-            // Aguardar notificação (sem wait/notify)
+            
             notificacaoLock.lock();
             try {
                 while (!notified[0]) {
@@ -203,7 +201,7 @@ public class ServicoEventos implements IServicoEventos {
                 callback
             );
 
-            // Aguardar notificação (sem wait/notify)
+            
             notificacaoLock.lock();
             try {
                 while (!notified[0]) {
@@ -236,7 +234,7 @@ public class ServicoEventos implements IServicoEventos {
         Set<Integer> produtosIDs = filtro.getProdutosIDs();
         int diaAnterior = filtro.getDiaAnterior();
 
-        // Validar
+        
         if (produtosIDs == null || produtosIDs.isEmpty()) {
             throw new EventoException("Conjunto de produtos vazio");
         }
@@ -252,10 +250,10 @@ public class ServicoEventos implements IServicoEventos {
             throw new EventoException("Dia anterior excede histórico disponível");
         }
 
-        // Carregar eventos do dia
+        
         Map<Integer, List<Evento>> eventosDia = eventoRepository.carregarEventosDia(diaAlvo);
 
-        // Filtrar apenas produtos do conjunto
+        
         Map<Integer, List<EventosFiltradosDTO.EventoCompacto>> resultado = new HashMap<>();
 
         for (int produtoID : produtosIDs) {

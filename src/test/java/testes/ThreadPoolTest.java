@@ -9,9 +9,7 @@ import java.util.concurrent.CountDownLatch;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Testes do ThreadPool 
- */
+
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class ThreadPoolTestJUnit {
 
@@ -140,7 +138,7 @@ class ThreadPoolTestJUnit {
 
         pool.awaitTermination();
 
-        // Nenhuma das pendentes deveria executar
+        
         assertEquals(pendentes, executadas.getCount(), "Tasks pendentes não deveriam ter sido executadas");
     }
 

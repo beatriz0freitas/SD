@@ -8,11 +8,9 @@ import common.interfaces.*;
 import java.util.Scanner;
 import java.util.concurrent.locks.ReentrantLock;
 
-/**
- * Interface de utilizador do cliente - Versão refatorada
- */
+
 public class InterfaceUtilizador {
-    // Constantes
+    
     private static final String SIMBOLO_SUCESSO = "✓";
     private static final String SIMBOLO_ERRO = "✗";
     private static final String CLEAR_SCREEN = "\033[H\033[2J";
@@ -21,13 +19,13 @@ public class InterfaceUtilizador {
     private final StubFactory stubFactory;
     private final Scanner scanner;
     
-    // Stubs
+    
     private final IServicoAutenticacao servicoAuth;
     private final IServicoEventos servicoEventos;
     private final IServicoAgregacoes servicoAgregacoes;
     private final IServicoAdmin servicoAdmin;
     
-    // Estado
+    
     private boolean autenticado;
     private String username;
     private boolean isAdmin;
@@ -40,7 +38,7 @@ public class InterfaceUtilizador {
         this.stubFactory = stubFactory;
         this.scanner = new Scanner(System.in);
         
-        // Criar stubs
+        
         this.servicoAuth = stubFactory.criarStubAutenticacao();
         this.servicoEventos = stubFactory.criarStubEventos();
         this.servicoAgregacoes = stubFactory.criarStubAgregacoes();
@@ -82,7 +80,7 @@ public class InterfaceUtilizador {
                 scanner.close();
             }
         } catch (Exception e) {
-            // Ignorar
+            
         }
         System.out.println("\nInterface encerrada.");
     }
@@ -213,7 +211,7 @@ public class InterfaceUtilizador {
         }
     }
     
-    // === AUTENTICAÇÃO ===
+    
     
     private void registar() throws Exception {
         System.out.print("\nUsername: ");
@@ -258,7 +256,7 @@ public class InterfaceUtilizador {
         mostrarResposta(resposta);
     }
     
-    // === AÇÕES CLIENTE ===
+    
     
     private void registarEvento() throws Exception {
         System.out.print("ID do produto: ");
@@ -341,9 +339,7 @@ public class InterfaceUtilizador {
         consultarAgregacao("maximo");
     }
     
-    /**
-     * Método genérico para consultas de agregação
-     */
+    
     private void consultarAgregacao(String tipo) throws Exception {
         System.out.print("ID do produto: ");
         Integer produtoID = lerInteiroOpt();
@@ -380,7 +376,7 @@ public class InterfaceUtilizador {
         mostrarResposta(resposta);
     }
     
-    // === AÇÕES ADMIN ===
+    
     
     private void listarClientes() throws Exception {
         RespostaDTO resposta = servicoAdmin.listarClientes();
@@ -397,7 +393,7 @@ public class InterfaceUtilizador {
         mostrarResposta(resposta);
     }
     
-    // === CONTROLE ===
+    
     
     private void logout() {
         autenticado = false;
@@ -411,7 +407,7 @@ public class InterfaceUtilizador {
         setExecutando(false);
     }
     
-    // === UTILITÁRIOS ===
+    
     
     private void mostrarResposta(RespostaDTO resposta) {
         String icone = resposta.isSucesso() ? SIMBOLO_SUCESSO : SIMBOLO_ERRO;

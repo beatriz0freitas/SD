@@ -105,7 +105,7 @@ public class Server {
         System.out.println("\n[1/4] Fechando sockets de clientes...");
         fecharSocketsClientes();
 
-        // Acordar threads bloqueadas (ex.: notificações) antes de aguardar pools
+        
         dispatcher.shutdown();
 
     

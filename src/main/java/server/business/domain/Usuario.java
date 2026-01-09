@@ -2,9 +2,7 @@ package server.business.domain;
 
 import java.util.Objects;
 
-/**
- * Entidade de domínio - Usuário do sistema
- */
+
 public class Usuario {
     private String username;
     private String passwordHash;

@@ -1,9 +1,6 @@
 package server.business.domain;
 
-/**
- * Agregação de eventos de vendas
- * Acumula quantidade, volume, preços máximo e médio
- */
+
 public class Agregacao {
     private int quantidadeVendas;
     private double volumeVendas;
@@ -21,9 +18,7 @@ public class Agregacao {
         this.precoMedio = 0.0;
     }
     
-    /**
-     * Adiciona um evento à agregação
-     */
+    
     public void update(int quantidade, double preco) {
         this.quantidadeVendas += quantidade;
         this.volumeVendas += quantidade * preco;
@@ -36,10 +31,7 @@ public class Agregacao {
         this.numeroEventos++;
     }
     
-    /**
-     * Calcula o preço médio
-     * Deve ser chamado depois de todos os updates
-     */
+    
     public void updatePrecoMedio() {
         if (numeroEventos > 0) {
             this.precoMedio = somaPrecos / numeroEventos;
@@ -48,9 +40,7 @@ public class Agregacao {
         }
     }
     
-    /**
-     * Acumula outra agregação nesta
-     */
+    
     public void acumular(Agregacao outra) {
         if (outra == null) {
             return;
@@ -67,7 +57,7 @@ public class Agregacao {
         this.numeroEventos += outra.numeroEventos;
     }
     
-    // Getters
+    
     
     public int getQuantidadeVendas() {
         return quantidadeVendas;

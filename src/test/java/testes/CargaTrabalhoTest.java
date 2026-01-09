@@ -21,15 +21,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Testes de CARGAS DE TRABALHO (workloads) - enunciado:
- * - diferentes tipos de operações (escrita, leitura, mistura)
- *
- * Nota:
- * - Estes testes devem ser estáveis (não flakey). Por isso o workload "mixed" não
- *   usa novoDia concorrente (operação global) e limita operações "pesadas" (filtro/notificação)
- *   a uma minoria dos clientes.
- */
+
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class CargaTrabalhoTest {
@@ -148,7 +140,7 @@ public class CargaTrabalhoTest {
             assertTrue(auth.registrar(u).isSucesso());
             assertTrue(auth.autenticar(u).isSucesso());
 
-            // Pré-carregar alguns eventos + avançar 1 dia para garantir agregações consultáveis
+            
             for (int i = 0; i < 50; i++) {
                 eventos.registrarEvento(new EventoDTO(1, 1, 10.0));
             }
@@ -194,10 +186,10 @@ public class CargaTrabalhoTest {
         final int eventosPorCliente = 10;
         final int leiturasPorCliente = 10;
 
-        // Só 1 em cada 5 clientes faz filtro (reduz custo e instabilidade)
+        
         final int filtroCadaN = 5;
 
-        // Só 1 em cada 10 clientes regista notificação (evita criar filas enormes)
+        
         final int notifCadaN = 10;
 
         CountDownLatch latch = new CountDownLatch(clientes);
@@ -227,28 +219,28 @@ public class CargaTrabalhoTest {
                     RespostaDTO login = auth.autenticar(u);
                     if (login == null || !login.isSucesso()) return;
 
-                    // Escrita
+                    
                     for (int j = 0; j < eventosPorCliente; j++) {
                         RespostaDTO r = eventos.registrarEvento(new EventoDTO((id % 10) + 1, 1, 10.0));
                         if (r == null || !r.isSucesso()) return;
                     }
 
-                    // Leitura
+                    
                     for (int j = 0; j < leiturasPorCliente; j++) {
                         RespostaDTO r = aggs.obterQuantidadeVendas((id % 10) + 1, 1);
                         if (r == null || !r.isSucesso()) return;
                     }
 
-                    // Notificação (minoria) - não deve bloquear
+                    
                     if (id % notifCadaN == 0) {
                         try {
                             eventos.notificarVendaEspecifica(new NotificacaoDTO(1, 2));
                         } catch (Exception ignored) {
-                            // aceitável: depende do comportamento/estado do servidor
+                            
                         }
                     }
 
-                    // Filtro (minoria) - não mexe no estado global
+                    
                     if (id % filtroCadaN == 0) {
                         Set<Integer> produtos = new HashSet<>();
                         produtos.add(1);

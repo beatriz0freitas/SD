@@ -3,10 +3,7 @@ package common;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
-/**
- * Sistema de logging simples e estruturado
- * Alternativa aos System.out.println() espalhados
- */
+
 public class Logger {
     
     public enum Level {

@@ -87,19 +87,16 @@ public class RequestDispatcher {
         }
     }
 
-    /**
-     * 10/10: decodificação determinística sem reflection.
-     * payload==null é permitido em métodos sem parâmetros.
-     */
+    
     private Object decodeParametros(byte serviceId, byte methodId, byte[] payload) throws IOException {
-        // métodos sem parâmetros
+        
         if (payload == null || payload.length == 0) {
             return null;
         }
 
         switch (serviceId) {
             case SERVICO_AUTENTICACAO:
-                // Cliente envia sempre UsuarioDTO para login/registro/admin (no teu cliente admin também usa UsuarioDTO)
+                
                 return UsuarioDTO.deserialize(payload);
 
             case SERVICO_EVENTOS:
@@ -122,7 +119,7 @@ public class RequestDispatcher {
                 return AgregacaoRequestDTO.deserialize(payload);
 
             case SERVICO_ADMIN:
-                // Admin não recebe parâmetros nestes métodos
+                
                 return null;
 
             default:

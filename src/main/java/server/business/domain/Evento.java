@@ -2,9 +2,7 @@ package server.business.domain;
 
 import java.util.Objects;
 
-/**
- * Entidade de domínio - Evento de venda
- */
+
 public class Evento {
     private int produtoID;
     private int quantidade;

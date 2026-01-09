@@ -10,23 +10,19 @@ import server.business.domain.Agregacao;
 import server.business.domain.Evento;
 import server.data.repository.IEventoRepository;
 
-/**
- * Gestor de cache para agregações
- * Mantém no máximo S séries em memória (LRU)
- * Integrado com sistema de métricas
- */
+
 public class CacheManager {
     private final IEventoRepository eventoRepository;
-    private final int S; // Máximo de séries em memória
+    private final int S; 
     private final PerformanceMetrics metrics;
 
-    // Cache: produtoID -> dia -> Agregacao
+    
     private final Map<Integer, Map<Integer, Agregacao>> cacheAgregacoes = new HashMap<>();
     
-    // Séries em memória: dia -> Map<produtoID, List<Evento>>
+    
     private final Map<Integer, Map<Integer, List<Evento>>> seriesEmMemoria = new HashMap<>();
     
-    // Lista para controlar ordem de acesso (LRU)
+    
     private final List<Integer> ordemAcesso = new ArrayList<>();
 
     private final ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
@@ -42,12 +38,9 @@ public class CacheManager {
         this.metrics = PerformanceMetrics.getInstance();
     }
 
-    /**
-     * Obtém agregação de UM dia específico para um produto
-     * Usa streaming se memória cheia
-     */
+    
     public Agregacao obterAgregacaoDia(int produtoID, int dia) {
-        // FASE 1: Tentativa rápida (READ LOCK)
+        
         readLock.lock();
         try {
             Map<Integer, Agregacao> porProduto = cacheAgregacoes.get(produtoID);
@@ -64,27 +57,27 @@ public class CacheManager {
 
         metrics.recordCacheMiss();
 
-        //Obter computation lock específico para esta chave
+        
         String computationKey = produtoID + ":" + dia;
         ReentrantLock compLock = getComputationLock(computationKey);
 
         compLock.lock();
         try {
-            // Double-check: outra thread pode ter calculado enquanto esperávamos
+            
             readLock.lock();
             try {
                 Map<Integer, Agregacao> porProduto = cacheAgregacoes.get(produtoID);
                 if (porProduto != null) {
                     Agregacao existente = porProduto.get(dia);
                     if (existente != null) {
-                        return existente; // Outra thread já calculou
+                        return existente; 
                     }
                 }
             } finally {
                 readLock.unlock();
             }
 
-            // FASE 2: Cálculo (SEM locks de cache, só computation lock)
+            
             Agregacao calculada;
             boolean usarStreaming;
 
@@ -102,13 +95,13 @@ public class CacheManager {
                 calculada = calcularComMemoria(produtoID, dia);
             }
 
-            // FASE 3: Inserir no cache (WRITE LOCK)
+            
             writeLock.lock();
             try {
                 Map<Integer, Agregacao> porProduto = 
                     cacheAgregacoes.computeIfAbsent(produtoID, k -> new HashMap<>());
 
-                // Triple-check (paranóia)
+                
                 Agregacao existente = porProduto.get(dia);
                 if (existente != null) {
                     return existente;
@@ -147,15 +140,13 @@ public class CacheManager {
         }
     }
 
-    /**
-    * Calcula agregação usando memória (série já está OU há espaço)
-    */
+    
     private Agregacao calcularComMemoria(int produtoID, int dia) {
         writeLock.lock();
         try {
-            // 1. Verificar se série já está em memória
+            
             if (seriesEmMemoria.containsKey(dia)) {
-                // Atualizar LRU (mover para final)
+                
                 ordemAcesso.remove(Integer.valueOf(dia));
                 ordemAcesso.add(dia);
 
@@ -163,21 +154,21 @@ public class CacheManager {
                 return agregarEventos(eventos);
             }
 
-            // 2. Série não está - precisa carregar do disco
-            // Se memória cheia, remover LRU
+            
+            
             if (seriesEmMemoria.size() >= S) {
                 Integer diaRemover = ordemAcesso.remove(0);
                 seriesEmMemoria.remove(diaRemover);
                 System.out.println("LRU: removida série dia " + diaRemover);
             }
 
-            // Carregar série do disco
+            
             Map<Integer, List<Evento>> seriesDia = eventoRepository.carregarEventosDia(dia);
             seriesEmMemoria.put(dia, seriesDia);
             ordemAcesso.add(dia);
             System.out.println("Carregada série dia " + dia + " para memória (" + seriesEmMemoria.size() + "/" + S + ")");
 
-            // Agregar eventos do produto
+            
             List<Evento> eventos = seriesDia.get(produtoID);
             return agregarEventos(eventos);
             
@@ -186,9 +177,7 @@ public class CacheManager {
         }
     }
 
-    /**
-     * Agrega lista de eventos em uma Agregacao
-     */
+    
     private Agregacao agregarEventos(List<Evento> eventos) {
         Agregacao agregacao = new Agregacao();
         if (eventos != null) {
@@ -200,9 +189,7 @@ public class CacheManager {
         return agregacao;
     }
 
-    /**
-     * Limpa cache de agregações de um dia específico
-     */
+    
     public void limparAgregacoesDia(int dia) {
         writeLock.lock();
         try {
@@ -220,9 +207,7 @@ public class CacheManager {
         }
     }
 
-    /**
-     * Remove série de um dia da memória
-     */
+    
     public void removerSerieDaMemoria(int dia) {
         writeLock.lock();
         try {
@@ -236,9 +221,7 @@ public class CacheManager {
         }
     }
 
-    /**
-     * Remove todas as estruturas de um dia
-     */
+    
     public void limparDia(int dia) {
         writeLock.lock();
         try {
@@ -249,9 +232,7 @@ public class CacheManager {
         }
     }
 
-    /**
-     * Limpa toda a cache e memória
-     */
+    
     public void limparTudo() {
         writeLock.lock();
         try {
@@ -264,9 +245,7 @@ public class CacheManager {
         }
     }
 
-    /**
-     * Obtém estatísticas da cache
-     */
+    
     public String obterEstatisticas() {
         readLock.lock();
         try {

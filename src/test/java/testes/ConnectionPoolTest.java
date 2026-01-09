@@ -20,9 +20,7 @@ import org.junit.jupiter.api.Timeout;
 import client.connection.ConnectionPool;
 import client.connection.PooledConnection;
 
-/**
- * Testes para ConnectionPool
- */
+
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ConnectionPoolTest {
 
@@ -91,7 +89,7 @@ class ConnectionPoolTest {
 
         PooledConnection conn1 = pool.getConnection();
         String id1 = conn1.getConnectionId();
-        conn1.close(); // devolve ao pool
+        conn1.close(); 
 
         PooledConnection conn2 = pool.getConnection();
         String id2 = conn2.getConnectionId();

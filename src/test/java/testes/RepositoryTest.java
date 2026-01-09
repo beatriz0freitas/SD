@@ -57,7 +57,7 @@ class RepositoryTest {
 
     @Test
     void testUsuarioListar() {
-        // Não assumir repositório vazio (pode carregar dados reais do disco)
+        
         int baseline = usuarioRepo.contarUtilizadores();
 
         for (int i = 0; i < 5; i++) {
@@ -104,7 +104,7 @@ class RepositoryTest {
         assertEquals(numThreads, sucessos);
     }
 
-    // ===== eventos iguais ao teu teste atual =====
+    
 
     private static IUsuarioRepository criarUsuarioRepoTeste() {
         return new UsuarioFileRepository();
@@ -117,7 +117,7 @@ class RepositoryTest {
     }
 
     private static void limparDadosTeste() {
-        // Só limpa eventos (estes estão isolados)
+        
         File eventDir = new File(TEST_EVENTO_DIR);
         deleteDirectory(eventDir);
     }

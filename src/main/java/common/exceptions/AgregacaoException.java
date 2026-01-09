@@ -1,8 +1,6 @@
 package common.exceptions;
 
-/**
- * Exceção lançada quando há problemas com agregações
- */
+
 public class AgregacaoException extends ServicoException {
     private static final long serialVersionUID = 1L;
     

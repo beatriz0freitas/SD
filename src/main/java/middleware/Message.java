@@ -12,9 +12,9 @@ public class Message implements Serializable {
     private static final int MAX_LEN = 10_000_000;
 
     private long tag;
-    private Byte serviceId; // null em responses
-    private Byte methodId;  // null em responses
-    private byte[] payload; // bytes
+    private Byte serviceId; 
+    private Byte methodId;  
+    private byte[] payload; 
 
     private Message() {}
 

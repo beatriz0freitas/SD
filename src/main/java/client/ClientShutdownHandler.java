@@ -2,9 +2,7 @@ package client;
 
 import java.util.concurrent.locks.ReentrantLock;
 
-/**
- * Shutdown é detectado por tag == -1 no Demultiplexer.
- */
+
 public class ClientShutdownHandler {
     private final ReentrantLock lock = new ReentrantLock();
     private boolean serverShutdown = false;

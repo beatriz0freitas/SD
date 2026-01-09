@@ -2,10 +2,7 @@ package server.data.repository;
 
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-/**
- * Factory para criação de Repositories
- * Thread-safe usando locks
- */
+
 public class RepositoryFactory {
     private static RepositoryFactory instance;
     private static final ReentrantReadWriteLock instanceLock = new ReentrantReadWriteLock();
@@ -15,11 +12,11 @@ public class RepositoryFactory {
     private IEventoRepository eventoRepository;
     
     private RepositoryFactory() {
-        // Singleton
+        
     }
     
     public static RepositoryFactory getInstance() {
-        // Double-checked locking com locks explícitos
+        
         if (instance == null) {
             instanceLock.writeLock().lock();
             try {
@@ -34,7 +31,7 @@ public class RepositoryFactory {
     }
     
     public IUsuarioRepository getUsuarioRepository() {
-        // Leitura primeiro (fast path)
+        
         lock.readLock().lock();
         try {
             if (usuarioRepository != null) {
@@ -44,7 +41,7 @@ public class RepositoryFactory {
             lock.readLock().unlock();
         }
         
-        // Criação (slow path)
+        
         lock.writeLock().lock();
         try {
             if (usuarioRepository == null) {
@@ -57,7 +54,7 @@ public class RepositoryFactory {
     }
     
     public IEventoRepository getEventoRepository() {
-        // Leitura primeiro (fast path)
+        
         lock.readLock().lock();
         try {
             if (eventoRepository != null) {
@@ -67,7 +64,7 @@ public class RepositoryFactory {
             lock.readLock().unlock();
         }
         
-        // Criação (slow path)
+        
         lock.writeLock().lock();
         try {
             if (eventoRepository == null) {
@@ -79,7 +76,7 @@ public class RepositoryFactory {
         }
     }
     
-    // Para testes - permite injetar mocks
+    
     public void setUsuarioRepository(IUsuarioRepository repository) {
         lock.writeLock().lock();
         try {

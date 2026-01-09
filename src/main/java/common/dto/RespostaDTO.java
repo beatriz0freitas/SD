@@ -7,26 +7,13 @@
     import java.io.IOException;
     import java.io.Serializable;
 
-    /**
-     * Resposta DTO sem ObjectInputStream/ObjectOutputStream.
-     *
-     * Formato:
-     *  [sucesso:boolean]
-     *  [mensagem:utf]
-     *  [temDados:boolean]
-     *  se temDados:
-     *    [dadosLen:int]
-     *    [dados:bytes]
-     *
-     * Observação: "dados" aqui é byte[] para permitir payload arbitrário
-     * sem depender da serialização Java padrão.
-     */
+    
     public class RespostaDTO implements Serializable {
 
         private boolean sucesso;
         private String mensagem;
 
-        // Payload opcional controlado pela aplicação (ex: outro DTO já serializado)
+        
         private byte[] dados;
 
         public RespostaDTO() {}

@@ -1,8 +1,6 @@
 package common.exceptions;
 
-/**
- * Exceção lançada quando há problemas com operações administrativas
- */
+
 public class AdminException extends ServicoException {
     private static final long serialVersionUID = 1L;
     

@@ -10,10 +10,7 @@ import common.ErrorLogger;
 import server.business.domain.Agregacao;
 import server.business.domain.Evento;
 
-/**
- * Persistência de eventos em ficheiros binários
- * Thread-safe
- */
+
 public class EventoFileRepository implements IEventoRepository {
     private final String pastaBase;
     private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
@@ -35,25 +32,25 @@ public class EventoFileRepository implements IEventoRepository {
         try {
             File ficheiro = ficheiroDia(dia);
             
-            // Ordenar produtos para facilitar leitura posterior
+            
             List<Integer> produtosOrdenados = new ArrayList<>(eventosPorProduto.keySet());
             Collections.sort(produtosOrdenados);
             
-            // Escrever ficheiro binário
+            
             try (DataOutputStream out = new DataOutputStream(
                     new BufferedOutputStream(new FileOutputStream(ficheiro)))) {
                 
-                // Número de produtos
+                
                 out.writeInt(produtosOrdenados.size());
                 
-                // Para cada produto
+                
                 for (int produtoID : produtosOrdenados) {
                     List<Evento> eventos = eventosPorProduto.get(produtoID);
                     
                     out.writeInt(produtoID);
                     out.writeInt(eventos.size());
                     
-                    // Escrever cada evento
+                    
                     for (Evento e : eventos) {
                         out.writeInt(e.getQuantidade());
                         out.writeDouble(e.getPreco());
@@ -121,10 +118,10 @@ public class EventoFileRepository implements IEventoRepository {
             File ficheiro = ficheiroDia(dia);
             
             if (!ficheiro.exists()) {
-                return new Agregacao(); // Dia não existe
+                return new Agregacao(); 
             }
             
-            // Ler ficheiro procurando pelo produto específico
+            
             try (RandomAccessFile raf = new RandomAccessFile(ficheiro, "r")) {
                 int numProdutos = raf.readInt();
                 
@@ -133,7 +130,7 @@ public class EventoFileRepository implements IEventoRepository {
                     int numEventos = raf.readInt();
                     
                     if (pid == produtoID) {
-                        // Produto encontrado - agregar eventos
+                        
                         Agregacao agregacao = new Agregacao();
                         for (int j = 0; j < numEventos; j++) {
                             int quantidade = raf.readInt();
@@ -144,11 +141,11 @@ public class EventoFileRepository implements IEventoRepository {
                         return agregacao;
                         
                     } else if (pid < produtoID) {
-                        // Skip eventos deste produto (12 bytes = int + double)
+                        
                         raf.skipBytes(numEventos * 12);
                         
                     } else {
-                        // pid > produtoID - produto não existe
+                        
                         break;
                     }
                 }
@@ -158,7 +155,7 @@ public class EventoFileRepository implements IEventoRepository {
                     "EventoFileRepository.agregarEventosDia[produto=" + produtoID + ", dia=" + dia + "]", e);
             }
             
-            // Produto não encontrado
+            
             return new Agregacao();
             
         } finally {
@@ -183,19 +180,19 @@ public class EventoFileRepository implements IEventoRepository {
                 return -1;
             }
             
-            // Encontrar dia máximo
+            
             int maxDia = -1;
             for (File f : ficheiros) {
                 try {
                     String nome = f.getName();
-                    // "eventos_dia_".length() = 12, ".dat".length() = 4
+                    
                     String diaStr = nome.substring(12, nome.length() - 4);
                     int dia = Integer.parseInt(diaStr);
                     if (dia > maxDia) {
                         maxDia = dia;
                     }
                 } catch (Exception e) {
-                    // Ignorar ficheiros com nome inválido
+                    
                 }
             }
             

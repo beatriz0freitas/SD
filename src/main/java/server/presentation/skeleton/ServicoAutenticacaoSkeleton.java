@@ -25,7 +25,7 @@ public class ServicoAutenticacaoSkeleton implements ISkeleton {
                     return servico.autenticar((UsuarioDTO) parametros);
 
                 case AUTH_LOGIN_ADMIN:
-                    // Cliente envia UsuarioDTO("ADMIN", password)
+                    
                     UsuarioDTO admin = (UsuarioDTO) parametros;
                     return servico.autenticarAdmin(admin.getPassword());
 

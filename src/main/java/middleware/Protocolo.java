@@ -4,11 +4,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-/**
- * Framing:
- *   [len:int][messageBytes...]
- * messageBytes = Message.serialize()
- */
+
 public class Protocolo {
     private static final int MAX_TAMANHO = 10_000_000;
 

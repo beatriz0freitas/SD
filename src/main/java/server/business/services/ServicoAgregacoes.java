@@ -61,7 +61,7 @@ public class ServicoAgregacoes implements IServicoAgregacoes {
         ));
     }
 
-    // resto do ficheiro pode ficar igual (calcularAgregacao/validarParametros)
+    
     private Agregacao calcularAgregacao(int produtoID, int dias) {
         int ultimoDia = eventoRepository.obterUltimoDia();
         if (ultimoDia < 0) return new Agregacao();

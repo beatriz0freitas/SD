@@ -1,8 +1,6 @@
 package common.exceptions;
 
-/**
- * Exceção lançada quando há problemas com eventos
- */
+
 public class EventoException extends ServicoException {
     private static final long serialVersionUID = 1L;
     

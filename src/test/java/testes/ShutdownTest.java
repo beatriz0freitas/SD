@@ -59,9 +59,9 @@ class ShutdownTest {
     private static boolean tentaInvocacaoFalhar(IServicoEventos eventos) {
         try {
             eventos.registrarEvento(new EventoDTO(1, 1, 10.0));
-            return false; // não falhou
+            return false; 
         } catch (Exception e) {
-            return true; // falhou como esperado
+            return true; 
         }
     }
 
@@ -89,7 +89,7 @@ class ShutdownTest {
 
         servidor.parar();
 
-        // ✅ critério robusto: uma chamada tem de falhar
+        
         boolean falhou = false;
         try {
             eventos.registrarEvento(new EventoDTO(1, 1, 1.0));
@@ -99,7 +99,7 @@ class ShutdownTest {
 
         assertTrue(falhou, "Após shutdown, invocação deve falhar");
 
-        // Pode ou não marcar desconectado — não exigimos, mas aceitamos.
+        
         middleware.desconectar();
     }
 

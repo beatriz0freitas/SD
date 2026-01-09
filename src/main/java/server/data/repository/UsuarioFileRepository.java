@@ -9,10 +9,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import common.ErrorLogger;
 import server.business.domain.Usuario;
 
-/**
- * Persistência de utilizadores em ficheiro binário
- * Thread-safe com armazenamento em memória
- */
+
 public class UsuarioFileRepository implements IUsuarioRepository {
     private static final String FICHEIRO = "dados/utilizadores.dat";
     
@@ -21,12 +18,12 @@ public class UsuarioFileRepository implements IUsuarioRepository {
     private final Lock writeLock = rwLock.writeLock();
     
     private final Map<String, Usuario> utilizadores = new HashMap<>();
-    private boolean modificado = false; // Flag para saber se precisa persistir
+    private boolean modificado = false; 
     
     public UsuarioFileRepository() {
         carregarTodos();
         
-        // Persistir ao encerrar JVM
+        
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             writeLock.lock();
             try {
@@ -57,7 +54,7 @@ public class UsuarioFileRepository implements IUsuarioRepository {
         try {
             utilizadores.put(usuario.getUsername(), usuario);
             modificado = true;
-            // Não persiste imediatamente - será persistido no shutdown
+            
         } finally {
             writeLock.unlock();
         }
@@ -111,9 +108,7 @@ public int contarUtilizadores() {
         }
     }
     
-    /**
-     * Força persistência imediata (para comandos admin)
-     */
+    
     public void persistirAgora() {
         writeLock.lock();
         try {
@@ -126,7 +121,7 @@ public int contarUtilizadores() {
         }
     }
     
-    // Métodos privados de persistência
+    
     
     private void carregarTodos() {
         File ficheiro = new File(FICHEIRO);

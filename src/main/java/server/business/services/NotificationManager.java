@@ -10,36 +10,29 @@ import java.util.concurrent.locks.ReentrantLock;
 import common.concurrency.ThreadPool;
 import common.concurrency.ThreadPoolImpl;
 
-/**
- * Gestor centralizado de notificações
- * Permite que clientes se registem para receber notificações assíncronas
- * Thread-safe usando locks e conditions
- */
+
 public class NotificationManager {
     
-    // Lock para proteger estruturas de dados
+    
     private final ReentrantLock lock = new ReentrantLock();
     
-    // Notificações de venda específica: chave = "produto1:produto2:dia"
+    
     private final Map<String, List<NotificationHandler>> vendasEspecificas = new HashMap<>();
     
-    // Notificações de vendas consecutivas: chave = "produtoID:n:dia"
+    
     private final Map<String, List<NotificationHandler>> vendasConsecutivas = new HashMap<>();
     
-    // Conditions por tipo de notificação
+    
     private final Map<String, Condition> conditions = new HashMap<>();
     
-    // Pool para processar notificações de forma assíncrona
+    
     private final ThreadPool notificationPool;
     
     public NotificationManager() {
-        this.notificationPool = new ThreadPoolImpl(10); // 10 threads para notificações
+        this.notificationPool = new ThreadPoolImpl(10); 
     }
     
-    /**
-     * Regista interesse em notificação de venda específica
-     * Retorna quando AMBOS os produtos forem vendidos no dia atual
-     */
+    
     public void registarVendaEspecifica(int produtoID1, int produtoID2, int diaAtual, NotificationCallback callback) {
         lock.lock();
         try {
@@ -54,7 +47,7 @@ public class NotificationManager {
             }
             handlers.add(handler);
             
-            // Criar condition se não existir
+            
             if (!conditions.containsKey(key)) {
                 conditions.put(key, lock.newCondition());
             }
@@ -64,9 +57,7 @@ public class NotificationManager {
         }
     }
     
-    /**
-     * Regista interesse em notificação de vendas consecutivas
-     */
+    
     public void registarVendasConsecutivas(int produtoID, int n, int diaAtual, NotificationCallback callback) {
         lock.lock();
         try {
@@ -90,14 +81,11 @@ public class NotificationManager {
         }
     }
     
-    /**
-     * Notifica quando um evento de venda ocorre
-     * Verifica todas as condições pendentes
-     */
+    
     public void notificarEvento(int produtoID, int diaAtual, Map<Integer, List<?>> eventosDia, int lastProductID, int consecutiveCount) {
         lock.lock();
         try {
-            // ===== VENDAS ESPECÍFICAS =====
+            
             List<String> keysVendasEspecificas = new ArrayList<>();
 
             for (String key : vendasEspecificas.keySet()) {
@@ -113,7 +101,7 @@ public class NotificationManager {
                 }
             }
 
-            // Notificar handlers (dentro do lock)
+            
             for (String key : keysVendasEspecificas) {
                 List<NotificationHandler> handlers = vendasEspecificas.remove(key);
                 if (handlers != null) {
@@ -137,7 +125,7 @@ public class NotificationManager {
                 }
             }
 
-            // Notificar handlers
+            
             for (String key : keysVendasConsecutivas) {
                 List<NotificationHandler> handlers = vendasConsecutivas.remove(key);
                 if (handlers != null) {
@@ -163,17 +151,15 @@ public class NotificationManager {
         }
     }
     
-    /**
-     * Limpa notificações de um dia (quando o dia avança)
-     */
+    
     public void limparNotificacoesDia(int dia) {
         lock.lock();
         try {
-            // Remover todas as chaves deste dia
+            
             vendasEspecificas.keySet().removeIf(key -> key.endsWith(":" + dia));
             vendasConsecutivas.keySet().removeIf(key -> key.endsWith(":" + dia));
             
-            // Acordar todas as threads (vão receber null/timeout)
+            
             for (Condition cond : conditions.values()) {
                 cond.signalAll();
             }
@@ -186,7 +172,7 @@ public class NotificationManager {
     
     
     private String criarChaveVendaEspecifica(int p1, int p2, int dia) {
-        // Normalizar ordem para evitar duplicatas
+        
         int min = Math.min(p1, p2);
         int max = Math.max(p1, p2);
         return min + ":" + max + ":" + dia;
@@ -200,7 +186,7 @@ public class NotificationManager {
         notificationPool.shutdown();
     }
     
-    // === Classes Internas ===
+    
     
     private static class NotificationHandler {
         final NotificationCallback callback;
@@ -212,9 +198,7 @@ public class NotificationManager {
         }
     }
     
-    /**
-     * Interface para callbacks de notificações
-     */
+    
     public interface NotificationCallback {
         void onNotification(String mensagem);
     }

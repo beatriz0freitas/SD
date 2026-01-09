@@ -23,7 +23,7 @@ public class ClienteMiddleware {
     private final int porta;
     private final Protocolo protocolo;
 
-    // Lock de estado + escrita no socket dedicado (mantém simples)
+    
     private final ReentrantLock lockEscrita = new ReentrantLock();
 
    
@@ -191,7 +191,7 @@ public class ClienteMiddleware {
         try {
             DataOutputStream out = dedicatedConnection.getOutputStream();
 
-            // DEDICADO: lock obrigatório
+            
             lockEscrita.lock();
             try {
                 protocolo.enviar(pedido, out);

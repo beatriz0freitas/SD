@@ -15,9 +15,7 @@ import server.data.repository.IEventoRepository;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Testes para CacheManager
- */
+
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CacheManagerTest {
 

@@ -6,10 +6,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-/**
- * Sistema centralizado de logging de erros
- * Thread-safe usando ReadWriteLock
- */
+
 public class ErrorLogger {
     private static final DateTimeFormatter FORMATTER = 
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
@@ -23,7 +20,7 @@ public class ErrorLogger {
     private ErrorLogger() {}
     
     public static ErrorLogger getInstance() {
-        // Double-checked locking com locks explícitos
+        
         if (instance == null) {
             instanceLock.writeLock().lock();
             try {
@@ -37,9 +34,7 @@ public class ErrorLogger {
         return instance;
     }
     
-    /**
-     * Registra erro com stack trace completo
-     */
+    
     public void logError(String contexto, Throwable erro) {
         lock.writeLock().lock();
         try {
@@ -51,7 +46,7 @@ public class ErrorLogger {
             entry.append("  Exceção: ").append(erro.getClass().getName())
                  .append(": ").append(erro.getMessage()).append("\n");
 
-            // Stack trace
+            
             StringWriter sw = new StringWriter();
             erro.printStackTrace(new PrintWriter(sw));
             entry.append(sw.toString()).append("\n");
@@ -65,9 +60,7 @@ public class ErrorLogger {
         }
     }
     
-    /**
-     * Regista aviso
-     */
+    
     public void logWarning(String contexto, String mensagem) {
         lock.writeLock().lock();
         try {
@@ -84,9 +77,7 @@ public class ErrorLogger {
         }
     }
     
-    /**
-     * Obtém log completo
-     */
+    
     public String getLog() {
         lock.readLock().lock();
         try {
@@ -96,9 +87,7 @@ public class ErrorLogger {
         }
     }
     
-    /**
-     * Limpa log
-     */
+    
     public void clear() {
         lock.writeLock().lock();
         try {

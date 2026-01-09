@@ -10,9 +10,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Suite completa de testes para PerformanceMetrics
- */
+
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class PerformanceMetricsTest {
 
@@ -28,9 +26,9 @@ class PerformanceMetricsTest {
     @Order(1)
     @DisplayName("Contadores incrementam corretamente")
     void testeContadoresIncrementam() {
-        metrics.recordRequest(true, 1_000_000); // 1ms
-        metrics.recordRequest(true, 2_000_000); // 2ms
-        metrics.recordRequest(true, 3_000_000); // 3ms
+        metrics.recordRequest(true, 1_000_000); 
+        metrics.recordRequest(true, 2_000_000); 
+        metrics.recordRequest(true, 3_000_000); 
 
         MetricsSnapshot snapshot = metrics.getSnapshot();
 
@@ -57,11 +55,11 @@ class PerformanceMetricsTest {
     @Order(3)
     @DisplayName("Latências calculadas corretamente")
     void testeLatencias() {
-        metrics.recordRequest(true, 1_000_000);  // 1ms
-        metrics.recordRequest(true, 2_000_000);  // 2ms
-        metrics.recordRequest(true, 3_000_000);  // 3ms
-        metrics.recordRequest(true, 4_000_000);  // 4ms
-        metrics.recordRequest(true, 5_000_000);  // 5ms
+        metrics.recordRequest(true, 1_000_000);  
+        metrics.recordRequest(true, 2_000_000);  
+        metrics.recordRequest(true, 3_000_000);  
+        metrics.recordRequest(true, 4_000_000);  
+        metrics.recordRequest(true, 5_000_000);  
 
         MetricsSnapshot snapshot = metrics.getSnapshot();
 
@@ -74,8 +72,8 @@ class PerformanceMetricsTest {
     @Order(4)
     @DisplayName("Latências com valores extremos")
     void testeLatenciasExtremas() {
-        metrics.recordRequest(true, 100_000);        // 0.1ms
-        metrics.recordRequest(true, 1_000_000_000);  // 1000ms
+        metrics.recordRequest(true, 100_000);        
+        metrics.recordRequest(true, 1_000_000_000);  
 
         MetricsSnapshot snapshot = metrics.getSnapshot();
 

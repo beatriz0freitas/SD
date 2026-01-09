@@ -19,7 +19,7 @@ public class UsuarioDTO implements Serializable {
         this.password = password;
     }
     
-    // Serialização customizada
+    
     public byte[] serialize() throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         DataOutputStream out = new DataOutputStream(baos);
@@ -31,7 +31,7 @@ public class UsuarioDTO implements Serializable {
         return baos.toByteArray();
     }
     
-    // Deserialização customizada
+    
     public static UsuarioDTO deserialize(byte[] data) throws IOException {
         ByteArrayInputStream bais = new ByteArrayInputStream(data);
         DataInputStream in = new DataInputStream(bais);

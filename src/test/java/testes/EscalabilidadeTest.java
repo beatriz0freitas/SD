@@ -56,7 +56,7 @@ public class EscalabilidadeTest {
         ResultadoEscalabilidade r = executarTesteEscalabilidade(10, "10 clientes");
         resultados.add(r);
 
-        // sanity check: em baixa carga deve ser muito alto
+        
         assertTrue(r.taxaSucesso >= 90.0,
                 "Em 10 clientes, taxa muito baixa: " + r.taxaSucesso + "%");
     }
@@ -85,7 +85,7 @@ public class EscalabilidadeTest {
         ResultadoEscalabilidade r = executarTesteEscalabilidade(50, "50 clientes");
         resultados.add(r);
 
-        // a partir daqui já é “stress”; limiar mais realista
+        
         assertTrue(r.taxaSucesso >= 75.0,
                 "Em 50 clientes, taxa muito baixa: " + r.taxaSucesso + "%");
     }
@@ -100,7 +100,7 @@ public class EscalabilidadeTest {
         ResultadoEscalabilidade r = executarTesteEscalabilidade(100, "100 clientes");
         resultados.add(r);
 
-        // Observacional: não exigir 80%. Exigir apenas progresso (e.g. >= 50%).
+        
         assertTrue(r.taxaSucesso >= 50.0,
                 "Em 100 clientes, o sistema colapsou demasiado: " + r.taxaSucesso + "%");
     }
@@ -139,7 +139,7 @@ public class EscalabilidadeTest {
                     anterior.numClientes, atual.numClientes, fatorTempo, fatorClientes);
         }
 
-        // Sem asserts de taxa aqui: isto é para relatório.
+        
         System.out.println("\nOK (análise observacional)\n");
     }
 

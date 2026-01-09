@@ -1,8 +1,6 @@
 package common.exceptions;
 
-/**
- * Exceção lançada quando há problemas de autenticação
- */
+
 public class AutenticacaoException extends ServicoException {
     private static final long serialVersionUID = 1L;
     

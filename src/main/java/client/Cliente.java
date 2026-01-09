@@ -15,7 +15,7 @@ public class Cliente {
             host, porta, usePool, maxConnections
         );
 
-        //ClienteMiddleware middleware = new ClienteMiddleware(host, porta);
+        
         StubFactory stubFactory = new StubFactory(middleware);
         InterfaceUtilizador ui = new InterfaceUtilizador(middleware, stubFactory);
         

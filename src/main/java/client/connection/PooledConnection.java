@@ -30,7 +30,7 @@ public class PooledConnection implements AutoCloseable {
     public DataInputStream getInputStream() { updateLastUsed(); return input; }
     public DataOutputStream getOutputStream() { updateLastUsed(); return output; }
 
-    //ID da conexão (não expõe Socket, mas identifica a ligação)
+    
     public String getConnectionId() {
         String local = socket.getLocalSocketAddress() != null
                 ? socket.getLocalSocketAddress().toString()
