@@ -105,6 +105,9 @@ public class Server {
         System.out.println("\n[1/4] Fechando sockets de clientes...");
         fecharSocketsClientes();
 
+        // Acordar threads bloqueadas (ex.: notificações) antes de aguardar pools
+        dispatcher.shutdown();
+
     
         System.out.println("\n[2/4] Encerrando pools...");
         clientHandlerPool.shutdownNow();   
@@ -129,7 +132,6 @@ public class Server {
         System.out.println("=".repeat(50) + "\n");
 
         deadlockMonitor.stop();
-        dispatcher.shutdown();
     }
 
     private void imprimirBanner() {

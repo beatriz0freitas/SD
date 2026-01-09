@@ -38,8 +38,8 @@ public class ServicoEventos implements IServicoEventos {
     private int lastProductID = -1;
     private int consecutiveCount = 0;
 
-    private final ReentrantLock esperaLock = new ReentrantLock();
-    private final List<EsperaHandle> threadsEmEspera = new ArrayList<>();
+    private final ReentrantLock notificacaoLock = new ReentrantLock();
+    private final Condition notificacaoCond = notificacaoLock.newCondition();
     private boolean shuttingDown = false;
 
     public ServicoEventos(IEventoRepository eventoRepository, CacheManager cacheManager, int D) {
@@ -118,20 +118,17 @@ public class ServicoEventos implements IServicoEventos {
         }
 
         try {
-            final ReentrantLock waitLock = new ReentrantLock();
-            final Condition done = waitLock.newCondition();
             final boolean[] notified = {false};
             final String[] message = {null};
-            final EsperaHandle handle = new EsperaHandle(waitLock, done);
 
             NotificationManager.NotificationCallback callback = msg -> {
-                waitLock.lock();
+                notificacaoLock.lock();
                 try {
                     notified[0] = true;
                     message[0] = msg;
-                    done.signal(); // equivalente a notify()
+                    notificacaoCond.signalAll();
                 } finally {
-                    waitLock.unlock();
+                    notificacaoLock.unlock();
                 }
             };
 
@@ -142,38 +139,27 @@ public class ServicoEventos implements IServicoEventos {
                 callback
             );
 
-            registerWaiter(handle);
-
             // Aguardar notificação (sem synchronized/wait/notify)
-            waitLock.lock();
+            notificacaoLock.lock();
             try {
                 while (!notified[0]) {
-                    if (isShuttingDown()) {
+                    if (shuttingDown) {
                         return RespostaDTO.erro("Servidor a encerrar");
                     }
-
-                    // Verificar se dia mudou
-                    lock.readLock().lock();
-                    try {
-                        if (diaAtual != diaSnapshot) {
-                            return RespostaDTO.erro("Dia avançou, notificação cancelada");
-                        }
-                    } finally {
-                        lock.readLock().unlock();
+                    if (diaAtual != diaSnapshot) {
+                        return RespostaDTO.erro("Dia avançou, notificação cancelada");
                     }
-
-                    done.await();
+                    notificacaoCond.await();
                 }
 
                 return RespostaDTO.sucesso(message[0]);
             } finally {
-                waitLock.unlock();
-                unregisterWaiter(handle);
+                notificacaoLock.unlock();
             }
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new EventoException("Espera interrompida", e);
+            return RespostaDTO.erro("Espera interrompida");
         }
     }
 
@@ -196,20 +182,17 @@ public class ServicoEventos implements IServicoEventos {
         }
 
         try {
-            final ReentrantLock waitLock = new ReentrantLock();
-            final Condition done = waitLock.newCondition();
             final boolean[] notified = {false};
             final String[] message = {null};
-            final EsperaHandle handle = new EsperaHandle(waitLock, done);
 
             NotificationManager.NotificationCallback callback = msg -> {
-                waitLock.lock();
+                notificacaoLock.lock();
                 try {
                     notified[0] = true;
                     message[0] = msg;
-                    done.signal();
+                    notificacaoCond.signalAll();
                 } finally {
-                    waitLock.unlock();
+                    notificacaoLock.unlock();
                 }
             };
 
@@ -220,38 +203,27 @@ public class ServicoEventos implements IServicoEventos {
                 callback
             );
 
-            registerWaiter(handle);
-
             // Aguardar notificação (sem synchronized/wait/notify)
-            waitLock.lock();
+            notificacaoLock.lock();
             try {
                 while (!notified[0]) {
-                    if (isShuttingDown()) {
+                    if (shuttingDown) {
                         return RespostaDTO.erro("Servidor a encerrar");
                     }
-
-                    // cancelar se o dia mudou
-                    lock.readLock().lock();
-                    try {
-                        if (diaAtual != diaSnapshot) {
-                            return RespostaDTO.erro("Dia avançou, notificação cancelada");
-                        }
-                    } finally {
-                        lock.readLock().unlock();
+                    if (diaAtual != diaSnapshot) {
+                        return RespostaDTO.erro("Dia avançou, notificação cancelada");
                     }
-
-                    done.await();
+                    notificacaoCond.await();
                 }
 
                 return RespostaDTO.sucesso(message[0]);
             } finally {
-                waitLock.unlock();
-                unregisterWaiter(handle);
+                notificacaoLock.unlock();
             }
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new EventoException("Espera interrompida", e);
+            return RespostaDTO.erro("Espera interrompida");
         }
     }
 
@@ -360,10 +332,15 @@ public class ServicoEventos implements IServicoEventos {
                     System.out.println("Eventos do dia " + diaAnterior + " persistidos");
                 }
 
-                diaAtual++;
+                notificacaoLock.lock();
+                try {
+                    diaAtual++;
+                } finally {
+                    notificacaoLock.unlock();
+                }
 
                 notificationManager.limparNotificacoesDia(diaAnterior);
-                signalAllWaiters();
+                signalAllNotificacoes();
 
                 if (cacheManager != null) {
                     int diaForaDaJanela = diaAtual - D - 1;
@@ -409,13 +386,13 @@ public class ServicoEventos implements IServicoEventos {
     }
 
     public void shutdown() {
-        esperaLock.lock();
+        notificacaoLock.lock();
         try {
             shuttingDown = true;
+            notificacaoCond.signalAll();
         } finally {
-            esperaLock.unlock();
+            notificacaoLock.unlock();
         }
-        signalAllWaiters();
         notificationManager.shutdown();
     }
 
@@ -435,58 +412,19 @@ public class ServicoEventos implements IServicoEventos {
     }
 
     private boolean isShuttingDown() {
-        esperaLock.lock();
+        notificacaoLock.lock();
         try {
             return shuttingDown;
         } finally {
-            esperaLock.unlock();
+            notificacaoLock.unlock();
         }
     }
-
-    private void registerWaiter(EsperaHandle handle) {
-        esperaLock.lock();
+    private void signalAllNotificacoes() {
+        notificacaoLock.lock();
         try {
-            threadsEmEspera.add(handle);
+            notificacaoCond.signalAll();
         } finally {
-            esperaLock.unlock();
-        }
-    }
-
-    private void unregisterWaiter(EsperaHandle handle) {
-        esperaLock.lock();
-        try {
-            threadsEmEspera.remove(handle);
-        } finally {
-            esperaLock.unlock();
-        }
-    }
-
-    private void signalAllWaiters() {
-        List<EsperaHandle> snapshot;
-        esperaLock.lock();
-        try {
-            snapshot = new ArrayList<>(threadsEmEspera);
-        } finally {
-            esperaLock.unlock();
-        }
-
-        for (EsperaHandle handle : snapshot) {
-            handle.lock.lock();
-            try {
-                handle.condition.signalAll();
-            } finally {
-                handle.lock.unlock();
-            }
-        }
-    }
-
-    private static class EsperaHandle {
-        final ReentrantLock lock;
-        final Condition condition;
-
-        EsperaHandle(ReentrantLock lock, Condition condition) {
-            this.lock = lock;
-            this.condition = condition;
+            notificacaoLock.unlock();
         }
     }
 }
