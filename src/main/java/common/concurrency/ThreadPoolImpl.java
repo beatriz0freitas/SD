@@ -32,7 +32,7 @@ public class ThreadPoolImpl implements ThreadPool {
     private final int maxThreads;
     private final int maxQueueSize;
     
-    // Contador protegido por lock (em vez de AtomicInteger)
+    // Contador protegido por lock
     private int workerIdCounter = 0;
     private int workerCount = 0;
     private boolean shutdown = false;
