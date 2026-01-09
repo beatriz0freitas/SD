@@ -6,5 +6,5 @@ target/
 .classpath
 .settings/
 
-data/runtime/
-*.log
+dados/
+*.dat
