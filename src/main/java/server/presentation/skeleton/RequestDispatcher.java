@@ -29,10 +29,31 @@ import server.data.cache.CacheManager;
 import server.data.repository.IEventoRepository;
 import server.data.repository.RepositoryFactory;
 
+/**
+ * Despachador de Requests - Mapeia chamadas remotas para serviços.
+ * 
+ * Padrão: Dispatcher + Skeleton (similar a RPC)
+ * 
+ * Responsabilidades:
+ * 1. Receber Message com serviceId + methodId + payload
+ * 2. Identificar skeleton correto
+ * 3. Descodificar parametros do payload
+ * 4. Invocar skeleton.processarRequisicao()
+ * 5. Registar métricas (latência, sucesso/erro)
+ * 
+ * Injeção de dependências:
+ * - CacheManager: cache de agregações
+ * - Serviços: lógica de negócio
+ * - Skeletons: adaptadores para cada serviço
+ * 
+ * Fluxo:
+ * Message -> dispatcher.despachar() -> skeleton.processarRequisicao()
+ *         -> servicoEventos/Agregacoes/etc.metodo()
+ */
 public class RequestDispatcher {
-    private final Map<Byte, ISkeleton> skeletonsPorServico;
-    private final ServicoEventos servicoEventos;
-    private final PerformanceMetrics metrics;
+    private final Map<Byte, ISkeleton> skeletonsPorServico;  // Mapa de serviços
+    private final ServicoEventos servicoEventos;             // Referência para persistência
+    private final PerformanceMetrics metrics;                // Métricas globais
 
     private RequestDispatcher(Map<Byte, ISkeleton> skeletons, ServicoEventos servicoEventos) {
         this.skeletonsPorServico = skeletons;

@@ -13,22 +13,45 @@ import server.config.ServerConfig;
 import server.presentation.handlers.ClientHandler;
 import server.presentation.skeleton.RequestDispatcher;
 
+/**
+ * Servidor de Gestão de Vendas - Ponto de entrada do servidor
+ * 
+ * Responsabilidades principais:
+ * 1. Criar ServerSocket e aceitar clientes
+ * 2. Para cada cliente: criar ClientHandler em thread do pool
+ * 3. Gerir ciclo de vida (iniciar, parar)
+ * 4. Cleanup e encerramento gracioso
+ * 
+ * Arquitetura:
+ * - clientHandlerPool: threads que lêem requests dos clientes
+ * - requestPool: threads que processam requests (mais lento)
+ * - Dispatcher: mapeia requests para skeletons de serviços
+ * - DeadlockMonitor: verifica periodicamente deadlocks
+ * 
+ * Thread safety:
+ * - clientesLock: protege Set<Socket> clientesAtivos
+ * - stateLock: protege estado 'ativo'
+ */
 public class Server {
     private final int porta;
-    private final int D;
-    private final int S;
+    private final int D;        // Janela de dias para agregações
+    private final int S;        // Tamanho máximo do cache
     private ServerSocket serverSocket;
 
+    // Segurança concorrente: lista de clientes ativos
     private final ReentrantLock clientesLock = new ReentrantLock();
     private final Set<Socket> clientesAtivos = new HashSet<>();
 
-    private final ThreadPool clientHandlerPool;
-    private final ThreadPool requestPool;
+    // Pools de threads
+    private final ThreadPool clientHandlerPool;  // Lê requests dos clientes
+    private final ThreadPool requestPool;         // Processa requests
 
+    // Estado do servidor
     private final ReentrantLock stateLock = new ReentrantLock();
     private boolean ativo;
-    private final RequestDispatcher dispatcher;
 
+    // Despachador de requests e monitorização
+    private final RequestDispatcher dispatcher;
     private final DeadlockMonitor deadlockMonitor;
 
     public Server(int porta, int D, int S) {

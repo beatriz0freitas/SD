@@ -7,14 +7,21 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
 
+/**
+ * Estrutura de mensagem para comunicação entre cliente e servidor.
+ * Segue padrão Request/Response com tags para correlação.
+ * 
+ * REQUEST: tag + serviceId + methodId + payload (serializado)
+ * RESPONSE: tag + payload (serializado)
+ */
 public class Message implements Serializable {
     private static final long serialVersionUID = 1L;
-    private static final int MAX_LEN = 10_000_000;
+    private static final int MAX_LEN = 10_000_000;  // Proteção contra ataques
 
-    private long tag;
-    private Byte serviceId; 
-    private Byte methodId;  
-    private byte[] payload; 
+    private long tag;           // ID único da mensagem (correlaciona request/response)
+    private Byte serviceId;     // ID do serviço (null em responses)
+    private Byte methodId;      // ID do método (null em responses)
+    private byte[] payload;     // Dados serializados 
 
     private Message() {}
 

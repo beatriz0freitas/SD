@@ -3,24 +3,43 @@ package common;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 
+/**
+ * Métricas de Performance Globais - Singleton.
+ * 
+ * Regista:
+ * - Número de requisições e erros
+ * - Cache hits/misses e taxa de acerto
+ * - Latência: min, max, média
+ * - Throughput: requisições por segundo
+ * - Uptime: tempo desde arranque
+ * 
+ * Thread safety:
+ * - Singleton com double-check locking
+ * - Read/Write lock para métricas (permite leituras concorrentes)
+ * 
+ * Uso:
+ * - RequestDispatcher chama recordRequest(success, latencyNs) após cada pedido
+ * - CacheManager chama recordCacheHit/Miss()
+ * - Cliente consulta snapshot para relatórios
+ */
 public class PerformanceMetrics {
     private static PerformanceMetrics instance;
     private static final ReentrantReadWriteLock instanceLock = new ReentrantReadWriteLock();
-    
-    
+
+    // Contadores básicos
     private long totalRequests = 0;
     private long totalErrors = 0;
     private long totalCacheHits = 0;
     private long totalCacheMisses = 0;
-    
-    
+
+    // Latências (em nanosegundos)
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private long totalLatencyNs = 0;
     private long minLatencyNs = Long.MAX_VALUE;
     private long maxLatencyNs = 0;
     private int latencySamples = 0;
-    
-    
+
+    // Uptime
     private final long startTime;
     
     private PerformanceMetrics() {
