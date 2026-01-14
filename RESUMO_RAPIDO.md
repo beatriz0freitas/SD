@@ -3,48 +3,54 @@
 ## Componentes Principais
 
 ### Cliente
+
 - **Cliente.java**: main, inicializa UI
 - **ClienteMiddleware.java**: envia requests, aguarda respostas
 - **Demultiplexer.java**: thread separada, lê respostas assincronamente
 - **Stubs**: proxies para cada serviço remoto
 
 ### Servidor
+
 - **Server.java**: aceita clientes
 - **ClientHandler**: uma thread por cliente
 - **RequestDispatcher**: mapeia requests para skeletons
 - **ThreadPoolImpl**: customizado, 2 pools (handlers + workers)
 
 ### Serviços
+
 - **ServicoEventos**: registra, filtra eventos
 - **ServicoAgregacoes**: calcula agregações (cache com LRU)
 - **ServicoAutenticacao**: login, registro
 - **ServicoAdmin**: info do servidor
 
 ### Persistência & Cache
+
 - **EventoFileRepository**: ficheiros binários (.dat)
 - **CacheManager**: cache com LRU, max S séries
 - **RandomAccessFile**: skip eficiente (não lê tudo)
 
 ### Protocolo
+
 - **Message.java**: tag + serviceId + methodId + payload
 - **Protocolo.java**: [tamanho:4bytes][dados]
 - **Validação**: max 10 MB (proteção DoS)
 
 ## Decisões-Chave
 
-| Decisão | Razão |
-|---------|-------|
-| ThreadPool customizado | Controlo fino, aprendizagem |
-| ReentrantReadWriteLock | Múltiplas leituras simultâneas |
-| Demultiplexer com tags | Respostas assincronamente, fora de ordem |
-| Cache LRU | Economiza memória, dados quentes em RAM |
-| Ficheiros binários | Simples, controlo total, sem BD |
-| Stubs/Skeleton | Transparência RPC, type-safe |
-| Dois thread pools | Isolação: leitura rápida, processamento lento |
+| Decisão                | Razão                                         |
+| ---------------------- | --------------------------------------------- |
+| ThreadPool customizado | Controlo fino, aprendizagem                   |
+| ReentrantReadWriteLock | Múltiplas leituras simultâneas                |
+| Demultiplexer com tags | Respostas assincronamente, fora de ordem      |
+| Cache LRU              | Economiza memória, dados quentes em RAM       |
+| Ficheiros binários     | Simples, controlo total, sem BD               |
+| Stubs/Skeleton         | Transparência RPC, type-safe                  |
+| Dois thread pools      | Isolação: leitura rápida, processamento lento |
 
 ## Fluxos Críticos
 
 ### Registar Evento
+
 ```
 1. Client: stub.registrarEvento(dto)
 2. Middleware: gera tag, serializa, envia
@@ -60,6 +66,7 @@
 ```
 
 ### Obter Agregação
+
 ```
 1. Client: stub.obterQuantidadeVendas(produtoID, dias)
 2. Para cada dia no intervalo:
@@ -75,6 +82,7 @@
 ```
 
 ### Novo Dia
+
 ```
 1. Client: stub.novoDia()
 2. Servidor adquire WRITE lock
@@ -144,21 +152,27 @@
 ## Se Perguntarem "Por que..."
 
 ### "Por que não usaram Framework X?"
+
 - Controlo total, aprendizagem, sem dependências
 
 ### "Por que dois pools?"
+
 - Isolação: leitura não compete com processamento pesado
 
 ### "Por que não usaram BD?"
+
 - Simplicidade, controlo total, adequado para protótipo
 
 ### "Por que Stubs/Skeleton?"
+
 - Transparência RPC, type-safe, fácil mockar para testes
 
 ### "Por que cache com LRU?"
+
 - Economiza memória, mantém dados quentes em RAM
 
 ### "Por que ReentrantLock?"
+
 - Read/Write locks, melhor performance em leitura pesada
 
 ## Benchmarks Esperados
@@ -172,24 +186,29 @@
 ## Respostas Modelo Curtas
 
 **"Como evitam race conditions?"**
+
 - ReentrantLock + ReadWriteLock em dados partilhados
 
 **"Como correlacionam requests/responses?"**
+
 - Cada request tem tag único
 - Demultiplexer mapeia tag -> resposta
 - Threads bloqueiam em Condition até resposta
 
 **"Como otimizam agregações?"**
+
 - Cache com LRU (até S séries em memória)
 - Double-check locking (evita múltiplos cálculos)
 - RandomAccessFile (streaming para séries não em cache)
 
 **"Como escalabilidade?"**
+
 - ThreadPool limita carga
 - Cache reduz I/O
 - Rejeição quando fila cheia (backpressure)
 
 **"Como garantem integridade?"**
+
 - Locks em acesso concorrente
 - Validações antes de persistir
 - Ficheiros binários ordenados (busca eficiente)
@@ -232,4 +251,3 @@ make run-client
 - Exemplos concretos de cenários (100 clients, cache miss, novo dia)
 - Trade-offs: memória vs velocidade, simplicidade vs robustez
 - Limitações: sem replicação, sem HA, sem BD, sem TLS
-
