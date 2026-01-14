@@ -5,54 +5,52 @@ import client.stub.StubFactory;
 import common.dto.*;
 import common.interfaces.*;
 
+import java.util.HashSet;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
-
 public class InterfaceUtilizador {
-    
+
     private static final String SIMBOLO_SUCESSO = "✓";
     private static final String SIMBOLO_ERRO = "✗";
     private static final String CLEAR_SCREEN = "\033[H\033[2J";
-    
+
     private final ClienteMiddleware middleware;
     private final StubFactory stubFactory;
     private final Scanner scanner;
-    
-    
+
     private final IServicoAutenticacao servicoAuth;
     private final IServicoEventos servicoEventos;
     private final IServicoAgregacoes servicoAgregacoes;
     private final IServicoAdmin servicoAdmin;
-    
-    
+
     private boolean autenticado;
     private String username;
     private boolean isAdmin;
     private final ReentrantLock stateLock = new ReentrantLock();
     private boolean executando;
     private final boolean clearScreenEnabled = true;
-    
+
     public InterfaceUtilizador(ClienteMiddleware middleware, StubFactory stubFactory) {
         this.middleware = middleware;
         this.stubFactory = stubFactory;
         this.scanner = new Scanner(System.in);
-        
-        
+
         this.servicoAuth = stubFactory.criarStubAutenticacao();
         this.servicoEventos = stubFactory.criarStubEventos();
         this.servicoAgregacoes = stubFactory.criarStubAgregacoes();
         this.servicoAdmin = stubFactory.criarStubAdmin();
-        
+
         this.autenticado = false;
         this.isAdmin = false;
         this.executando = true;
     }
-    
+
     public void iniciar() {
         try {
             mostrarHeader();
-            
+
             while (isExecutando()) {
                 if (!autenticado) {
                     mostrarMenuAutenticacao();
@@ -62,7 +60,7 @@ public class InterfaceUtilizador {
                     processarMenuPrincipal();
                 }
             }
-            
+
         } catch (Exception e) {
             if (isExecutando()) {
                 System.err.println("\nErro fatal na interface: " + e.getMessage());
@@ -72,7 +70,7 @@ public class InterfaceUtilizador {
             encerrar();
         }
     }
-    
+
     public void encerrar() {
         setExecutando(false);
         try {
@@ -80,17 +78,17 @@ public class InterfaceUtilizador {
                 scanner.close();
             }
         } catch (Exception e) {
-            
+
         }
         System.out.println("\nInterface encerrada.");
     }
-    
+
     private void mostrarHeader() {
         System.out.println("========================================");
         System.out.println("  SERVIÇO DE GESTÃO DE VENDAS - cliente");
         System.out.println("========================================");
     }
-    
+
     private void mostrarMenuAutenticacao() {
         limparEcra();
         System.out.println("\n------ MENU DE AUTENTICAÇÃO ------");
@@ -118,11 +116,11 @@ public class InterfaceUtilizador {
             stateLock.unlock();
         }
     }
-    
+
     private void mostrarMenuPrincipal() {
         limparEcra();
         System.out.println("\n=== MENU PRINCIPAL [" + username + "] ===");
-        
+
         if (isAdmin) {
             System.out.println("1. Listar clientes registados");
             System.out.println("2. Listar eventos do dia");
@@ -136,23 +134,33 @@ public class InterfaceUtilizador {
             System.out.println("5. Preço Máximo");
             System.out.println("6. Notificar Venda Específica");
             System.out.println("7. Notificar Vendas Consecutivas");
-            System.out.println("8. Logout");
+            System.out.println("8. Filtrar Eventos");
+            System.out.println("9. Logout");
         }
-        
+
         System.out.println("0. Sair");
         System.out.print("Escolha uma opção: ");
     }
-    
+
     private void processarMenuAutenticacao() {
         int opcao = lerOpcao();
-        
+
         try {
             switch (opcao) {
-                case 1: registar(); break;
-                case 2: login(); break;
-                case 3: loginAdmin(); break;
-                case 0: sair(); break;
-                default: System.out.println("Opção inválida!");
+                case 1:
+                    registar();
+                    break;
+                case 2:
+                    login();
+                    break;
+                case 3:
+                    loginAdmin();
+                    break;
+                case 0:
+                    sair();
+                    break;
+                default:
+                    System.out.println("Opção inválida!");
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -161,13 +169,14 @@ public class InterfaceUtilizador {
         } catch (Exception e) {
             System.err.println("Erro: " + e.getMessage());
         }
-        
-        if (isExecutando()) esperarEnter();
+
+        if (isExecutando())
+            esperarEnter();
     }
-    
+
     private void processarMenuPrincipal() {
         int opcao = lerOpcao();
-        
+
         try {
             if (isAdmin) {
                 processarMenuAdmin(opcao);
@@ -181,105 +190,135 @@ public class InterfaceUtilizador {
         } catch (Exception e) {
             System.err.println("Erro: " + e.getMessage());
         }
-        
-        if (isExecutando()) esperarEnter();
+
+        if (isExecutando())
+            esperarEnter();
     }
-    
+
     private void processarMenuAdmin(int opcao) throws Exception {
         switch (opcao) {
-            case 1: listarClientes(); break;
-            case 2: listarEventos(); break;
-            case 3: novoDia(); break;
-            case 4: logout(); break;
-            case 0: sair(); break;
-            default: System.out.println("Opção inválida!");
+            case 1:
+                listarClientes();
+                break;
+            case 2:
+                listarEventos();
+                break;
+            case 3:
+                novoDia();
+                break;
+            case 4:
+                logout();
+                break;
+            case 0:
+                sair();
+                break;
+            default:
+                System.out.println("Opção inválida!");
         }
     }
-    
+
     private void processarMenuCliente(int opcao) throws Exception {
         switch (opcao) {
-            case 1: registarEvento(); break;
-            case 2: quantidadeVendas(); break;
-            case 3: volumeVendas(); break;
-            case 4: precoMedio(); break;
-            case 5: precoMaximo(); break;
-            case 6: notificarVendaEspecifica(); break;
-            case 7: notificarVendasConsecutivas(); break;
-            case 8: logout(); break;
-            case 0: sair(); break;
-            default: System.out.println("Opção inválida!");
+            case 1:
+                registarEvento();
+                break;
+            case 2:
+                quantidadeVendas();
+                break;
+            case 3:
+                volumeVendas();
+                break;
+            case 4:
+                precoMedio();
+                break;
+            case 5:
+                precoMaximo();
+                break;
+            case 6:
+                notificarVendaEspecifica();
+                break;
+            case 7:
+                notificarVendasConsecutivas();
+                break;
+            case 8:
+                filtrarEventos();
+                break;
+            case 9:
+                logout();
+                break;
+            case 0:
+                sair();
+                break;
+            default:
+                System.out.println("Opção inválida!");
         }
     }
-    
-    
-    
+
     private void registar() throws Exception {
         System.out.print("\nUsername: ");
         String user = lerString();
         System.out.print("Password: ");
         String pass = lerString();
-        
+
         UsuarioDTO dto = new UsuarioDTO(user, pass);
         RespostaDTO resposta = servicoAuth.registrar(dto);
         mostrarResposta(resposta);
     }
-    
+
     private void login() throws Exception {
         System.out.print("\nUsername: ");
         String user = lerString();
         System.out.print("Password: ");
         String pass = lerString();
-        
+
         UsuarioDTO dto = new UsuarioDTO(user, pass);
         RespostaDTO resposta = servicoAuth.autenticar(dto);
-        
+
         if (resposta.isSucesso()) {
             autenticado = true;
             username = user;
         }
-        
+
         mostrarResposta(resposta);
     }
-    
+
     private void loginAdmin() throws Exception {
         System.out.print("\nSenha de administrador: ");
         String pass = lerString();
-        
+
         RespostaDTO resposta = servicoAuth.autenticarAdmin(pass);
-        
+
         if (resposta.isSucesso()) {
             autenticado = true;
             isAdmin = true;
             username = "ADMIN";
         }
-        
+
         mostrarResposta(resposta);
     }
-    
-    
-    
+
     private void registarEvento() throws Exception {
         System.out.print("ID do produto: ");
         Integer produtoID = lerInteiroOpt();
-        if (produtoID == null) { 
-            System.out.println("Operação cancelada."); 
-            return; 
+        if (produtoID == null) {
+            System.out.println("Operação cancelada.");
+            return;
         }
-        
+
         System.out.print("Quantidade: ");
         Integer quantidade = lerInteiroOpt();
-        if (quantidade == null) { 
-            System.out.println("Operação cancelada."); 
-            return; 
+        if (quantidade == null) {
+            System.out.println("Operação cancelada.");
+            return;
         }
-        
+
         System.out.print("Preço unitário: ");
         Double preco = lerDoubleOpt();
-        if (preco == null) { 
-            System.out.println("Operação cancelada."); 
-            return; 
+        if (preco == null) {
+            System.out.println("Operação cancelada.");
+            return;
         }
-        
+
         EventoDTO dto = new EventoDTO(produtoID, quantidade, preco);
         RespostaDTO resposta = servicoEventos.registrarEvento(dto);
         mostrarResposta(resposta);
@@ -288,16 +327,16 @@ public class InterfaceUtilizador {
     private void notificarVendaEspecifica() throws Exception {
         System.out.print("ID do produto 1: ");
         Integer produtoID1 = lerInteiroOpt();
-        if (produtoID1 == null) { 
-            System.out.println("Operação cancelada."); 
-            return; 
+        if (produtoID1 == null) {
+            System.out.println("Operação cancelada.");
+            return;
         }
 
         System.out.print("ID do produto 2: ");
         Integer produtoID2 = lerInteiroOpt();
-        if (produtoID2 == null) { 
-            System.out.println("Operação cancelada."); 
-            return; 
+        if (produtoID2 == null) {
+            System.out.println("Operação cancelada.");
+            return;
         }
 
         RespostaDTO resposta = servicoEventos.notificarVendaEspecifica(new NotificacaoDTO(produtoID1, produtoID2));
@@ -307,54 +346,82 @@ public class InterfaceUtilizador {
     private void notificarVendasConsecutivas() throws Exception {
         System.out.print("ID do produto: ");
         Integer produtoID = lerInteiroOpt();
-        if (produtoID == null) { 
-            System.out.println("Operação cancelada."); 
-            return; 
+        if (produtoID == null) {
+            System.out.println("Operação cancelada.");
+            return;
         }
 
         System.out.print("Número de vendas consecutivas: ");
         Integer n = lerInteiroOpt();
-        if (n == null) { 
-            System.out.println("Operação cancelada."); 
+        if (n == null) {
+            System.out.println("Operação cancelada.");
             return;
         }
 
         RespostaDTO resposta = servicoEventos.notificarVendasConsecutivas(new NotificacaoDTO(produtoID, n));
         mostrarResposta(resposta);
     }
-    
+
+    private void filtrarEventos() throws Exception {
+        System.out.println("\n------ FILTRAR EVENTOS ------");
+        System.out.print("Dias para trás (0 = hoje): ");
+        Integer diaAnterior = lerInteiroOpt();
+        if (diaAnterior == null) {
+            System.out.println("Operação cancelada.");
+            return;
+        }
+
+        System.out.println("\nProdutos a filtrar (separados por vírgula, vazio = todos):");
+        String produtosInput = scanner.nextLine().trim();
+
+        Set<Integer> produtosIDs = new HashSet<>();
+        if (!produtosInput.isEmpty()) {
+            String[] ids = produtosInput.split(",");
+            for (String id : ids) {
+                try {
+                    produtosIDs.add(Integer.parseInt(id.trim()));
+                } catch (NumberFormatException e) {
+                    System.out.println("⚠ ID inválido ignorado: " + id.trim());
+                }
+            }
+        }
+
+        FiltrarEventosDTO dto = new FiltrarEventosDTO(produtosIDs, diaAnterior);
+        RespostaDTO resposta = servicoEventos.filtrarEventos(dto);
+        mostrarResposta(resposta);
+    }
+
     private void quantidadeVendas() throws Exception {
         consultarAgregacao("quantidade");
     }
-    
+
     private void volumeVendas() throws Exception {
         consultarAgregacao("volume");
     }
-    
+
     private void precoMedio() throws Exception {
         consultarAgregacao("medio");
     }
-    
+
     private void precoMaximo() throws Exception {
         consultarAgregacao("maximo");
     }
-    
-    
+
     private void consultarAgregacao(String tipo) throws Exception {
         System.out.print("ID do produto: ");
         Integer produtoID = lerInteiroOpt();
-        if (produtoID == null) { 
-            System.out.println("Operação cancelada."); 
-            return; 
+        if (produtoID == null) {
+            System.out.println("Operação cancelada.");
+            return;
         }
-        
+
         System.out.print("Últimos N dias: ");
         Integer dias = lerInteiroOpt();
-        if (dias == null) { 
-            System.out.println("Operação cancelada."); 
-            return; 
+        if (dias == null) {
+            System.out.println("Operação cancelada.");
+            return;
         }
-        
+
         RespostaDTO resposta;
         switch (tipo) {
             case "quantidade":
@@ -372,57 +439,53 @@ public class InterfaceUtilizador {
             default:
                 throw new IllegalArgumentException("Tipo de agregação inválido");
         }
-        
+
         mostrarResposta(resposta);
     }
-    
-    
-    
+
     private void listarClientes() throws Exception {
         RespostaDTO resposta = servicoAdmin.listarClientes();
         mostrarResposta(resposta);
     }
-    
+
     private void listarEventos() throws Exception {
         RespostaDTO resposta = servicoEventos.listarEventosDiaAtual();
         mostrarResposta(resposta);
     }
-    
+
     private void novoDia() throws Exception {
         RespostaDTO resposta = servicoEventos.novoDia();
         mostrarResposta(resposta);
     }
-    
-    
-    
+
     private void logout() {
         autenticado = false;
         isAdmin = false;
         username = null;
         System.out.println("\n" + SIMBOLO_SUCESSO + " Logout efetuado.");
     }
-    
+
     private void sair() {
         System.out.println("\nA encerrar aplicação...");
         setExecutando(false);
     }
-    
-    
-    
+
     private void mostrarResposta(RespostaDTO resposta) {
         String icone = resposta.isSucesso() ? SIMBOLO_SUCESSO : SIMBOLO_ERRO;
         System.out.println("\n" + icone + " " + resposta.getMensagem());
     }
-    
+
     private void limparEcra() {
-        if (!clearScreenEnabled) return;
+        if (!clearScreenEnabled)
+            return;
         System.out.print(CLEAR_SCREEN);
         System.out.flush();
     }
-    
+
     private void esperarEnter() {
-        if (!isExecutando()) return;
-        
+        if (!isExecutando())
+            return;
+
         try {
             System.out.println("\nPressione ENTER para continuar...");
             if (Thread.currentThread().isInterrupted()) {
@@ -435,11 +498,11 @@ public class InterfaceUtilizador {
             }
         }
     }
-    
+
     private int lerOpcao() {
         return lerInteiro();
     }
-    
+
     private String lerString() {
         try {
             if (!isExecutando() || Thread.currentThread().isInterrupted()) {
@@ -454,12 +517,13 @@ public class InterfaceUtilizador {
             return "";
         }
     }
-    
+
     private int lerInteiro() {
         while (isExecutando() && !Thread.currentThread().isInterrupted()) {
             try {
                 String input = lerString();
-                if (input.isEmpty()) return 0;
+                if (input.isEmpty())
+                    return 0;
                 return Integer.parseInt(input);
             } catch (NumberFormatException e) {
                 System.out.print("Valor inválido! Digite um número inteiro: ");
@@ -467,12 +531,13 @@ public class InterfaceUtilizador {
         }
         return 0;
     }
-    
+
     private Integer lerInteiroOpt() {
         while (isExecutando() && !Thread.currentThread().isInterrupted()) {
             try {
                 String input = lerString();
-                if (input.isEmpty()) return null;
+                if (input.isEmpty())
+                    return null;
                 return Integer.parseInt(input);
             } catch (NumberFormatException e) {
                 System.out.print("Valor inválido! Digite um número inteiro: ");
@@ -480,12 +545,13 @@ public class InterfaceUtilizador {
         }
         return null;
     }
-    
+
     private Double lerDoubleOpt() {
         while (isExecutando() && !Thread.currentThread().isInterrupted()) {
             try {
                 String input = lerString();
-                if (input.isEmpty()) return null;
+                if (input.isEmpty())
+                    return null;
                 return Double.parseDouble(input);
             } catch (NumberFormatException e) {
                 System.out.print("Valor inválido! Digite um número: ");
