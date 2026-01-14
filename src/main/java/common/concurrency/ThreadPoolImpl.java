@@ -10,22 +10,44 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import common.ErrorLogger;
 
+/**
+ * Implementação customizada de ThreadPool.
+ * 
+ * Motivação: Controlo fino sobre comportamento, sem dependências externas.
+ * 
+ * Arquitetura:
+ * - taskQueue: fila de tarefas (LinkedList)
+ * - workers: conjunto de threads worker ativas
+ * - maxThreads: número máximo de threads
+ * - maxQueueSize: tamanho máximo da fila
+ * 
+ * Ciclo de vida de uma tarefa:
+ * 1. submit(task) -> adiciona à fila
+ * 2. Se workerCount < maxThreads: cria nova worker
+ * 3. Worker aguarda taskQueue.notEmpty
+ * 4. Worker executa task.run()
+ * 5. Worker volta a aguardar
+ * 
+ * Shutdown:
+ * - shutdown(): aceita tasks restantes, nega novos
+ * - shutdownNow(): rejeita tudo, cancela tasks pendentes
+ */
 public class ThreadPoolImpl implements ThreadPool {
 
     private final Lock lock = new ReentrantLock();
-    private final Condition notEmpty = lock.newCondition();
-    private final Condition termination = lock.newCondition();
+    private final Condition notEmpty = lock.newCondition();    // Sinal: fila não vazia
+    private final Condition termination = lock.newCondition(); // Sinal: pool terminado
 
-    private final Queue<Runnable> taskQueue = new ArrayDeque<>();
-    private final Set<Thread> workers = new HashSet<>();
+    private final Queue<Runnable> taskQueue = new ArrayDeque<>();  // FIFO de tarefas
+    private final Set<Thread> workers = new HashSet<>();           // Workers ativas
 
-    private final int maxThreads;
-    private final int maxQueueSize;
+    private final int maxThreads;           // Limite de threads
+    private final int maxQueueSize;         // Limite da fila
 
-    private int workerIdCounter = 0;
-    private int workerCount = 0;
-    private boolean shutdown = false;
-    private boolean shutdownNow = false;
+    private int workerIdCounter = 0;        // Para nomar workers
+    private int workerCount = 0;            // Threads ativas atualmente
+    private boolean shutdown = false;       // Modo shutdown normal
+    private boolean shutdownNow = false;    // Shutdown forçado
 
     public ThreadPoolImpl(int maxThreads) {
         this(maxThreads, Integer.MAX_VALUE);

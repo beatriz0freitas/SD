@@ -18,22 +18,38 @@ import common.dto.UsuarioDTO;
 import middleware.Message;
 import middleware.Protocolo;
 
+/**
+ * Middleware de comunicação do cliente.
+ * 
+ * Responsabilidades:
+ * 1. Gerir conexão ao servidor (dedicada ou pool)
+ * 2. Enviar requests e aguardar respostas
+ * 3. Demultiplexar respostas assíncronas (por tag)
+ * 4. Garantir thread-safety em operações de rede
+ * 
+ * Fluxo:
+ * - Cliente chama enviar(serviceId, methodId, parametros)
+ * - Middleware gera tag única, serializa parametros
+ * - Envia Message ao servidor
+ * - Demultiplexer (thread separada) lê respostas em loop
+ * - Quando resposta chega, notifica thread que aguarda (por tag)
+ */
 public class ClienteMiddleware {
     private final String host;
     private final int porta;
     private final Protocolo protocolo;
 
-    
-    private final ReentrantLock lockEscrita = new ReentrantLock();
+    // Locks para segurança concorrente
+    private final ReentrantLock lockEscrita = new ReentrantLock();     // Protege escrita ao socket
+    private final ReentrantLock lockTags = new ReentrantLock();        // Protege gerador de tags
+    private long contadorPedidos = 0;                                  // Tag global
 
-   
-    private final ReentrantLock lockTags = new ReentrantLock();
-    private long contadorPedidos = 0;
-
-    private ConnectionPool connectionPool;
+    // Conexões
+    private ConnectionPool connectionPool;          // Se usePool=true
+    private PooledConnection dedicatedConnection;   // Se usePool=false
     private final boolean usePool;
 
-    private PooledConnection dedicatedConnection;
+    // Demultiplexer para respostas assíncronas
     private Demultiplexer demux;
     private Thread threadDemux;
 

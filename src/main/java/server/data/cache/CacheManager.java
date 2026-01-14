@@ -11,24 +11,53 @@ import server.business.domain.Evento;
 import server.data.repository.IEventoRepository;
 
 
+/**
+ * Gestor de Cache - Cache de agregações com LRU (Least Recently Used).
+ * 
+ * Motivação:
+ * - Agregações são operações custosas (leitura de ficheiros, cálculos)
+ * - Muitos clientes podem consultar mesmos produtos nos mesmos dias
+ * - Cache reduz I/O e latência significativamente
+ * 
+ * Estrutura:
+ * - cacheAgregacoes: Map<produtoID, Map<dia, Agregacao>>
+ * - seriesEmMemoria: Map<dia, Map<produtoID, List<Evento>>>
+ *   * Armazena até S séries em memória (param do servidor)
+ *   * Quando S+1, remove a menos recentemente usada
+ * 
+ * Strategy de cálculo:
+ * - Se série está em memória: calcula rápido em RAM
+ * - Se série não está e já temos S séries: usa streaming (RandomAccessFile)
+ * - Senão: carrega série em memória
+ * 
+ * Thread safety:
+ * - rwLock: proteção geral (read/write)
+ * - computationLocks: por chave (produtoID:dia) para evitar múltiplos cálculos
+ * 
+ * Otimizações:
+ * - Double-check locking para reduzir contenção
+ * - Lazy computation locks (removidas quando não usadas)
+ * - Métricas: recordCacheHit() / recordCacheMiss()
+ */
 public class CacheManager {
     private final IEventoRepository eventoRepository;
-    private final int S; 
+    private final int S;  // Tamanho máximo do cache em memória
     private final PerformanceMetrics metrics;
 
-    
+    // Cache: produto -> (dia -> Agregacao calculada)
     private final Map<Integer, Map<Integer, Agregacao>> cacheAgregacoes = new HashMap<>();
-    
-    
+
+    // Séries em memória: dia -> (produto -> eventos)
     private final Map<Integer, Map<Integer, List<Evento>>> seriesEmMemoria = new HashMap<>();
-    
-    
+
+    // Ordem de acesso (para LRU)
     private final List<Integer> ordemAcesso = new ArrayList<>();
 
     private final ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
     private final Lock readLock = rwLock.readLock();
     private final Lock writeLock = rwLock.writeLock();
 
+    // Computation locks por chave (evita múltiplos cálculos simultâneos)
     private final Map<String, ReentrantLock> computationLocks = new HashMap<>();
     private final ReentrantLock computationLocksLock = new ReentrantLock();
 
@@ -120,6 +149,7 @@ public class CacheManager {
     }
     
     private ReentrantLock getComputationLock(String key) {
+        
         computationLocksLock.lock();
         try {
             return computationLocks.computeIfAbsent(key, k -> new ReentrantLock());

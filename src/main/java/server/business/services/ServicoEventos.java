@@ -22,17 +22,41 @@ import server.data.cache.CacheManager;
 import server.data.repository.IEventoRepository;
 
 
+/**
+ * Serviço de Eventos - Gestão de eventos de vendas.
+ * 
+ * Responsabilidades:
+ * 1. Registar eventos (em memória, dia atual)
+ * 2. Listar eventos do dia
+ * 3. Filtrar eventos
+ * 4. Trocar de dia (persist, limpa memória, incrementa diaAtual)
+ * 5. Notificações (vendas consecutivas do mesmo produto, etc.)
+ * 
+ * Estrutura de dados:
+ * - diaAtual: int, dia atual (incrementa com novoDia())
+ * - eventosDiaAtual: Map<produtoID, List<Evento>> em memória
+ * - lock: ReentrantReadWriteLock para segurança concorrente
+ * 
+ * Thread safety:
+ * - writeLock para registar evento, novo dia
+ * - readLock para listar eventos
+ * 
+ * Persistência:
+ * - Eventos armazenados em memória durante o dia
+ * - Persistidos ao ficheiro quando novoDia() é chamado
+ * - eventoRepository.salvarEventosDia(dia, eventosPorProduto)
+ */
 public class ServicoEventos implements IServicoEventos {
     private final IEventoRepository eventoRepository;
     private final CacheManager cacheManager;
     private final NotificationManager notificationManager;
-    private final int D;
+    private final int D;  // Janela de dias
 
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private int diaAtual;
-    private final Map<Integer, List<Evento>> eventosDiaAtual = new HashMap<>();
+    private final Map<Integer, List<Evento>> eventosDiaAtual = new HashMap<>();  // Em memória
 
-    
+    // Notificações: detecção de vendas consecutivas do mesmo produto
     private int lastProductID = -1;
     private int consecutiveCount = 0;
 
