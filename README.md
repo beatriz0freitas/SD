@@ -4,7 +4,7 @@
 
 Este projeto consiste na implementação de um sistema distribuído para a gestão de eventos de vendas de produtos no tempo. A solução foi desenhada para suportar carga elevada de requisições, fornecendo ferramentas eficientes para registar eventos, consultar dados históricos, e realizar agregações sobre séries temporais.
 
-O projeto adota uma arquitetura cliente-servidor distribuída, estruturada em camadas, para assegurar modularidade e escalabilidade. Além disso, padrões como \textit{Stub/Skeleton}, \textit{Repository} e \textit{Service Layer} foram usados para promover um design sólido e de fácil manutenção.
+O projeto adota uma arquitetura cliente-servidor distribuída, estruturada em camadas, para assegurar modularidade e escalabilidade. Além disso, padrões como Stub/Skeleton, Repository e Service Layer foram usados para promover um design sólido e de fácil manutenção.
 
 ---
 
@@ -14,7 +14,7 @@ O projeto adota uma arquitetura cliente-servidor distribuída, estruturada em ca
 - **Consultas Históricas:** Suporte a consultas eficientes sobre dados de vendas passadas.
 - **Agregações Estatísticas:** Cálculos como vendas totais ou médias em períodos arbitrários.
 - **Notificações Assíncronas:** Sistema de notificações baseado em condições específicas (ex.: vendas consecutivas).
-- **Gestão de Concorrência:** Implementação de um \textit{ThreadPool} personalizado para gerenciar múltiplas requisições.
+- **Gestão de Concorrência:** Implementação de um ThreadPool personalizado para gerenciar múltiplas requisições.
 - **Cache Multi-Nível:** Utilização de políticas como LRU para otimizar leitura e escrita.
 
 ---

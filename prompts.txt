@@ -20,14 +20,14 @@ VALIDAÇÃO/NOTAS:
 2) ConnectionPool — testes unitários com servidor mock
 ===============================================================================
 PROMPT:
-"Cria um conjunto de testes JUnit 5 para um ConnectionPool (cliente) que gere sockets reutilizáveis. Preciso:
+"Cria um conjunto de testes JUnit 5 para um ConnectionPool (cliente) que gera sockets reutilizáveis. Preciso:
 (1) teste básico (getConnection retorna válida), (2) reutilização (mesma ligação volta ao pool),
 (3) maxConnections bloqueia até libertar, (4) concorrência com 50 threads, (5) conexão inválida força recriação,
 (6) close impede novas ligações (deve lançar IOException). Cria um mock server com ServerSocket que faz echo de int."
 
 VALIDAÇÃO/NOTAS:
 - Confirmado que o servidor mock encerra no fim.
-- Ajustado timeout para evitar flakiness.
+- Ajustado timeout para evitar inviabilidade.
 
 ===============================================================================
 3) Repositórios (UsuarioFileRepository / EventoFileRepository) — testes
